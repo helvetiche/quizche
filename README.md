@@ -1,5 +1,15 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+## Environment Variables
+
+Create a `.env.local` file in the root directory with the following variables:
+
+```env
+NEXT_PRIVATE_GEMINI_API_KEY=your_gemini_api_key_here
+```
+
+**Note:** This project uses the `NEXT_PRIVATE_` prefix for private environment variables that should not be exposed to the client.
+
 ## Getting Started
 
 First, run the development server:

@@ -9,13 +9,19 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "firebase": "^12.7.0",
+    "firebase-admin": "^13.6.0",
     "next": "16.1.1",
+    "pdf-parse": "^2.4.5",
     "react": "19.2.3",
-    "react-dom": "19.2.3"
+    "react-dom": "19.2.3",
+    "zod": "^4.3.5"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
+    "@types/pdf-parse": "^1.1.5",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
