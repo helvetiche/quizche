@@ -2,32 +2,27 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifyAuth } from "@/lib/auth";
 import { adminDb } from "@/lib/firebase-admin";
 import { verifyCSRF } from "@/lib/csrf";
+import {
+  getSecurityHeaders,
+  getErrorSecurityHeaders,
+} from "@/lib/security-headers";
+import { QuizSubmissionSchema, validateInput } from "@/lib/validation";
 
 export async function POST(request: NextRequest) {
   try {
     const user = await verifyAuth(request);
 
     if (!user) {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
       return NextResponse.json(
         { error: "Unauthorized: Invalid or missing authentication token" },
-        { status: 401, headers }
+        { status: 401, headers: getErrorSecurityHeaders() }
       );
     }
 
     if (user.role !== "student") {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
       return NextResponse.json(
         { error: "Forbidden: Student role required to submit quizzes" },
-        { status: 403, headers }
+        { status: 403, headers: getErrorSecurityHeaders() }
       );
     }
 
@@ -42,42 +37,30 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
 
-    if (!body.quizId || typeof body.quizId !== "string") {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
+    // Validate input using Zod
+    const validation = validateInput(QuizSubmissionSchema, body);
+    if (!validation.success) {
       return NextResponse.json(
-        { error: "Quiz ID is required" },
-        { status: 400, headers }
+        {
+          error: "Invalid submission data. Please check all fields.",
+          details: validation.error.issues,
+        },
+        { status: 400, headers: getErrorSecurityHeaders() }
       );
     }
 
-    if (!body.answers || !Array.isArray(body.answers)) {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
-      return NextResponse.json(
-        { error: "Answers array is required" },
-        { status: 400, headers }
-      );
-    }
+    const validatedData = validation.data;
 
     // Get quiz data
-    const quizDoc = await adminDb.collection("quizzes").doc(body.quizId).get();
+    const quizDoc = await adminDb
+      .collection("quizzes")
+      .doc(validatedData.quizId)
+      .get();
 
     if (!quizDoc.exists) {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
       return NextResponse.json(
         { error: "Quiz not found" },
-        { status: 404, headers }
+        { status: 404, headers: getErrorSecurityHeaders() }
       );
     }
 
@@ -87,21 +70,16 @@ export async function POST(request: NextRequest) {
     const existingAttempts = await adminDb
       .collection("quizAttempts")
       .where("userId", "==", user.uid)
-      .where("quizId", "==", body.quizId)
+      .where("quizId", "==", validatedData.quizId)
       .get();
 
     if (!existingAttempts.empty) {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
       return NextResponse.json(
         {
           error:
             "You have already taken this quiz. Each quiz can only be taken once.",
         },
-        { status: 400, headers }
+        { status: 400, headers: getErrorSecurityHeaders() }
       );
     }
 
@@ -110,13 +88,8 @@ export async function POST(request: NextRequest) {
     let score = 0;
     const answerMap: Record<number, string> = {};
 
-    body.answers.forEach((answer: any) => {
-      if (
-        typeof answer.questionIndex === "number" &&
-        typeof answer.answer === "string"
-      ) {
-        answerMap[answer.questionIndex] = answer.answer.trim().toLowerCase();
-      }
+    validatedData.answers.forEach((answer) => {
+      answerMap[answer.questionIndex] = answer.answer.trim().toLowerCase();
     });
 
     questions.forEach((question: any, index: number) => {
@@ -139,7 +112,7 @@ export async function POST(request: NextRequest) {
     // Save attempt with denormalized student info
     const attemptData = {
       userId: user.uid,
-      quizId: body.quizId,
+      quizId: validatedData.quizId,
       quizTitle: quizData?.title || "",
       teacherId: quizData?.teacherId || "",
       studentEmail: userData?.email || "",
@@ -149,12 +122,12 @@ export async function POST(request: NextRequest) {
       totalQuestions,
       percentage,
       completedAt: new Date(),
-      timeSpent: body.timeSpent || 0,
-      tabChangeCount: body.tabChangeCount || 0,
-      timeAway: body.timeAway || 0,
-      refreshDetected: body.refreshDetected || false,
-      violations: body.violations || [],
-      disqualified: body.disqualified || false,
+      timeSpent: validatedData.timeSpent || 0,
+      tabChangeCount: validatedData.tabChangeCount || 0,
+      timeAway: validatedData.timeAway || 0,
+      refreshDetected: validatedData.refreshDetected || false,
+      violations: validatedData.violations || [],
+      disqualified: validatedData.disqualified || false,
     };
 
     const attemptRef = await adminDb
@@ -162,19 +135,19 @@ export async function POST(request: NextRequest) {
       .add(attemptData);
 
     // Cleanup active session if exists
-    if (body.sessionId) {
+    if (validatedData.sessionId) {
       try {
         const sessionDoc = await adminDb
           .collection("activeQuizSessions")
-          .doc(body.sessionId)
+          .doc(validatedData.sessionId)
           .get();
 
         if (sessionDoc.exists) {
           await adminDb
             .collection("activeQuizSessions")
-            .doc(body.sessionId)
+            .doc(validatedData.sessionId)
             .update({
-              status: body.disqualified ? "disqualified" : "completed",
+              status: validatedData.disqualified ? "disqualified" : "completed",
               lastActivity: new Date(),
             });
         }
@@ -183,21 +156,6 @@ export async function POST(request: NextRequest) {
         // Don't fail the submission if session cleanup fails
       }
     }
-
-    const headers = {
-      "Content-Type": "application/json; charset=utf-8",
-      "X-Content-Type-Options": "nosniff",
-      "X-Frame-Options": "DENY",
-      "X-XSS-Protection": "1; mode=block",
-      "Strict-Transport-Security":
-        "max-age=31536000; includeSubDomains; preload",
-      "Content-Security-Policy":
-        "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://*.firebaseio.com https://*.googleapis.com;",
-      "Referrer-Policy": "strict-origin-when-cross-origin",
-      "Permissions-Policy": "geolocation=(), microphone=(), camera=()",
-      "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
-      Vary: "Accept, Authorization",
-    };
 
     return NextResponse.json(
       {
@@ -208,21 +166,14 @@ export async function POST(request: NextRequest) {
         percentage,
         message: "Quiz submitted successfully",
       },
-      { status: 200, headers }
+      { status: 200, headers: getSecurityHeaders() }
     );
   } catch (error) {
     console.error("Submit quiz error:", error);
 
-    const errorHeaders = {
-      "Content-Type": "application/json; charset=utf-8",
-      "X-Content-Type-Options": "nosniff",
-      "X-Frame-Options": "DENY",
-      "Cache-Control": "no-store, no-cache, must-revalidate",
-    };
-
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500, headers: errorHeaders }
+      { status: 500, headers: getErrorSecurityHeaders() }
     );
   }
 }

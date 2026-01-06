@@ -62,7 +62,7 @@ const GoogleAuthButton = ({ onLoginSuccess }: GoogleAuthButtonProps) => {
       <button
         onClick={handleGoogleSignIn}
         disabled={loading}
-        className="flex items-center justify-center gap-3 px-6 py-3 bg-white border border-black text-black font-medium hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        className="flex items-center justify-center gap-3 px-8 py-4 bg-amber-150 border-4 border-black text-black font-medium text-lg rounded-full shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-1 hover:translate-y-1 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
         aria-label="Sign in with Google"
       >
         {loading ? (
@@ -70,7 +70,7 @@ const GoogleAuthButton = ({ onLoginSuccess }: GoogleAuthButtonProps) => {
         ) : (
           <>
             <GoogleIcon />
-            <span>Sign in with Google</span>
+            <span>Let's Get Started!</span>
           </>
         )}
       </button>

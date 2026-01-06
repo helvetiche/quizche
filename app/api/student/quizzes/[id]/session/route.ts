@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifyAuth } from "@/lib/auth";
 import { adminDb } from "@/lib/firebase-admin";
 import { verifyCSRF } from "@/lib/csrf";
+import {
+  getSecurityHeaders,
+  getErrorSecurityHeaders,
+} from "@/lib/security-headers";
+import { SessionUpdateSchema, validateInput } from "@/lib/validation";
 
 export async function POST(
   request: NextRequest,
@@ -11,26 +16,16 @@ export async function POST(
     const user = await verifyAuth(request);
 
     if (!user) {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
       return NextResponse.json(
         { error: "Unauthorized: Invalid or missing authentication token" },
-        { status: 401, headers }
+        { status: 401, headers: getErrorSecurityHeaders() }
       );
     }
 
     if (user.role !== "student") {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
       return NextResponse.json(
         { error: "Forbidden: Student role required" },
-        { status: 403, headers }
+        { status: 403, headers: getErrorSecurityHeaders() }
       );
     }
 
@@ -46,28 +41,18 @@ export async function POST(
     const { id } = await params;
 
     if (!id) {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
       return NextResponse.json(
         { error: "Quiz ID is required" },
-        { status: 400, headers }
+        { status: 400, headers: getErrorSecurityHeaders() }
       );
     }
 
     // Verify quiz exists
     const quizDoc = await adminDb.collection("quizzes").doc(id).get();
     if (!quizDoc.exists) {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
       return NextResponse.json(
         { error: "Quiz not found" },
-        { status: 404, headers }
+        { status: 404, headers: getErrorSecurityHeaders() }
       );
     }
 
@@ -79,17 +64,12 @@ export async function POST(
       .get();
 
     if (!existingAttempts.empty) {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
       return NextResponse.json(
         {
           error:
             "You have already taken this quiz. Each quiz can only be taken once.",
         },
-        { status: 400, headers }
+        { status: 400, headers: getErrorSecurityHeaders() }
       );
     }
 
@@ -103,17 +83,12 @@ export async function POST(
 
     if (!existingSessions.empty) {
       const existingSession = existingSessions.docs[0];
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
       return NextResponse.json(
         {
           sessionId: existingSession.id,
           message: "Session already exists",
         },
-        { status: 200, headers }
+        { status: 200, headers: getSecurityHeaders() }
       );
     }
 
@@ -140,62 +115,38 @@ export async function POST(
       .collection("activeQuizSessions")
       .add(sessionData);
 
-    const headers = {
-      "Content-Type": "application/json; charset=utf-8",
-      "X-Content-Type-Options": "nosniff",
-      "Cache-Control": "no-store, no-cache, must-revalidate",
-    };
-
     return NextResponse.json(
       {
         sessionId: sessionRef.id,
         message: "Session created successfully",
       },
-      { status: 200, headers }
+      { status: 200, headers: getSecurityHeaders() }
     );
   } catch (error) {
     console.error("Create session error:", error);
 
-    const errorHeaders = {
-      "Content-Type": "application/json; charset=utf-8",
-      "X-Content-Type-Options": "nosniff",
-      "Cache-Control": "no-store, no-cache, must-revalidate",
-    };
-
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500, headers: errorHeaders }
+      { status: 500, headers: getErrorSecurityHeaders() }
     );
   }
 }
 
-export async function PUT(
-  request: NextRequest
-) {
+export async function PUT(request: NextRequest) {
   try {
     const user = await verifyAuth(request);
 
     if (!user) {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
       return NextResponse.json(
         { error: "Unauthorized: Invalid or missing authentication token" },
-        { status: 401, headers }
+        { status: 401, headers: getErrorSecurityHeaders() }
       );
     }
 
     if (user.role !== "student") {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
       return NextResponse.json(
         { error: "Forbidden: Student role required" },
-        { status: 403, headers }
+        { status: 403, headers: getErrorSecurityHeaders() }
       );
     }
 
@@ -209,20 +160,21 @@ export async function PUT(
     }
 
     const body = await request.json();
-    const { sessionId, tabChangeCount, timeAway, violations, disqualified } =
-      body;
 
-    if (!sessionId) {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
+    // Validate input using Zod
+    const validation = validateInput(SessionUpdateSchema, body);
+    if (!validation.success) {
       return NextResponse.json(
-        { error: "Session ID is required" },
-        { status: 400, headers }
+        {
+          error: "Invalid session update data. Please check all fields.",
+          details: validation.error.issues,
+        },
+        { status: 400, headers: getErrorSecurityHeaders() }
       );
     }
+
+    const validatedData = validation.data;
+    const { sessionId } = validatedData;
 
     // Verify session belongs to user
     const sessionDoc = await adminDb
@@ -231,27 +183,17 @@ export async function PUT(
       .get();
 
     if (!sessionDoc.exists) {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
       return NextResponse.json(
         { error: "Session not found" },
-        { status: 404, headers }
+        { status: 404, headers: getErrorSecurityHeaders() }
       );
     }
 
     const sessionData = sessionDoc.data();
     if (sessionData?.userId !== user.uid) {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
       return NextResponse.json(
         { error: "Forbidden: Session does not belong to user" },
-        { status: 403, headers }
+        { status: 403, headers: getErrorSecurityHeaders() }
       );
     }
 
@@ -260,13 +202,17 @@ export async function PUT(
       lastActivity: new Date(),
     };
 
-    if (tabChangeCount !== undefined)
-      updateData.tabChangeCount = tabChangeCount;
-    if (timeAway !== undefined) updateData.timeAway = timeAway;
-    if (violations !== undefined) updateData.violations = violations;
-    if (disqualified !== undefined) {
-      updateData.disqualified = disqualified;
-      updateData.status = disqualified ? "disqualified" : "active";
+    if (validatedData.tabChangeCount !== undefined)
+      updateData.tabChangeCount = validatedData.tabChangeCount;
+    if (validatedData.timeAway !== undefined)
+      updateData.timeAway = validatedData.timeAway;
+    if (validatedData.violations !== undefined)
+      updateData.violations = validatedData.violations;
+    if (validatedData.disqualified !== undefined) {
+      updateData.disqualified = validatedData.disqualified;
+      updateData.status = validatedData.disqualified
+        ? "disqualified"
+        : "active";
     }
 
     await adminDb
@@ -274,59 +220,35 @@ export async function PUT(
       .doc(sessionId)
       .update(updateData);
 
-    const headers = {
-      "Content-Type": "application/json; charset=utf-8",
-      "X-Content-Type-Options": "nosniff",
-      "Cache-Control": "no-store, no-cache, must-revalidate",
-    };
-
     return NextResponse.json(
       { message: "Session updated successfully" },
-      { status: 200, headers }
+      { status: 200, headers: getSecurityHeaders() }
     );
   } catch (error) {
     console.error("Update session error:", error);
 
-    const errorHeaders = {
-      "Content-Type": "application/json; charset=utf-8",
-      "X-Content-Type-Options": "nosniff",
-      "Cache-Control": "no-store, no-cache, must-revalidate",
-    };
-
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500, headers: errorHeaders }
+      { status: 500, headers: getErrorSecurityHeaders() }
     );
   }
 }
 
-export async function DELETE(
-  request: NextRequest
-) {
+export async function DELETE(request: NextRequest) {
   try {
     const user = await verifyAuth(request);
 
     if (!user) {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
       return NextResponse.json(
         { error: "Unauthorized: Invalid or missing authentication token" },
-        { status: 401, headers }
+        { status: 401, headers: getErrorSecurityHeaders() }
       );
     }
 
     if (user.role !== "student") {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
       return NextResponse.json(
         { error: "Forbidden: Student role required" },
-        { status: 403, headers }
+        { status: 403, headers: getErrorSecurityHeaders() }
       );
     }
 
@@ -343,14 +265,9 @@ export async function DELETE(
     const sessionId = url.searchParams.get("sessionId");
 
     if (!sessionId) {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
       return NextResponse.json(
         { error: "Session ID is required" },
-        { status: 400, headers }
+        { status: 400, headers: getErrorSecurityHeaders() }
       );
     }
 
@@ -361,27 +278,17 @@ export async function DELETE(
       .get();
 
     if (!sessionDoc.exists) {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
       return NextResponse.json(
         { error: "Session not found" },
-        { status: 404, headers }
+        { status: 404, headers: getErrorSecurityHeaders() }
       );
     }
 
     const sessionData = sessionDoc.data();
     if (sessionData?.userId !== user.uid) {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
       return NextResponse.json(
         { error: "Forbidden: Session does not belong to user" },
-        { status: 403, headers }
+        { status: 403, headers: getErrorSecurityHeaders() }
       );
     }
 
@@ -391,28 +298,16 @@ export async function DELETE(
       lastActivity: new Date(),
     });
 
-    const headers = {
-      "Content-Type": "application/json; charset=utf-8",
-      "X-Content-Type-Options": "nosniff",
-      "Cache-Control": "no-store, no-cache, must-revalidate",
-    };
-
     return NextResponse.json(
       { message: "Session ended successfully" },
-      { status: 200, headers }
+      { status: 200, headers: getSecurityHeaders() }
     );
   } catch (error) {
     console.error("Delete session error:", error);
 
-    const errorHeaders = {
-      "Content-Type": "application/json; charset=utf-8",
-      "X-Content-Type-Options": "nosniff",
-      "Cache-Control": "no-store, no-cache, must-revalidate",
-    };
-
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500, headers: errorHeaders }
+      { status: 500, headers: getErrorSecurityHeaders() }
     );
   }
 }

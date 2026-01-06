@@ -3,33 +3,28 @@ import { verifyAuth } from "@/lib/auth";
 import { adminDb } from "@/lib/firebase-admin";
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 import cache, { getApiCacheKey } from "@/lib/cache";
+import {
+  getSecurityHeaders,
+  getErrorSecurityHeaders,
+  getPublicSecurityHeaders,
+} from "@/lib/security-headers";
 
 export async function GET(request: NextRequest) {
   try {
     const user = await verifyAuth(request);
 
     if (!user) {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
       return NextResponse.json(
         { error: "Unauthorized: Invalid or missing authentication token" },
-        { status: 401, headers }
+        { status: 401, headers: getErrorSecurityHeaders() }
       );
     }
 
     // Only students can access their own quiz history
     if (user.role !== "student") {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
       return NextResponse.json(
         { error: "Forbidden: Students only" },
-        { status: 403, headers }
+        { status: 403, headers: getErrorSecurityHeaders() }
       );
     }
 
@@ -42,14 +37,14 @@ export async function GET(request: NextRequest) {
     });
 
     if (!rateLimitResult.success) {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        ...rateLimitResult.headers,
-      };
       return NextResponse.json(
         { error: "Rate limit exceeded. Please try again later." },
-        { status: 429, headers }
+        {
+          status: 429,
+          headers: getErrorSecurityHeaders({
+            rateLimitHeaders: rateLimitResult.headers,
+          }),
+        }
       );
     }
 
@@ -150,22 +145,6 @@ export async function GET(request: NextRequest) {
     const lastDoc = attemptsSnapshot.docs[attemptsSnapshot.docs.length - 1];
     const hasMore = attemptsSnapshot.docs.length === validatedLimit;
 
-    const headers = {
-      "Content-Type": "application/json; charset=utf-8",
-      "X-Content-Type-Options": "nosniff",
-      "X-Frame-Options": "DENY",
-      "X-XSS-Protection": "1; mode=block",
-      "Strict-Transport-Security":
-        "max-age=31536000; includeSubDomains; preload",
-      "Content-Security-Policy":
-        "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://*.firebaseio.com https://*.googleapis.com;",
-      "Referrer-Policy": "strict-origin-when-cross-origin",
-      "Permissions-Policy": "geolocation=(), microphone=(), camera=()",
-      "Cache-Control": "private, max-age=300", // Cache for 5 minutes
-      Vary: "Accept, Authorization",
-      ...rateLimitResult.headers,
-    };
-
     const result = {
       attempts,
       stats: {
@@ -183,20 +162,22 @@ export async function GET(request: NextRequest) {
     // Cache the response
     await cache.set(cacheKey, result, 300); // 5 minutes
 
-    return NextResponse.json(result, { status: 200, headers });
+    return NextResponse.json(
+      result,
+      {
+        status: 200,
+        headers: getPublicSecurityHeaders({
+          rateLimitHeaders: rateLimitResult.headers,
+          cacheControl: "private, max-age=300",
+        }),
+      }
+    );
   } catch (error) {
     console.error("Get quiz history error:", error);
 
-    const errorHeaders = {
-      "Content-Type": "application/json; charset=utf-8",
-      "X-Content-Type-Options": "nosniff",
-      "X-Frame-Options": "DENY",
-      "Cache-Control": "no-store, no-cache, must-revalidate",
-    };
-
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500, headers: errorHeaders }
+      { status: 500, headers: getErrorSecurityHeaders() }
     );
   }
 }

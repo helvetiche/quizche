@@ -2,6 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifyAuth } from "@/lib/auth";
 import { adminDb } from "@/lib/firebase-admin";
 import { verifyCSRF } from "@/lib/csrf";
+import {
+  getSecurityHeaders,
+  getErrorSecurityHeaders,
+} from "@/lib/security-headers";
+import { ConnectionActionSchema, validateInput } from "@/lib/validation";
+import cache, { getApiCacheKey } from "@/lib/cache";
 
 
 export async function PUT(
@@ -46,19 +52,20 @@ export async function PUT(
 
     const { id } = await params;
     const body = await request.json();
-    const { action } = body; // "accept" or "reject"
 
-    if (!action || (action !== "accept" && action !== "reject")) {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
+    // Validate input using Zod
+    const validation = validateInput(ConnectionActionSchema, body);
+    if (!validation.success) {
       return NextResponse.json(
-        { error: "Action must be 'accept' or 'reject'" },
-        { status: 400, headers }
+        {
+          error: "Invalid action. Must be 'accept' or 'reject'.",
+          details: validation.error.issues,
+        },
+        { status: 400, headers: getErrorSecurityHeaders() }
       );
     }
+
+    const { action } = validation.data;
 
     const connectionDoc = await adminDb
       .collection("connections")
@@ -66,27 +73,17 @@ export async function PUT(
       .get();
 
     if (!connectionDoc.exists) {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
       return NextResponse.json(
         { error: "Connection request not found" },
-        { status: 404, headers }
+        { status: 404, headers: getErrorSecurityHeaders() }
       );
     }
 
     const connectionData = connectionDoc.data();
     if (!connectionData) {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
       return NextResponse.json(
         { error: "Connection data not found" },
-        { status: 404, headers }
+        { status: 404, headers: getErrorSecurityHeaders() }
       );
     }
 
@@ -95,29 +92,24 @@ export async function PUT(
       connectionData.userId1 !== user.uid &&
       connectionData.userId2 !== user.uid
     ) {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
       return NextResponse.json(
         { error: "Forbidden: Not authorized to modify this connection" },
-        { status: 403, headers }
+        { status: 403, headers: getErrorSecurityHeaders() }
       );
     }
 
     // Verify user is not the requester (can't accept/reject their own request)
     if (connectionData.requestedBy === user.uid) {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
       return NextResponse.json(
         { error: "Cannot accept or reject your own request" },
-        { status: 400, headers }
+        { status: 400, headers: getErrorSecurityHeaders() }
       );
     }
+
+    const otherUserId =
+      connectionData.userId1 === user.uid
+        ? connectionData.userId2
+        : connectionData.userId1;
 
     if (action === "accept") {
       await adminDb.collection("connections").doc(id).update({
@@ -125,19 +117,9 @@ export async function PUT(
         updatedAt: new Date(),
       });
 
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "X-Frame-Options": "DENY",
-        "X-XSS-Protection": "1; mode=block",
-        "Strict-Transport-Security":
-          "max-age=31536000; includeSubDomains; preload",
-        "Content-Security-Policy":
-          "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://*.firebaseio.com https://*.googleapis.com;",
-        "Referrer-Policy": "strict-origin-when-cross-origin",
-        "Permissions-Policy": "geolocation=(), microphone=(), camera=()",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
+      // Invalidate cache for both users
+      await cache.delete(getApiCacheKey("/api/connections", user.uid));
+      await cache.delete(getApiCacheKey("/api/connections", otherUserId));
 
       return NextResponse.json(
         {
@@ -145,47 +127,30 @@ export async function PUT(
           message: "Connection request accepted",
           status: "accepted",
         },
-        { status: 200, headers }
+        { status: 200, headers: getSecurityHeaders() }
       );
     } else {
       // Reject: delete the connection document
       await adminDb.collection("connections").doc(id).delete();
 
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "X-Frame-Options": "DENY",
-        "X-XSS-Protection": "1; mode=block",
-        "Strict-Transport-Security":
-          "max-age=31536000; includeSubDomains; preload",
-        "Content-Security-Policy":
-          "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://*.firebaseio.com https://*.googleapis.com;",
-        "Referrer-Policy": "strict-origin-when-cross-origin",
-        "Permissions-Policy": "geolocation=(), microphone=(), camera=()",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
+      // Invalidate cache for both users
+      await cache.delete(getApiCacheKey("/api/connections", user.uid));
+      await cache.delete(getApiCacheKey("/api/connections", otherUserId));
 
       return NextResponse.json(
         {
           id,
           message: "Connection request rejected",
         },
-        { status: 200, headers }
+        { status: 200, headers: getSecurityHeaders() }
       );
     }
   } catch (error) {
     console.error("Update connection error:", error);
 
-    const errorHeaders = {
-      "Content-Type": "application/json; charset=utf-8",
-      "X-Content-Type-Options": "nosniff",
-      "X-Frame-Options": "DENY",
-      "Cache-Control": "no-store, no-cache, must-revalidate",
-    };
-
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500, headers: errorHeaders }
+      { status: 500, headers: getErrorSecurityHeaders() }
     );
   }
 }
@@ -238,27 +203,17 @@ export async function DELETE(
       .get();
 
     if (!connectionDoc.exists) {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
       return NextResponse.json(
         { error: "Connection not found" },
-        { status: 404, headers }
+        { status: 404, headers: getErrorSecurityHeaders() }
       );
     }
 
     const connectionData = connectionDoc.data();
     if (!connectionData) {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
       return NextResponse.json(
         { error: "Connection data not found" },
-        { status: 404, headers }
+        { status: 404, headers: getErrorSecurityHeaders() }
       );
     }
 
@@ -267,14 +222,9 @@ export async function DELETE(
       connectionData.userId1 !== user.uid &&
       connectionData.userId2 !== user.uid
     ) {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
       return NextResponse.json(
         { error: "Forbidden: Not authorized to delete this connection" },
-        { status: 403, headers }
+        { status: 403, headers: getErrorSecurityHeaders() }
       );
     }
 
@@ -312,40 +262,27 @@ export async function DELETE(
 
     await batch.commit();
 
-    const headers = {
-      "Content-Type": "application/json; charset=utf-8",
-      "X-Content-Type-Options": "nosniff",
-      "X-Frame-Options": "DENY",
-      "X-XSS-Protection": "1; mode=block",
-      "Strict-Transport-Security":
-        "max-age=31536000; includeSubDomains; preload",
-      "Content-Security-Policy":
-        "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://*.firebaseio.com https://*.googleapis.com;",
-      "Referrer-Policy": "strict-origin-when-cross-origin",
-      "Permissions-Policy": "geolocation=(), microphone=(), camera=()",
-      "Cache-Control": "no-store, no-cache, must-revalidate",
-    };
+    // Invalidate cache for both users
+    const otherUserId =
+      connectionData.userId1 === user.uid
+        ? connectionData.userId2
+        : connectionData.userId1;
+    await cache.delete(getApiCacheKey("/api/connections", user.uid));
+    await cache.delete(getApiCacheKey("/api/connections", otherUserId));
 
     return NextResponse.json(
       {
         id,
         message: "Connection removed successfully",
       },
-      { status: 200, headers }
+      { status: 200, headers: getSecurityHeaders() }
     );
   } catch (error) {
     console.error("Delete connection error:", error);
 
-    const errorHeaders = {
-      "Content-Type": "application/json; charset=utf-8",
-      "X-Content-Type-Options": "nosniff",
-      "X-Frame-Options": "DENY",
-      "Cache-Control": "no-store, no-cache, must-revalidate",
-    };
-
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500, headers: errorHeaders }
+      { status: 500, headers: getErrorSecurityHeaders() }
     );
   }
 }

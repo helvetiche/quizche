@@ -3,6 +3,11 @@ import { verifyAuth } from "@/lib/auth";
 import { adminDb } from "@/lib/firebase-admin";
 import { verifyCSRF } from "@/lib/csrf";
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
+import {
+  getSecurityHeaders,
+  getErrorSecurityHeaders,
+} from "@/lib/security-headers";
+import { QuizDataSchema, validateInput } from "@/lib/validation";
 
 const QUESTION_TYPES = [
   "multiple_choice",
@@ -29,90 +34,24 @@ interface QuizData {
   questions: Question[];
 }
 
-const validateQuestion = (question: any): question is Question => {
-  if (!question || typeof question !== "object") return false;
-  if (!question.question || typeof question.question !== "string") return false;
-  if (!question.type || !QUESTION_TYPES.includes(question.type)) return false;
-  if (!question.answer || typeof question.answer !== "string") return false;
-
-  if (question.type === "multiple_choice") {
-    if (
-      !question.choices ||
-      !Array.isArray(question.choices) ||
-      question.choices.length < 2
-    ) {
-      return false;
-    }
-    if (!question.choices.every((c: any) => typeof c === "string")) {
-      return false;
-    }
-  }
-
-  if (question.type === "true_or_false") {
-    if (question.answer !== "true" && question.answer !== "false") {
-      return false;
-    }
-  }
-
-  return true;
-};
-
-const validateQuizData = (data: any): data is QuizData => {
-  if (!data || typeof data !== "object") return false;
-  if (
-    !data.title ||
-    typeof data.title !== "string" ||
-    data.title.trim().length === 0
-  ) {
-    return false;
-  }
-  if (data.title.length > 200) return false;
-
-  if (
-    data.description &&
-    (typeof data.description !== "string" || data.description.length > 1000)
-  ) {
-    return false;
-  }
-
-  if (
-    !data.questions ||
-    !Array.isArray(data.questions) ||
-    data.questions.length === 0
-  ) {
-    return false;
-  }
-
-  if (data.questions.length > 100) return false;
-
-  return data.questions.every(validateQuestion);
-};
+// Legacy validation functions kept for backward compatibility
+// New code should use Zod schemas from lib/validation.ts
 
 export async function POST(request: NextRequest) {
   try {
     const user = await verifyAuth(request);
 
     if (!user) {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
       return NextResponse.json(
         { error: "Unauthorized: Invalid or missing authentication token" },
-        { status: 401, headers }
+        { status: 401, headers: getErrorSecurityHeaders() }
       );
     }
 
     if (user.role !== "teacher") {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
       return NextResponse.json(
         { error: "Forbidden: Teacher role required to create quizzes" },
-        { status: 403, headers }
+        { status: 403, headers: getErrorSecurityHeaders() }
       );
     }
 
@@ -125,14 +64,14 @@ export async function POST(request: NextRequest) {
     });
 
     if (!rateLimitResult.success) {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        ...rateLimitResult.headers,
-      };
       return NextResponse.json(
         { error: "Rate limit exceeded. Please try again later." },
-        { status: 429, headers }
+        {
+          status: 429,
+          headers: getErrorSecurityHeaders({
+            rateLimitHeaders: rateLimitResult.headers,
+          }),
+        }
       );
     }
 
@@ -147,19 +86,21 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
 
-    if (!validateQuizData(body)) {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
+    // Validate input using Zod
+    const validation = validateInput(QuizDataSchema, body);
+    if (!validation.success) {
       return NextResponse.json(
-        { error: "Invalid quiz data. Please check all fields." },
-        { status: 400, headers }
+        {
+          error: "Invalid quiz data. Please check all fields.",
+          details: validation.error.errors,
+        },
+        { status: 400, headers: getErrorSecurityHeaders() }
       );
     }
 
-    const sanitizedQuestions = body.questions.map((q: Question) => {
+    const validatedData = validation.data;
+
+    const sanitizedQuestions = validatedData.questions.map((q) => {
       const questionData: any = {
         question: q.question.trim(),
         type: q.type,
@@ -192,31 +133,18 @@ export async function POST(request: NextRequest) {
 
     const quizData = {
       teacherId: user.uid,
-      title: body.title.trim(),
-      description: body.description?.trim() || "",
+      title: validatedData.title,
+      description: validatedData.description || "",
       questions: sanitizedQuestions,
       totalQuestions: sanitizedQuestions.length,
-      isActive: true,
+      isActive: validatedData.isActive ?? true,
+      timeLimit: validatedData.timeLimit,
+      coverImageUrl: validatedData.coverImageUrl || "",
       createdAt: new Date(),
       updatedAt: new Date(),
     };
 
     const result = await adminDb.collection("quizzes").add(quizData);
-
-    const headers = {
-      "Content-Type": "application/json; charset=utf-8",
-      "X-Content-Type-Options": "nosniff",
-      "X-Frame-Options": "DENY",
-      "X-XSS-Protection": "1; mode=block",
-      "Strict-Transport-Security":
-        "max-age=31536000; includeSubDomains; preload",
-      "Content-Security-Policy":
-        "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://*.firebaseio.com https://*.googleapis.com;",
-      "Referrer-Policy": "strict-origin-when-cross-origin",
-      "Permissions-Policy": "geolocation=(), microphone=(), camera=()",
-      "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
-      Vary: "Accept, Authorization",
-    };
 
     return NextResponse.json(
       {
@@ -224,21 +152,14 @@ export async function POST(request: NextRequest) {
         id: result.id,
         message: "Quiz created successfully",
       },
-      { status: 201, headers }
+      { status: 201, headers: getSecurityHeaders() }
     );
   } catch (error) {
     console.error("Quiz creation error:", error);
 
-    const errorHeaders = {
-      "Content-Type": "application/json; charset=utf-8",
-      "X-Content-Type-Options": "nosniff",
-      "X-Frame-Options": "DENY",
-      "Cache-Control": "no-store, no-cache, must-revalidate",
-    };
-
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500, headers: errorHeaders }
+      { status: 500, headers: getErrorSecurityHeaders() }
     );
   }
 }

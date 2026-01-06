@@ -5,6 +5,12 @@ import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 import cache, { getApiCacheKey } from "@/lib/cache";
 import { trackUsage } from "@/lib/monitoring";
 import { verifyCSRF } from "@/lib/csrf";
+import {
+  getSecurityHeaders,
+  getErrorSecurityHeaders,
+  getPublicSecurityHeaders,
+} from "@/lib/security-headers";
+import { FlashcardSetSchema, validateInput } from "@/lib/validation";
 
 interface Flashcard {
   front: string;
@@ -91,14 +97,9 @@ export async function GET(request: NextRequest) {
     const user = await verifyAuth(request);
 
     if (!user) {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
       return NextResponse.json(
         { error: "Unauthorized: Invalid or missing authentication token" },
-        { status: 401, headers }
+        { status: 401, headers: getErrorSecurityHeaders() }
       );
     }
 
@@ -111,14 +112,14 @@ export async function GET(request: NextRequest) {
     });
 
     if (!rateLimitResult.success) {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        ...rateLimitResult.headers,
-      };
       return NextResponse.json(
         { error: "Rate limit exceeded. Please try again later." },
-        { status: 429, headers }
+        {
+          status: 429,
+          headers: getErrorSecurityHeaders({
+            rateLimitHeaders: rateLimitResult.headers,
+          }),
+        }
       );
     }
 
@@ -132,22 +133,13 @@ export async function GET(request: NextRequest) {
     });
     const cached = await cache.get<{ flashcards: any[] }>(cacheKey);
     if (cached) {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "X-Frame-Options": "DENY",
-        "X-XSS-Protection": "1; mode=block",
-        "Strict-Transport-Security":
-          "max-age=31536000; includeSubDomains; preload",
-        "Content-Security-Policy":
-          "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://*.firebaseio.com https://*.googleapis.com;",
-        "Referrer-Policy": "strict-origin-when-cross-origin",
-        "Permissions-Policy": "geolocation=(), microphone=(), camera=()",
-        "Cache-Control": "private, max-age=300",
-        Vary: "Accept, Authorization",
-        ...rateLimitResult.headers,
-      };
-      return NextResponse.json(cached, { status: 200, headers });
+      return NextResponse.json(cached, {
+        status: 200,
+        headers: getPublicSecurityHeaders({
+          rateLimitHeaders: rateLimitResult.headers,
+          cacheControl: "private, max-age=300",
+        }),
+      });
     }
 
     // Optimized: Use field selection to reduce data transfer
@@ -295,36 +287,19 @@ export async function GET(request: NextRequest) {
       timestamp: new Date(),
     });
 
-    const headers = {
-      "Content-Type": "application/json; charset=utf-8",
-      "X-Content-Type-Options": "nosniff",
-      "X-Frame-Options": "DENY",
-      "X-XSS-Protection": "1; mode=block",
-      "Strict-Transport-Security":
-        "max-age=31536000; includeSubDomains; preload",
-      "Content-Security-Policy":
-        "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://*.firebaseio.com https://*.googleapis.com;",
-      "Referrer-Policy": "strict-origin-when-cross-origin",
-      "Permissions-Policy": "geolocation=(), microphone=(), camera=()",
-      "Cache-Control": "private, max-age=300",
-      Vary: "Accept, Authorization",
-      ...rateLimitResult.headers,
-    };
-
-    return NextResponse.json(result, { status: 200, headers });
+    return NextResponse.json(result, {
+      status: 200,
+      headers: getPublicSecurityHeaders({
+        rateLimitHeaders: rateLimitResult.headers,
+        cacheControl: "private, max-age=300",
+      }),
+    });
   } catch (error) {
     console.error("Get flashcards error:", error);
 
-    const errorHeaders = {
-      "Content-Type": "application/json; charset=utf-8",
-      "X-Content-Type-Options": "nosniff",
-      "X-Frame-Options": "DENY",
-      "Cache-Control": "no-store, no-cache, must-revalidate",
-    };
-
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500, headers: errorHeaders }
+      { status: 500, headers: getErrorSecurityHeaders() }
     );
   }
 }
@@ -334,14 +309,9 @@ export async function POST(request: NextRequest) {
     const user = await verifyAuth(request);
 
     if (!user) {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
       return NextResponse.json(
         { error: "Unauthorized: Invalid or missing authentication token" },
-        { status: 401, headers }
+        { status: 401, headers: getErrorSecurityHeaders() }
       );
     }
 
@@ -354,14 +324,14 @@ export async function POST(request: NextRequest) {
     });
 
     if (!rateLimitResult.success) {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        ...rateLimitResult.headers,
-      };
       return NextResponse.json(
         { error: "Rate limit exceeded. Please try again later." },
-        { status: 429, headers }
+        {
+          status: 429,
+          headers: getErrorSecurityHeaders({
+            rateLimitHeaders: rateLimitResult.headers,
+          }),
+        }
       );
     }
 
@@ -376,20 +346,22 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
 
-    if (!validateFlashcardSet(body)) {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
+    // Validate input using Zod
+    const validation = validateInput(FlashcardSetSchema, body);
+    if (!validation.success) {
       return NextResponse.json(
-        { error: "Invalid flashcard set data. Please check all fields." },
-        { status: 400, headers }
+        {
+          error: "Invalid flashcard set data. Please check all fields.",
+          details: validation.error.issues,
+        },
+        { status: 400, headers: getErrorSecurityHeaders() }
       );
     }
 
+    const validatedData = validation.data;
+
     // Sanitize and prepare data
-    const sanitizedCards = body.cards.map((card: Flashcard) => {
+    const sanitizedCards = validatedData.cards.map((card) => {
       const cardData: any = {
         front: card.front.trim(),
         back: card.back.trim(),
@@ -416,22 +388,15 @@ export async function POST(request: NextRequest) {
 
     const flashcardSetData: any = {
       userId: user.uid,
-      title: body.title.trim(),
-      description: body.description?.trim() || "",
+      title: validatedData.title,
+      description: validatedData.description || "",
       cards: sanitizedCards,
-      isPublic: body.isPublic || false,
+      isPublic: validatedData.isPublic || false,
       totalCards: sanitizedCards.length,
+      coverImageUrl: validatedData.coverImageUrl || "",
       createdAt: new Date(),
       updatedAt: new Date(),
     };
-
-    if (
-      body.coverImageUrl &&
-      typeof body.coverImageUrl === "string" &&
-      body.coverImageUrl.trim().length > 0
-    ) {
-      flashcardSetData.coverImageUrl = body.coverImageUrl.trim();
-    }
 
     const docRef = await adminDb.collection("flashcards").add(flashcardSetData);
 
@@ -446,41 +411,24 @@ export async function POST(request: NextRequest) {
       timestamp: new Date(),
     });
 
-    const headers = {
-      "Content-Type": "application/json; charset=utf-8",
-      "X-Content-Type-Options": "nosniff",
-      "X-Frame-Options": "DENY",
-      "X-XSS-Protection": "1; mode=block",
-      "Strict-Transport-Security":
-        "max-age=31536000; includeSubDomains; preload",
-      "Content-Security-Policy":
-        "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://*.firebaseio.com https://*.googleapis.com;",
-      "Referrer-Policy": "strict-origin-when-cross-origin",
-      "Permissions-Policy": "geolocation=(), microphone=(), camera=()",
-      "Cache-Control": "no-store, no-cache, must-revalidate",
-      ...rateLimitResult.headers,
-    };
-
     return NextResponse.json(
       {
         id: docRef.id,
         message: "Flashcard set created successfully",
       },
-      { status: 201, headers }
+      {
+        status: 201,
+        headers: getSecurityHeaders({
+          rateLimitHeaders: rateLimitResult.headers,
+        }),
+      }
     );
   } catch (error) {
     console.error("Create flashcard set error:", error);
 
-    const errorHeaders = {
-      "Content-Type": "application/json; charset=utf-8",
-      "X-Content-Type-Options": "nosniff",
-      "X-Frame-Options": "DENY",
-      "Cache-Control": "no-store, no-cache, must-revalidate",
-    };
-
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500, headers: errorHeaders }
+      { status: 500, headers: getErrorSecurityHeaders() }
     );
   }
 }

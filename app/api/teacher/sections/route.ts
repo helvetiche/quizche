@@ -2,32 +2,28 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifyAuth } from "@/lib/auth";
 import { adminDb } from "@/lib/firebase-admin";
 import { verifyCSRF } from "@/lib/csrf";
+import {
+  getSecurityHeaders,
+  getErrorSecurityHeaders,
+  getPublicSecurityHeaders,
+} from "@/lib/security-headers";
+import { SectionSchema, validateInput } from "@/lib/validation";
 
 export async function GET(request: NextRequest) {
   try {
     const user = await verifyAuth(request);
 
     if (!user) {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
       return NextResponse.json(
         { error: "Unauthorized: Invalid or missing authentication token" },
-        { status: 401, headers }
+        { status: 401, headers: getErrorSecurityHeaders() }
       );
     }
 
     if (user.role !== "teacher") {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
       return NextResponse.json(
         { error: "Forbidden: Teacher role required to view sections" },
-        { status: 403, headers }
+        { status: 403, headers: getErrorSecurityHeaders() }
       );
     }
 
@@ -144,21 +140,6 @@ export async function GET(request: NextRequest) {
     const lastDoc = sectionsSnapshot.docs[sectionsSnapshot.docs.length - 1];
     const hasMore = sectionsSnapshot.docs.length === limit;
 
-    const headers = {
-      "Content-Type": "application/json; charset=utf-8",
-      "X-Content-Type-Options": "nosniff",
-      "X-Frame-Options": "DENY",
-      "X-XSS-Protection": "1; mode=block",
-      "Strict-Transport-Security":
-        "max-age=31536000; includeSubDomains; preload",
-      "Content-Security-Policy":
-        "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://*.firebaseio.com https://*.googleapis.com;",
-      "Referrer-Policy": "strict-origin-when-cross-origin",
-      "Permissions-Policy": "geolocation=(), microphone=(), camera=()",
-      "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
-      Vary: "Accept, Authorization",
-    };
-
     return NextResponse.json(
       {
         sections,
@@ -168,21 +149,14 @@ export async function GET(request: NextRequest) {
           lastDocId: hasMore && lastDoc ? lastDoc.id : null,
         },
       },
-      { status: 200, headers }
+      { status: 200, headers: getSecurityHeaders() }
     );
   } catch (error) {
     console.error("Get sections error:", error);
 
-    const errorHeaders = {
-      "Content-Type": "application/json; charset=utf-8",
-      "X-Content-Type-Options": "nosniff",
-      "X-Frame-Options": "DENY",
-      "Cache-Control": "no-store, no-cache, must-revalidate",
-    };
-
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500, headers: errorHeaders }
+      { status: 500, headers: getErrorSecurityHeaders() }
     );
   }
 }
@@ -192,26 +166,16 @@ export async function POST(request: NextRequest) {
     const user = await verifyAuth(request);
 
     if (!user) {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
       return NextResponse.json(
         { error: "Unauthorized: Invalid or missing authentication token" },
-        { status: 401, headers }
+        { status: 401, headers: getErrorSecurityHeaders() }
       );
     }
 
     if (user.role !== "teacher") {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
       return NextResponse.json(
         { error: "Forbidden: Teacher role required to create sections" },
-        { status: 403, headers }
+        { status: 403, headers: getErrorSecurityHeaders() }
       );
     }
 
@@ -226,75 +190,20 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
 
-    if (!body.name || typeof body.name !== "string" || body.name.trim().length === 0) {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
+    // Validate input using Zod
+    const validation = validateInput(SectionCreateSchema, body);
+    if (!validation.success) {
       return NextResponse.json(
-        { error: "Section name is required" },
-        { status: 400, headers }
+        {
+          error: "Invalid section data. Please check all fields.",
+          details: validation.error.issues,
+        },
+        { status: 400, headers: getErrorSecurityHeaders() }
       );
     }
 
-    if (body.name.length > 100) {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
-      return NextResponse.json(
-        { error: "Section name must be 100 characters or less" },
-        { status: 400, headers }
-      );
-    }
-
-    if (body.description && (typeof body.description !== "string" || body.description.length > 500)) {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
-      return NextResponse.json(
-        { error: "Section description must be 500 characters or less" },
-        { status: 400, headers }
-      );
-    }
-
-    if (!body.studentIds || !Array.isArray(body.studentIds)) {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
-      return NextResponse.json(
-        { error: "Student IDs must be provided as an array" },
-        { status: 400, headers }
-      );
-    }
-
-    // Validate student IDs in batch
-    const studentIdsArray = Array.isArray(body.studentIds) ? body.studentIds : [];
-    const uniqueStudentIds: string[] = [];
-    
-    for (const studentId of studentIdsArray) {
-      if (typeof studentId === "string" && studentId.trim().length > 0) {
-        if (!uniqueStudentIds.includes(studentId)) {
-          uniqueStudentIds.push(studentId);
-        }
-      } else {
-        const headers = {
-          "Content-Type": "application/json; charset=utf-8",
-          "X-Content-Type-Options": "nosniff",
-          "Cache-Control": "no-store, no-cache, must-revalidate",
-        };
-        return NextResponse.json(
-          { error: "Invalid student ID format" },
-          { status: 400, headers }
-        );
-      }
-    }
+    const validatedData = validation.data;
+    const uniqueStudentIds = Array.from(new Set(validatedData.studentIds));
 
     // Batch validate students (Firestore 'in' query limit is 10)
     const batchSize = 10;
@@ -308,14 +217,9 @@ export async function POST(request: NextRequest) {
       for (let j = 0; j < studentDocs.length; j++) {
         const studentDoc = studentDocs[j];
         if (!studentDoc.exists || studentDoc.data()?.role !== "student") {
-          const headers = {
-            "Content-Type": "application/json; charset=utf-8",
-            "X-Content-Type-Options": "nosniff",
-            "Cache-Control": "no-store, no-cache, must-revalidate",
-          };
           return NextResponse.json(
             { error: `Student with ID ${batch[j]} not found or not a student` },
-            { status: 400, headers }
+            { status: 400, headers: getErrorSecurityHeaders() }
           );
         }
       }
@@ -323,8 +227,8 @@ export async function POST(request: NextRequest) {
 
     // Use transaction for atomic section creation
     const sectionData = {
-      name: body.name.trim(),
-      description: body.description?.trim() || "",
+      name: validatedData.name,
+      description: validatedData.description || "",
       teacherId: user.uid,
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -347,44 +251,21 @@ export async function POST(request: NextRequest) {
     });
 
     await batch.commit();
-    const sectionResult = { id: sectionRef.id };
-
-    const headers = {
-      "Content-Type": "application/json; charset=utf-8",
-      "X-Content-Type-Options": "nosniff",
-      "X-Frame-Options": "DENY",
-      "X-XSS-Protection": "1; mode=block",
-      "Strict-Transport-Security":
-        "max-age=31536000; includeSubDomains; preload",
-      "Content-Security-Policy":
-        "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://*.firebaseio.com https://*.googleapis.com;",
-      "Referrer-Policy": "strict-origin-when-cross-origin",
-      "Permissions-Policy": "geolocation=(), microphone=(), camera=()",
-      "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
-      Vary: "Accept, Authorization",
-    };
 
     return NextResponse.json(
       {
         success: true,
-        id: sectionResult.id,
+        id: sectionRef.id,
         message: "Section created successfully",
       },
-      { status: 201, headers }
+      { status: 201, headers: getSecurityHeaders() }
     );
   } catch (error) {
     console.error("Create section error:", error);
 
-    const errorHeaders = {
-      "Content-Type": "application/json; charset=utf-8",
-      "X-Content-Type-Options": "nosniff",
-      "X-Frame-Options": "DENY",
-      "Cache-Control": "no-store, no-cache, must-revalidate",
-    };
-
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500, headers: errorHeaders }
+      { status: 500, headers: getErrorSecurityHeaders() }
     );
   }
 }

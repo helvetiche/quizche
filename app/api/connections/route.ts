@@ -4,6 +4,12 @@ import { adminDb } from "@/lib/firebase-admin";
 import { verifyCSRF } from "@/lib/csrf";
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 import cache, { getApiCacheKey } from "@/lib/cache";
+import {
+  getSecurityHeaders,
+  getErrorSecurityHeaders,
+  getPublicSecurityHeaders,
+} from "@/lib/security-headers";
+import { ConnectionRequestSchema, validateInput } from "@/lib/validation";
 
 const getConnectionId = (userId1: string, userId2: string): string => {
   return userId1 < userId2 ? `${userId1}_${userId2}` : `${userId2}_${userId1}`;
@@ -18,26 +24,16 @@ export async function GET(request: NextRequest) {
     const user = await verifyAuth(request);
 
     if (!user) {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
       return NextResponse.json(
         { error: "Unauthorized: Invalid or missing authentication token" },
-        { status: 401, headers }
+        { status: 401, headers: getErrorSecurityHeaders() }
       );
     }
 
     if (user.role !== "student") {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
       return NextResponse.json(
         { error: "Forbidden: Student role required" },
-        { status: 403, headers }
+        { status: 403, headers: getErrorSecurityHeaders() }
       );
     }
 
@@ -50,14 +46,14 @@ export async function GET(request: NextRequest) {
     });
 
     if (!rateLimitResult.success) {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        ...rateLimitResult.headers,
-      };
       return NextResponse.json(
         { error: "Rate limit exceeded. Please try again later." },
-        { status: 429, headers }
+        {
+          status: 429,
+          headers: getErrorSecurityHeaders({
+            rateLimitHeaders: rateLimitResult.headers,
+          }),
+        }
       );
     }
 
@@ -65,22 +61,16 @@ export async function GET(request: NextRequest) {
     const cacheKey = getApiCacheKey("/api/connections", user.uid);
     const cached = await cache.get<{ connections: any[]; users: any }>(cacheKey);
     if (cached) {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "X-Frame-Options": "DENY",
-        "X-XSS-Protection": "1; mode=block",
-        "Strict-Transport-Security":
-          "max-age=31536000; includeSubDomains; preload",
-        "Content-Security-Policy":
-          "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://*.firebaseio.com https://*.googleapis.com;",
-        "Referrer-Policy": "strict-origin-when-cross-origin",
-        "Permissions-Policy": "geolocation=(), microphone=(), camera=()",
-        "Cache-Control": "private, max-age=300",
-        Vary: "Accept, Authorization",
-        ...rateLimitResult.headers,
-      };
-      return NextResponse.json(cached, { status: 200, headers });
+      return NextResponse.json(
+        cached,
+        {
+          status: 200,
+          headers: getPublicSecurityHeaders({
+            rateLimitHeaders: rateLimitResult.headers,
+            cacheControl: "private, max-age=300",
+          }),
+        }
+      );
     }
 
     // Query connections where user is userId1 or userId2
@@ -157,41 +147,27 @@ export async function GET(request: NextRequest) {
       },
     }));
 
-    const headers = {
-      "Content-Type": "application/json; charset=utf-8",
-      "X-Content-Type-Options": "nosniff",
-      "X-Frame-Options": "DENY",
-      "X-XSS-Protection": "1; mode=block",
-      "Strict-Transport-Security":
-        "max-age=31536000; includeSubDomains; preload",
-      "Content-Security-Policy":
-        "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://*.firebaseio.com https://*.googleapis.com;",
-      "Referrer-Policy": "strict-origin-when-cross-origin",
-      "Permissions-Policy": "geolocation=(), microphone=(), camera=()",
-      "Cache-Control": "private, max-age=300",
-      Vary: "Accept, Authorization",
-      ...rateLimitResult.headers,
-    };
-
     const result = { connections: enrichedConnections };
 
     // Cache the response
     await cache.set(cacheKey, result, 300); // 5 minutes
 
-    return NextResponse.json(result, { status: 200, headers });
+    return NextResponse.json(
+      result,
+      {
+        status: 200,
+        headers: getPublicSecurityHeaders({
+          rateLimitHeaders: rateLimitResult.headers,
+          cacheControl: "private, max-age=300",
+        }),
+      }
+    );
   } catch (error) {
     console.error("Get connections error:", error);
 
-    const errorHeaders = {
-      "Content-Type": "application/json; charset=utf-8",
-      "X-Content-Type-Options": "nosniff",
-      "X-Frame-Options": "DENY",
-      "Cache-Control": "no-store, no-cache, must-revalidate",
-    };
-
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500, headers: errorHeaders }
+      { status: 500, headers: getErrorSecurityHeaders() }
     );
   }
 }
@@ -201,26 +177,16 @@ export async function POST(request: NextRequest) {
     const user = await verifyAuth(request);
 
     if (!user) {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
       return NextResponse.json(
         { error: "Unauthorized: Invalid or missing authentication token" },
-        { status: 401, headers }
+        { status: 401, headers: getErrorSecurityHeaders() }
       );
     }
 
     if (user.role !== "student") {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
       return NextResponse.json(
         { error: "Forbidden: Student role required" },
-        { status: 403, headers }
+        { status: 403, headers: getErrorSecurityHeaders() }
       );
     }
 
@@ -234,56 +200,43 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { targetUserId } = body;
 
-    if (!targetUserId || typeof targetUserId !== "string") {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
+    // Validate input using Zod
+    const validation = validateInput(ConnectionRequestSchema, body);
+    if (!validation.success) {
       return NextResponse.json(
-        { error: "Target user ID is required" },
-        { status: 400, headers }
+        {
+          error: "Invalid connection request data. Please check all fields.",
+          details: validation.error.issues,
+        },
+        { status: 400, headers: getErrorSecurityHeaders() }
       );
     }
 
+    const validatedData = validation.data;
+    const targetUserId = validatedData.toUserId;
+
     if (targetUserId === user.uid) {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
       return NextResponse.json(
         { error: "Cannot send connection request to yourself" },
-        { status: 400, headers }
+        { status: 400, headers: getErrorSecurityHeaders() }
       );
     }
 
     // Verify target user exists and is a student
     const targetUserDoc = await adminDb.collection("users").doc(targetUserId).get();
     if (!targetUserDoc.exists) {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
       return NextResponse.json(
         { error: "Target user not found" },
-        { status: 404, headers }
+        { status: 404, headers: getErrorSecurityHeaders() }
       );
     }
 
     const targetUserData = targetUserDoc.data();
     if (targetUserData?.role !== "student") {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
       return NextResponse.json(
         { error: "Can only connect with students" },
-        { status: 400, headers }
+        { status: 400, headers: getErrorSecurityHeaders() }
       );
     }
 
@@ -297,16 +250,11 @@ export async function POST(request: NextRequest) {
 
     if (existingConnection.exists) {
       const existingData = existingConnection.data();
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
 
       if (existingData?.status === "accepted") {
         return NextResponse.json(
           { error: "Connection already exists" },
-          { status: 400, headers }
+          { status: 400, headers: getErrorSecurityHeaders() }
         );
       }
 
@@ -314,7 +262,7 @@ export async function POST(request: NextRequest) {
         if (existingData?.requestedBy === user.uid) {
           return NextResponse.json(
             { error: "Connection request already sent" },
-            { status: 400, headers }
+            { status: 400, headers: getErrorSecurityHeaders() }
           );
         } else {
           // Auto-accept if the other user sent a request
@@ -326,13 +274,17 @@ export async function POST(request: NextRequest) {
               updatedAt: new Date(),
             });
 
+          // Invalidate cache
+          await cache.delete(getApiCacheKey("/api/connections", user.uid));
+          await cache.delete(getApiCacheKey("/api/connections", targetUserId));
+
           return NextResponse.json(
             {
               id: connectionId,
               message: "Connection request accepted",
               status: "accepted",
             },
-            { status: 200, headers }
+            { status: 200, headers: getSecurityHeaders() }
           );
         }
       }
@@ -348,19 +300,9 @@ export async function POST(request: NextRequest) {
       updatedAt: new Date(),
     });
 
-    const headers = {
-      "Content-Type": "application/json; charset=utf-8",
-      "X-Content-Type-Options": "nosniff",
-      "X-Frame-Options": "DENY",
-      "X-XSS-Protection": "1; mode=block",
-      "Strict-Transport-Security":
-        "max-age=31536000; includeSubDomains; preload",
-      "Content-Security-Policy":
-        "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://*.firebaseio.com https://*.googleapis.com;",
-      "Referrer-Policy": "strict-origin-when-cross-origin",
-      "Permissions-Policy": "geolocation=(), microphone=(), camera=()",
-      "Cache-Control": "no-store, no-cache, must-revalidate",
-    };
+    // Invalidate cache
+    await cache.delete(getApiCacheKey("/api/connections", user.uid));
+    await cache.delete(getApiCacheKey("/api/connections", targetUserId));
 
     return NextResponse.json(
       {
@@ -368,21 +310,14 @@ export async function POST(request: NextRequest) {
         message: "Connection request sent successfully",
         status: "pending",
       },
-      { status: 201, headers }
+      { status: 201, headers: getSecurityHeaders() }
     );
   } catch (error) {
     console.error("Create connection request error:", error);
 
-    const errorHeaders = {
-      "Content-Type": "application/json; charset=utf-8",
-      "X-Content-Type-Options": "nosniff",
-      "X-Frame-Options": "DENY",
-      "Cache-Control": "no-store, no-cache, must-revalidate",
-    };
-
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500, headers: errorHeaders }
+      { status: 500, headers: getErrorSecurityHeaders() }
     );
   }
 }

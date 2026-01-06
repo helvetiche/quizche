@@ -4,118 +4,80 @@ import { adminDb } from "@/lib/firebase-admin";
 import { verifyCSRF } from "@/lib/csrf";
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 import cache, { getApiCacheKey } from "@/lib/cache";
+import {
+  getSecurityHeaders,
+  getErrorSecurityHeaders,
+  getPublicSecurityHeaders,
+} from "@/lib/security-headers";
+import {
+  UserProfileSchema,
+  UserProfileUpdateSchema,
+  validateInput,
+} from "@/lib/validation";
 
 export async function POST(request: NextRequest) {
   try {
     const user = await verifyAuth(request);
 
     if (!user) {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
       return NextResponse.json(
         { error: "Unauthorized: Invalid or missing authentication token" },
-        { status: 401, headers }
+        { status: 401, headers: getErrorSecurityHeaders() }
       );
     }
 
     const body = await request.json();
-    const { firstName, middleName, lastName, nameExtension, age, school, profilePhotoUrl } =
-      body;
 
-    if (!firstName || !lastName) {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
+    // Validate input using Zod
+    const validation = validateInput(UserProfileSchema, body);
+    if (!validation.success) {
       return NextResponse.json(
-        { error: "First name and last name are required" },
-        { status: 400, headers }
+        {
+          error: "Invalid profile data. Please check all fields.",
+          details: validation.error.issues,
+        },
+        { status: 400, headers: getErrorSecurityHeaders() }
       );
     }
 
-    if (!age || typeof age !== "number" || age <= 0) {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
-      return NextResponse.json(
-        { error: "Valid age is required" },
-        { status: 400, headers }
-      );
-    }
-
-    if (!school) {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
-      return NextResponse.json(
-        { error: "School is required" },
-        { status: 400, headers }
-      );
-    }
+    const validatedData = validation.data;
 
     const userRef = adminDb.collection("users").doc(user.uid);
 
     const updateData: Record<string, unknown> = {
-      firstName: firstName.trim(),
-      middleName: middleName?.trim() || "",
-      lastName: lastName.trim(),
-      nameExtension: nameExtension?.trim() || "",
-      age: age,
-      school: school.trim(),
+      firstName: validatedData.firstName,
+      middleName: validatedData.middleName || "",
+      lastName: validatedData.lastName,
+      nameExtension: validatedData.nameExtension || "",
+      age: validatedData.age,
+      school: validatedData.school,
       profileCompleted: true,
       updatedAt: new Date(),
     };
 
     // Allow profile photo if provided
-    if (body.profilePhotoUrl && typeof body.profilePhotoUrl === "string") {
-      updateData.profilePhotoUrl = body.profilePhotoUrl.trim();
+    if (validatedData.profilePhotoUrl !== undefined) {
+      updateData.profilePhotoUrl = validatedData.profilePhotoUrl || null;
     }
 
     await userRef.set(updateData, { merge: true });
 
-    const headers = {
-      "Content-Type": "application/json; charset=utf-8",
-      "X-Content-Type-Options": "nosniff",
-      "X-Frame-Options": "DENY",
-      "X-XSS-Protection": "1; mode=block",
-      "Strict-Transport-Security":
-        "max-age=31536000; includeSubDomains; preload",
-      "Content-Security-Policy":
-        "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://*.firebaseio.com https://*.googleapis.com;",
-      "Referrer-Policy": "strict-origin-when-cross-origin",
-      "Permissions-Policy": "geolocation=(), microphone=(), camera=()",
-      "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
-      Vary: "Accept, Authorization",
-    };
+    // Invalidate cache
+    await cache.delete(getApiCacheKey("/api/users/profile", user.uid));
 
     return NextResponse.json(
       {
         success: true,
         message: "Profile updated successfully",
       },
-      { status: 200, headers }
+      { status: 200, headers: getSecurityHeaders() }
     );
   } catch (error) {
     console.error("Profile update error:", error);
 
-    const errorHeaders = {
-      "Content-Type": "application/json; charset=utf-8",
-      "X-Content-Type-Options": "nosniff",
-      "X-Frame-Options": "DENY",
-      "Cache-Control": "no-store, no-cache, must-revalidate",
-    };
-
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500, headers: errorHeaders }
+      { status: 500, headers: getErrorSecurityHeaders() }
     );
   }
 }
@@ -125,14 +87,9 @@ export async function PUT(request: NextRequest) {
     const user = await verifyAuth(request);
 
     if (!user) {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
       return NextResponse.json(
         { error: "Unauthorized: Invalid or missing authentication token" },
-        { status: 401, headers }
+        { status: 401, headers: getErrorSecurityHeaders() }
       );
     }
 
@@ -145,14 +102,14 @@ export async function PUT(request: NextRequest) {
     });
 
     if (!rateLimitResult.success) {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        ...rateLimitResult.headers,
-      };
       return NextResponse.json(
         { error: "Rate limit exceeded. Please try again later." },
-        { status: 429, headers }
+        {
+          status: 429,
+          headers: getErrorSecurityHeaders({
+            rateLimitHeaders: rateLimitResult.headers,
+          }),
+        }
       );
     }
 
@@ -166,102 +123,67 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { firstName, middleName, lastName, nameExtension, age, school, profilePhotoUrl } =
-      body;
 
-    if (!firstName || !lastName) {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
+    // Validate input using Zod
+    const validation = validateInput(UserProfileUpdateSchema, body);
+    if (!validation.success) {
       return NextResponse.json(
-        { error: "First name and last name are required" },
-        { status: 400, headers }
+        {
+          error: "Invalid profile data. Please check all fields.",
+          details: validation.error.issues,
+        },
+        { status: 400, headers: getErrorSecurityHeaders() }
       );
     }
 
-    if (!age || typeof age !== "number" || age <= 0) {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
-      return NextResponse.json(
-        { error: "Valid age is required" },
-        { status: 400, headers }
-      );
-    }
-
-    if (!school) {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
-      return NextResponse.json(
-        { error: "School is required" },
-        { status: 400, headers }
-      );
-    }
+    const validatedData = validation.data;
 
     const userRef = adminDb.collection("users").doc(user.uid);
     const updateData: Record<string, unknown> = {
-      firstName: firstName.trim(),
-      middleName: middleName?.trim() || "",
-      lastName: lastName.trim(),
-      nameExtension: nameExtension?.trim() || "",
-      age: age,
-      school: school.trim(),
       updatedAt: new Date(),
     };
 
-    // Allow profile photo if provided
-    if (profilePhotoUrl !== undefined) {
-      if (profilePhotoUrl === null || profilePhotoUrl === "") {
-        updateData.profilePhotoUrl = null;
-      } else if (typeof profilePhotoUrl === "string" && profilePhotoUrl.trim().length > 0) {
-        updateData.profilePhotoUrl = profilePhotoUrl.trim();
-      }
+    // Only update provided fields
+    if (validatedData.firstName !== undefined) {
+      updateData.firstName = validatedData.firstName;
+    }
+    if (validatedData.middleName !== undefined) {
+      updateData.middleName = validatedData.middleName || "";
+    }
+    if (validatedData.lastName !== undefined) {
+      updateData.lastName = validatedData.lastName;
+    }
+    if (validatedData.nameExtension !== undefined) {
+      updateData.nameExtension = validatedData.nameExtension || "";
+    }
+    if (validatedData.age !== undefined) {
+      updateData.age = validatedData.age;
+    }
+    if (validatedData.school !== undefined) {
+      updateData.school = validatedData.school;
+    }
+    if (validatedData.profilePhotoUrl !== undefined) {
+      updateData.profilePhotoUrl = validatedData.profilePhotoUrl || null;
     }
 
     await userRef.update(updateData);
 
-    const headers = {
-      "Content-Type": "application/json; charset=utf-8",
-      "X-Content-Type-Options": "nosniff",
-      "X-Frame-Options": "DENY",
-      "X-XSS-Protection": "1; mode=block",
-      "Strict-Transport-Security":
-        "max-age=31536000; includeSubDomains; preload",
-      "Content-Security-Policy":
-        "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://*.firebaseio.com https://*.googleapis.com;",
-      "Referrer-Policy": "strict-origin-when-cross-origin",
-      "Permissions-Policy": "geolocation=(), microphone=(), camera=()",
-      "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
-      Vary: "Accept, Authorization",
-    };
+    // Invalidate cache
+    await cache.delete(getApiCacheKey("/api/users/profile", user.uid));
 
     return NextResponse.json(
       {
         success: true,
         message: "Profile updated successfully",
       },
-      { status: 200, headers }
+      { status: 200, headers: getSecurityHeaders() }
     );
   } catch (error) {
     console.error("Profile update error:", error);
 
-    const errorHeaders = {
-      "Content-Type": "application/json; charset=utf-8",
-      "X-Content-Type-Options": "nosniff",
-      "X-Frame-Options": "DENY",
-      "Cache-Control": "no-store, no-cache, must-revalidate",
-    };
-
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500, headers: errorHeaders }
+      { status: 500, headers: getErrorSecurityHeaders() }
     );
   }
 }
@@ -271,14 +193,9 @@ export async function GET(request: NextRequest) {
     const user = await verifyAuth(request);
 
     if (!user) {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
       return NextResponse.json(
         { error: "Unauthorized: Invalid or missing authentication token" },
-        { status: 401, headers }
+        { status: 401, headers: getErrorSecurityHeaders() }
       );
     }
 
@@ -291,14 +208,14 @@ export async function GET(request: NextRequest) {
     });
 
     if (!rateLimitResult.success) {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        ...rateLimitResult.headers,
-      };
       return NextResponse.json(
         { error: "Rate limit exceeded. Please try again later." },
-        { status: 429, headers }
+        {
+          status: 429,
+          headers: getErrorSecurityHeaders({
+            rateLimitHeaders: rateLimitResult.headers,
+          }),
+        }
       );
     }
 
@@ -306,32 +223,23 @@ export async function GET(request: NextRequest) {
     const cacheKey = getApiCacheKey("/api/users/profile", user.uid);
     const cached = await cache.get<{ profile: Record<string, unknown> }>(cacheKey);
     if (cached) {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "X-Frame-Options": "DENY",
-        "X-XSS-Protection": "1; mode=block",
-        "Strict-Transport-Security":
-          "max-age=31536000; includeSubDomains; preload",
-        "Content-Security-Policy":
-          "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://*.firebaseio.com https://*.googleapis.com;",
-        "Referrer-Policy": "strict-origin-when-cross-origin",
-        "Permissions-Policy": "geolocation=(), microphone=(), camera=()",
-        "Cache-Control": "private, max-age=300",
-        Vary: "Accept, Authorization",
-        ...rateLimitResult.headers,
-      };
-      return NextResponse.json(cached, { status: 200, headers });
+      return NextResponse.json(
+        cached,
+        {
+          status: 200,
+          headers: getPublicSecurityHeaders({
+            rateLimitHeaders: rateLimitResult.headers,
+            cacheControl: "private, max-age=300",
+          }),
+        }
+      );
     }
 
+    // Optimized: Only fetch needed fields (Firestore Admin SDK doesn't support .select(),
+    // but we manually extract only needed fields after fetching)
     const userDoc = await adminDb.collection("users").doc(user.uid).get();
 
     if (!userDoc.exists) {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
       return NextResponse.json(
         {
           profile: {
@@ -345,28 +253,19 @@ export async function GET(request: NextRequest) {
             profileCompleted: false,
           },
         },
-        { status: 200, headers }
+        {
+          status: 200,
+          headers: getPublicSecurityHeaders({
+            rateLimitHeaders: rateLimitResult.headers,
+            cacheControl: "private, max-age=300",
+          }),
+        }
       );
     }
 
     const userData = userDoc.data() as Record<string, unknown> | undefined;
 
-    const headers = {
-      "Content-Type": "application/json; charset=utf-8",
-      "X-Content-Type-Options": "nosniff",
-      "X-Frame-Options": "DENY",
-      "X-XSS-Protection": "1; mode=block",
-      "Strict-Transport-Security":
-        "max-age=31536000; includeSubDomains; preload",
-      "Content-Security-Policy":
-        "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://*.firebaseio.com https://*.googleapis.com;",
-      "Referrer-Policy": "strict-origin-when-cross-origin",
-      "Permissions-Policy": "geolocation=(), microphone=(), camera=()",
-      "Cache-Control": "private, max-age=300",
-      Vary: "Accept, Authorization",
-      ...rateLimitResult.headers,
-    };
-
+    // Extract only needed fields (field selection optimization)
     const profileData = {
       profile: {
         firstName: userData?.firstName || "",
@@ -383,20 +282,22 @@ export async function GET(request: NextRequest) {
     // Cache the response
     await cache.set(cacheKey, profileData, 300); // 5 minutes
 
-    return NextResponse.json(profileData, { status: 200, headers });
+    return NextResponse.json(
+      profileData,
+      {
+        status: 200,
+        headers: getPublicSecurityHeaders({
+          rateLimitHeaders: rateLimitResult.headers,
+          cacheControl: "private, max-age=300",
+        }),
+      }
+    );
   } catch (error) {
     console.error("Get profile error:", error);
 
-    const errorHeaders = {
-      "Content-Type": "application/json; charset=utf-8",
-      "X-Content-Type-Options": "nosniff",
-      "X-Frame-Options": "DENY",
-      "Cache-Control": "no-store, no-cache, must-revalidate",
-    };
-
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500, headers: errorHeaders }
+      { status: 500, headers: getErrorSecurityHeaders() }
     );
   }
 }

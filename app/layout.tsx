@@ -1,12 +1,5 @@
 import type { Metadata } from "next";
-import { Poppins } from "next/font/google";
 import "./globals.css";
-
-const poppins = Poppins({
-  weight: ["300", "400", "500"],
-  subsets: ["latin"],
-  variable: "--font-poppins",
-});
 
 export const metadata: Metadata = {
   title: "QuizChe - Quiz Generator Platform",
@@ -20,7 +13,23 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${poppins.variable} antialiased`} style={{ fontFamily: "var(--font-poppins)" }}>
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Google+Sans:ital,wght@0,300;0,400;0,500;0,700;1,300;1,400;1,500;1,700&display=swap"
+          rel="stylesheet"
+        />
+        <link
+          href="https://fonts.googleapis.com/icon?family=Material+Icons"
+          rel="stylesheet"
+        />
+        <link
+          href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined"
+          rel="stylesheet"
+        />
+      </head>
+      <body className="antialiased" style={{ fontFamily: "'Google Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" }}>
         {children}
       </body>
     </html>

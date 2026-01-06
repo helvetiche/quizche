@@ -3,6 +3,12 @@ import { verifyAuth } from "@/lib/auth";
 import { adminDb } from "@/lib/firebase-admin";
 import { verifyCSRF } from "@/lib/csrf";
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
+import {
+  getSecurityHeaders,
+  getErrorSecurityHeaders,
+  getPublicSecurityHeaders,
+} from "@/lib/security-headers";
+import { QuizDataSchema, validateInput } from "@/lib/validation";
 
 export async function GET(
   request: NextRequest,
@@ -12,28 +18,18 @@ export async function GET(
     const user = await verifyAuth(request);
 
     if (!user) {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
       return NextResponse.json(
         { error: "Unauthorized: Invalid or missing authentication token" },
-        { status: 401, headers }
+        { status: 401, headers: getErrorSecurityHeaders() }
       );
     }
 
     const { id } = await params;
 
     if (!id) {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
       return NextResponse.json(
         { error: "Quiz ID is required" },
-        { status: 400, headers }
+        { status: 400, headers: getErrorSecurityHeaders() }
       );
     }
 
@@ -46,14 +42,14 @@ export async function GET(
     });
 
     if (!rateLimitResult.success) {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        ...rateLimitResult.headers,
-      };
       return NextResponse.json(
         { error: "Rate limit exceeded. Please try again later." },
-        { status: 429, headers }
+        {
+          status: 429,
+          headers: getErrorSecurityHeaders({
+            rateLimitHeaders: rateLimitResult.headers,
+          }),
+        }
       );
     }
 
@@ -76,27 +72,17 @@ export async function GET(
     // Check access permissions
     if (user.role === "teacher") {
       if (quizData?.teacherId !== user.uid) {
-        const headers = {
-          "Content-Type": "application/json; charset=utf-8",
-          "X-Content-Type-Options": "nosniff",
-          "Cache-Control": "no-store, no-cache, must-revalidate",
-        };
         return NextResponse.json(
           { error: "Forbidden: You can only access your own quizzes" },
-          { status: 403, headers }
+          { status: 403, headers: getErrorSecurityHeaders() }
         );
       }
     } else if (user.role === "student") {
       // Check if quiz is active
       if (!quizData?.isActive) {
-        const headers = {
-          "Content-Type": "application/json; charset=utf-8",
-          "X-Content-Type-Options": "nosniff",
-          "Cache-Control": "no-store, no-cache, must-revalidate",
-        };
         return NextResponse.json(
           { error: "Quiz is not available" },
-          { status: 403, headers }
+          { status: 403, headers: getErrorSecurityHeaders() }
         );
       }
 
@@ -125,14 +111,9 @@ export async function GET(
         );
 
         if (!hasAccess) {
-          const headers = {
-            "Content-Type": "application/json; charset=utf-8",
-            "X-Content-Type-Options": "nosniff",
-            "Cache-Control": "no-store, no-cache, must-revalidate",
-          };
           return NextResponse.json(
             { error: "Forbidden: You don't have access to this quiz" },
-            { status: 403, headers }
+            { status: 403, headers: getErrorSecurityHeaders() }
           );
         }
       }
@@ -146,14 +127,9 @@ export async function GET(
           ? quizData.availableDate
           : new Date(quizData.availableDate);
         if (now < availableDate) {
-          const headers = {
-            "Content-Type": "application/json; charset=utf-8",
-            "X-Content-Type-Options": "nosniff",
-            "Cache-Control": "no-store, no-cache, must-revalidate",
-          };
           return NextResponse.json(
             { error: "Quiz is not yet available" },
-            { status: 403, headers }
+            { status: 403, headers: getErrorSecurityHeaders() }
           );
         }
       }
@@ -165,14 +141,9 @@ export async function GET(
           ? quizData.dueDate
           : new Date(quizData.dueDate);
         if (now > dueDate) {
-          const headers = {
-            "Content-Type": "application/json; charset=utf-8",
-            "X-Content-Type-Options": "nosniff",
-            "Cache-Control": "no-store, no-cache, must-revalidate",
-          };
           return NextResponse.json(
             { error: "Quiz deadline has passed" },
-            { status: 403, headers }
+            { status: 403, headers: getErrorSecurityHeaders() }
           );
         }
       }
@@ -273,36 +244,21 @@ export async function GET(
       updatedAt,
     };
 
-    const headers = {
-      "Content-Type": "application/json; charset=utf-8",
-      "X-Content-Type-Options": "nosniff",
-      "X-Frame-Options": "DENY",
-      "X-XSS-Protection": "1; mode=block",
-      "Strict-Transport-Security":
-        "max-age=31536000; includeSubDomains; preload",
-      "Content-Security-Policy":
-        "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://*.firebaseio.com https://*.googleapis.com;",
-      "Referrer-Policy": "strict-origin-when-cross-origin",
-      "Permissions-Policy": "geolocation=(), microphone=(), camera=()",
-      "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
-      Vary: "Accept, Authorization",
-      ...rateLimitResult.headers,
-    };
-
-    return NextResponse.json({ quiz }, { status: 200, headers });
+    return NextResponse.json(
+      { quiz },
+      {
+        status: 200,
+        headers: getSecurityHeaders({
+          rateLimitHeaders: rateLimitResult.headers,
+        }),
+      }
+    );
   } catch (error) {
     console.error("Get quiz error:", error);
 
-    const errorHeaders = {
-      "Content-Type": "application/json; charset=utf-8",
-      "X-Content-Type-Options": "nosniff",
-      "X-Frame-Options": "DENY",
-      "Cache-Control": "no-store, no-cache, must-revalidate",
-    };
-
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500, headers: errorHeaders }
+      { status: 500, headers: getErrorSecurityHeaders() }
     );
   }
 }
@@ -413,26 +369,16 @@ export async function PUT(
     const user = await verifyAuth(request);
 
     if (!user) {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
       return NextResponse.json(
         { error: "Unauthorized: Invalid or missing authentication token" },
-        { status: 401, headers }
+        { status: 401, headers: getErrorSecurityHeaders() }
       );
     }
 
     if (user.role !== "teacher") {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
       return NextResponse.json(
         { error: "Forbidden: Teacher role required to update quizzes" },
-        { status: 403, headers }
+        { status: 403, headers: getErrorSecurityHeaders() }
       );
     }
 
@@ -448,195 +394,93 @@ export async function PUT(
     const { id } = await params;
 
     if (!id) {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
       return NextResponse.json(
         { error: "Quiz ID is required" },
-        { status: 400, headers }
+        { status: 400, headers: getErrorSecurityHeaders() }
       );
     }
 
     const quizDoc = await adminDb.collection("quizzes").doc(id).get();
 
     if (!quizDoc.exists) {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
       return NextResponse.json(
         { error: "Quiz not found" },
-        { status: 404, headers }
+        { status: 404, headers: getErrorSecurityHeaders() }
       );
     }
 
     const quizData = quizDoc.data();
 
     if (quizData?.teacherId !== user.uid) {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
       return NextResponse.json(
         { error: "Forbidden: You can only update your own quizzes" },
-        { status: 403, headers }
+        { status: 403, headers: getErrorSecurityHeaders() }
       );
     }
 
     const body = await request.json();
 
-    if (!validateQuizData(body)) {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
+    // Validate input using Zod
+    const validation = validateInput(QuizSchema, body);
+    if (!validation.success) {
       return NextResponse.json(
-        { error: "Invalid quiz data. Please check all fields." },
-        { status: 400, headers }
+        {
+          error: "Invalid quiz data. Please check all fields.",
+          details: validation.error.issues,
+        },
+        { status: 400, headers: getErrorSecurityHeaders() }
       );
     }
 
-    const sanitizedQuestions = body.questions.map((q: Question) => {
+    const validatedData = validation.data;
+
+    const sanitizedQuestions = validatedData.questions.map((q) => {
       const questionData: any = {
-        question: q.question.trim(),
+        question: q.question,
         type: q.type,
-        answer: q.answer.trim(),
+        answer: q.answer,
       };
 
-      // Only include choices for multiple_choice questions with valid choices
-      if (
-        q.type === "multiple_choice" &&
-        q.choices &&
-        Array.isArray(q.choices)
-      ) {
-        const filteredChoices = q.choices
-          .map((c: string) => c.trim())
-          .filter((c: string) => c.length > 0);
-        if (filteredChoices.length > 0) {
-          questionData.choices = filteredChoices;
-        }
+      // Only include choices for multiple_choice questions
+      if (q.type === "multiple_choice" && q.choices) {
+        questionData.choices = q.choices;
       }
 
-      if (
-        q.imageUrl &&
-        typeof q.imageUrl === "string" &&
-        q.imageUrl.trim().length > 0
-      ) {
-        questionData.imageUrl = q.imageUrl.trim();
+      if (q.imageUrl) {
+        questionData.imageUrl = q.imageUrl;
       }
 
       return questionData;
     });
 
     const updateData: any = {
-      title: body.title.trim(),
-      description: body.description?.trim() || "",
+      title: validatedData.title,
+      description: validatedData.description || "",
       questions: sanitizedQuestions,
       totalQuestions: sanitizedQuestions.length,
       isActive:
-        body.isActive !== undefined
-          ? body.isActive
+        validatedData.isActive !== undefined
+          ? validatedData.isActive
           : quizData?.isActive !== undefined
           ? quizData.isActive
           : true,
       updatedAt: new Date(),
     };
 
-    if (body.duration !== undefined) {
+    if (validatedData.timeLimit !== undefined) {
       updateData.duration =
-        body.duration && body.duration > 0 ? body.duration : null;
+        validatedData.timeLimit && validatedData.timeLimit > 0
+          ? validatedData.timeLimit
+          : null;
     }
 
-    if (body.availableDate !== undefined) {
-      updateData.availableDate = body.availableDate
-        ? new Date(body.availableDate)
-        : null;
-    }
-
-    if (body.dueDate !== undefined) {
-      updateData.dueDate = body.dueDate ? new Date(body.dueDate) : null;
-    }
-
-    if (body.allowRetake !== undefined) {
-      updateData.allowRetake = body.allowRetake;
-    }
-
-    if (body.showResults !== undefined) {
-      updateData.showResults = body.showResults;
-    }
-
-    if (body.antiCheat !== undefined) {
-      updateData.antiCheat = {
-        enabled:
-          body.antiCheat.enabled !== undefined ? body.antiCheat.enabled : true,
-        tabChangeLimit:
-          body.antiCheat.tabChangeLimit !== undefined
-            ? body.antiCheat.tabChangeLimit
-            : 3,
-        timeAwayThreshold:
-          body.antiCheat.timeAwayThreshold !== undefined
-            ? body.antiCheat.timeAwayThreshold
-            : 5,
-        autoDisqualifyOnRefresh:
-          body.antiCheat.autoDisqualifyOnRefresh !== undefined
-            ? body.antiCheat.autoDisqualifyOnRefresh
-            : true,
-        autoSubmitOnDisqualification:
-          body.antiCheat.autoSubmitOnDisqualification !== undefined
-            ? body.antiCheat.autoSubmitOnDisqualification
-            : true,
-      };
+    if (validatedData.coverImageUrl) {
+      updateData.coverImageUrl = validatedData.coverImageUrl;
     }
 
     await adminDb.collection("quizzes").doc(id).update(updateData);
 
-    // Update section assignments using batch write for atomicity
-    if (body.sectionIds !== undefined) {
-      await adminDb.runTransaction(async (transaction) => {
-        // Remove existing section assignments
-        const existingAssignments = await adminDb
-          .collection("quiz_sections")
-          .where("quizId", "==", id)
-          .get();
-
-        existingAssignments.docs.forEach((doc) => {
-          transaction.delete(doc.ref);
-        });
-
-        // Add new section assignments
-        if (Array.isArray(body.sectionIds) && body.sectionIds.length > 0) {
-          const uniqueSectionIds = [...new Set(body.sectionIds)];
-          uniqueSectionIds.forEach((sectionId: string) => {
-            const sectionRef = adminDb.collection("quiz_sections").doc();
-            transaction.set(sectionRef, {
-              quizId: id,
-              sectionId,
-              assignedAt: new Date(),
-            });
-          });
-        }
-      });
-    }
-
-    const headers = {
-      "Content-Type": "application/json; charset=utf-8",
-      "X-Content-Type-Options": "nosniff",
-      "X-Frame-Options": "DENY",
-      "X-XSS-Protection": "1; mode=block",
-      "Strict-Transport-Security":
-        "max-age=31536000; includeSubDomains; preload",
-      "Content-Security-Policy":
-        "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://*.firebaseio.com https://*.googleapis.com;",
-      "Referrer-Policy": "strict-origin-when-cross-origin",
-      "Permissions-Policy": "geolocation=(), microphone=(), camera=()",
-      "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
-      Vary: "Accept, Authorization",
-    };
+    await adminDb.collection("quizzes").doc(id).update(updateData);
 
     return NextResponse.json(
       {
@@ -644,21 +488,14 @@ export async function PUT(
         id,
         message: "Quiz updated successfully",
       },
-      { status: 200, headers }
+      { status: 200, headers: getSecurityHeaders() }
     );
   } catch (error) {
     console.error("Quiz update error:", error);
 
-    const errorHeaders = {
-      "Content-Type": "application/json; charset=utf-8",
-      "X-Content-Type-Options": "nosniff",
-      "X-Frame-Options": "DENY",
-      "Cache-Control": "no-store, no-cache, must-revalidate",
-    };
-
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500, headers: errorHeaders }
+      { status: 500, headers: getErrorSecurityHeaders() }
     );
   }
 }
