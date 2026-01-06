@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifyAuth } from "@/lib/auth";
 import { extractTextFromPDF, generateQuizFromContent } from "@/lib/gemini";
 import { z } from "zod";
+import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
+import { trackAIUsage } from "@/lib/monitoring";
+import { verifyCSRF } from "@/lib/csrf";
 
 const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
 
@@ -44,11 +47,43 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Rate limiting for AI generation (expensive operation)
+    const rateLimitResult = await rateLimit({
+      identifier: user.uid,
+      key: "ai:quiz_generation",
+      limit: RATE_LIMITS.aiGeneration.limit,
+      window: RATE_LIMITS.aiGeneration.window,
+    });
+
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        {
+          error:
+            "Rate limit exceeded. You can generate quizzes up to 3 times per hour. Please try again later.",
+        },
+        { status: 429, headers: { ...headers, ...rateLimitResult.headers } }
+      );
+    }
+
+    // CSRF protection
+    const csrfError = await verifyCSRF(request, user.uid);
+    if (csrfError) {
+      return NextResponse.json(
+        { error: csrfError.error },
+        {
+          status: csrfError.status,
+          headers: { ...headers, ...csrfError.headers },
+        }
+      );
+    }
+
     const formData = await request.formData();
     const file = formData.get("file") as File | null;
     const difficulty = formData.get("difficulty") as string | null;
     const numQuestionsStr = formData.get("numQuestions") as string | null;
-    const additionalInstructions = formData.get("additionalInstructions") as string | null;
+    const additionalInstructions = formData.get("additionalInstructions") as
+      | string
+      | null;
 
     if (!file) {
       return NextResponse.json(
@@ -81,14 +116,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           error: "Invalid input data",
-          details: validationResult.error.errors,
+          details: validationResult.error.issues,
         },
         { status: 400, headers }
       );
     }
 
-    const { difficulty: validatedDifficulty, numQuestions: validatedNumQuestions } =
-      validationResult.data;
+    const {
+      difficulty: validatedDifficulty,
+      numQuestions: validatedNumQuestions,
+    } = validationResult.data;
 
     if (file.size > MAX_FILE_SIZE) {
       return NextResponse.json(
@@ -97,7 +134,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
+    if (
+      file.type !== "application/pdf" &&
+      !file.name.toLowerCase().endsWith(".pdf")
+    ) {
       return NextResponse.json(
         { error: "File must be a PDF" },
         { status: 400, headers }
@@ -118,7 +158,10 @@ export async function POST(request: NextRequest) {
 
     if (!extractedText || extractedText.trim().length === 0) {
       return NextResponse.json(
-        { error: "Could not extract text from PDF. Please ensure the PDF contains readable content." },
+        {
+          error:
+            "Could not extract text from PDF. Please ensure the PDF contains readable content.",
+        },
         { status: 400, headers }
       );
     }
@@ -137,7 +180,32 @@ export async function POST(request: NextRequest) {
       additionalInstructions?.trim() || undefined
     );
 
-    return NextResponse.json({ quiz }, { status: 200, headers });
+    // Track AI usage and cost
+    // Estimate tokens: ~5000 input (extracted text) + ~10000 output (quiz)
+    const estimatedTokens = {
+      input: Math.ceil(extractedText.length / 4), // Rough estimate: 4 chars per token
+      output: Math.ceil(JSON.stringify(quiz).length / 4),
+    };
+    const estimatedCost =
+      (estimatedTokens.input / 1_000_000) * 0.075 +
+      (estimatedTokens.output / 1_000_000) * 0.3;
+
+    await trackAIUsage(
+      user.uid,
+      "quiz_generation",
+      estimatedTokens,
+      estimatedCost
+    );
+
+    const responseHeaders = {
+      ...headers,
+      ...rateLimitResult.headers,
+    };
+
+    return NextResponse.json(
+      { quiz },
+      { status: 200, headers: responseHeaders }
+    );
   } catch (error) {
     console.error("Quiz generation error:", error);
 
@@ -159,14 +227,20 @@ export async function POST(request: NextRequest) {
         error.message.includes("extract text")
       ) {
         return NextResponse.json(
-          { error: "Failed to process PDF. Please ensure the file is a valid PDF with readable content." },
+          {
+            error:
+              "Failed to process PDF. Please ensure the file is a valid PDF with readable content.",
+          },
           { status: 400, headers: errorHeaders }
         );
       }
 
       if (error.message.includes("Quiz generation")) {
         return NextResponse.json(
-          { error: "Failed to generate quiz. Please try again or upload a different PDF." },
+          {
+            error:
+              "Failed to generate quiz. Please try again or upload a different PDF.",
+          },
           { status: 500, headers: errorHeaders }
         );
       }

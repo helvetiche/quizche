@@ -25,12 +25,14 @@ const GoogleAuthButton = ({ onLoginSuccess }: GoogleAuthButtonProps) => {
       const result = await signInWithPopup(auth, provider);
       const idToken = await result.user.getIdToken();
 
-      const response = await fetch("/api/auth/login", {
-        method: "POST",
+      const { apiPost } = await import("../lib/api");
+      const response = await apiPost("/api/auth/login", {
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ idToken }),
+        idToken: null, // No token yet for login
+        requireCSRF: false, // Login doesn't require CSRF
       });
 
       if (!response.ok) {

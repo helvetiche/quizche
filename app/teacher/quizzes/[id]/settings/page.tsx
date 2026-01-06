@@ -18,6 +18,20 @@ interface Quiz {
   dueDate?: string;
   allowRetake?: boolean;
   showResults?: boolean;
+  sectionIds?: string[];
+  antiCheat?: {
+    enabled?: boolean;
+    tabChangeLimit?: number;
+    timeAwayThreshold?: number;
+    autoDisqualifyOnRefresh?: boolean;
+    autoSubmitOnDisqualification?: boolean;
+  };
+}
+
+interface Section {
+  id: string;
+  name: string;
+  description?: string;
 }
 
 export default function QuizSettingsPage() {
@@ -37,6 +51,16 @@ export default function QuizSettingsPage() {
   const [dueTime, setDueTime] = useState<string>("");
   const [allowRetake, setAllowRetake] = useState(false);
   const [showResults, setShowResults] = useState(true);
+  const [sections, setSections] = useState<Section[]>([]);
+  const [selectedSectionIds, setSelectedSectionIds] = useState<string[]>([]);
+  const [loadingSections, setLoadingSections] = useState(false);
+  
+  // Anti-cheat settings
+  const [antiCheatEnabled, setAntiCheatEnabled] = useState(true);
+  const [tabChangeLimit, setTabChangeLimit] = useState(3);
+  const [timeAwayThreshold, setTimeAwayThreshold] = useState(5);
+  const [autoDisqualifyOnRefresh, setAutoDisqualifyOnRefresh] = useState(true);
+  const [autoSubmitOnDisqualification, setAutoSubmitOnDisqualification] = useState(true);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
@@ -105,6 +129,15 @@ export default function QuizSettingsPage() {
         setShowResults(
           data.quiz.showResults !== undefined ? data.quiz.showResults : true
         );
+        setSelectedSectionIds(data.quiz.sectionIds || []);
+        
+        // Load anti-cheat settings
+        const antiCheat = data.quiz.antiCheat || {};
+        setAntiCheatEnabled(antiCheat.enabled !== undefined ? antiCheat.enabled : true);
+        setTabChangeLimit(antiCheat.tabChangeLimit || 3);
+        setTimeAwayThreshold(antiCheat.timeAwayThreshold || 5);
+        setAutoDisqualifyOnRefresh(antiCheat.autoDisqualifyOnRefresh !== undefined ? antiCheat.autoDisqualifyOnRefresh : true);
+        setAutoSubmitOnDisqualification(antiCheat.autoSubmitOnDisqualification !== undefined ? antiCheat.autoSubmitOnDisqualification : true);
       } catch (err) {
         console.error("Error fetching quiz:", err);
         setError(err instanceof Error ? err.message : "Failed to load quiz");
@@ -115,6 +148,33 @@ export default function QuizSettingsPage() {
 
     fetchQuiz();
   }, [idToken, params.id]);
+
+  useEffect(() => {
+    const fetchSections = async () => {
+      if (!idToken) return;
+
+      try {
+        setLoadingSections(true);
+        const response = await fetch("/api/teacher/sections", {
+          headers: {
+            Authorization: `Bearer ${idToken}`,
+          },
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+          setSections(data.sections || []);
+        }
+      } catch (err) {
+        console.error("Error fetching sections:", err);
+      } finally {
+        setLoadingSections(false);
+      }
+    };
+
+    fetchSections();
+  }, [idToken]);
 
   const handleSave = async () => {
     if (!idToken || !params.id || !quiz) return;
@@ -145,11 +205,10 @@ export default function QuizSettingsPage() {
           ? new Date(`${dueDate}T${dueTime}`).toISOString()
           : null;
 
-      const response = await fetch(`/api/quizzes/${params.id}`, {
-        method: "PUT",
+      const { apiPut } = await import("../../../../lib/api");
+      const response = await apiPut(`/api/quizzes/${params.id}`, {
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${idToken}`,
         },
         body: JSON.stringify({
           title: quizData.quiz.title,
@@ -161,7 +220,16 @@ export default function QuizSettingsPage() {
           dueDate: dueDateTime,
           allowRetake,
           showResults,
+          sectionIds: selectedSectionIds,
+          antiCheat: {
+            enabled: antiCheatEnabled,
+            tabChangeLimit: tabChangeLimit,
+            timeAwayThreshold: timeAwayThreshold,
+            autoDisqualifyOnRefresh: autoDisqualifyOnRefresh,
+            autoSubmitOnDisqualification: autoSubmitOnDisqualification,
+          },
         }),
+        idToken,
       });
 
       const data = await response.json();
@@ -348,6 +416,68 @@ export default function QuizSettingsPage() {
 
                   <div className="flex flex-col gap-4 pt-4 border-t-2 border-gray-200">
                     <h4 className="text-lg font-light text-black">
+                      Section Assignment
+                    </h4>
+                    <div className="flex flex-col gap-2">
+                      <span className="text-sm font-light text-gray-600">
+                        Select sections that can access this quiz. Leave empty
+                        to make it available to all students.
+                      </span>
+                      {loadingSections ? (
+                        <div className="text-sm font-light text-gray-600">
+                          Loading sections...
+                        </div>
+                      ) : sections.length === 0 ? (
+                        <div className="text-sm font-light text-gray-600">
+                          No sections available. Create sections first.
+                        </div>
+                      ) : (
+                        <div className="flex flex-col gap-2 max-h-48 overflow-y-auto">
+                          {sections.map((section) => (
+                            <label
+                              key={section.id}
+                              className="flex items-center gap-3 cursor-pointer p-2 hover:bg-gray-50"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={selectedSectionIds.includes(
+                                  section.id
+                                )}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setSelectedSectionIds([
+                                      ...selectedSectionIds,
+                                      section.id,
+                                    ]);
+                                  } else {
+                                    setSelectedSectionIds(
+                                      selectedSectionIds.filter(
+                                        (id) => id !== section.id
+                                      )
+                                    );
+                                  }
+                                }}
+                                className="w-5 h-5 border-2 border-black"
+                              />
+                              <div className="flex flex-col">
+                                <span className="text-base font-light text-black">
+                                  {section.name}
+                                </span>
+                                {section.description && (
+                                  <span className="text-sm font-light text-gray-600">
+                                    {section.description}
+                                  </span>
+                                )}
+                              </div>
+                            </label>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-4 pt-4 border-t-2 border-gray-200">
+                    <h4 className="text-lg font-light text-black">
                       Quiz Options
                     </h4>
                     <div className="flex flex-col gap-4">
@@ -385,6 +515,116 @@ export default function QuizSettingsPage() {
                           </span>
                         </div>
                       </label>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-4 pt-4 border-t-2 border-gray-200">
+                    <h4 className="text-lg font-light text-black">
+                      Anti-Cheating Configuration
+                    </h4>
+                    <div className="flex flex-col gap-6">
+                      <label className="flex items-center gap-3 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={antiCheatEnabled}
+                          onChange={(e) => setAntiCheatEnabled(e.target.checked)}
+                          className="w-5 h-5 border-2 border-black"
+                        />
+                        <div className="flex flex-col">
+                          <span className="text-base font-light text-black">
+                            Enable Anti-Cheating Measures
+                          </span>
+                          <span className="text-sm font-light text-gray-600">
+                            Monitor tab changes, time away, and page refreshes
+                          </span>
+                        </div>
+                      </label>
+
+                      {antiCheatEnabled && (
+                        <>
+                          <div className="flex flex-col gap-2 pl-8">
+                            <label className="text-base font-light text-black">
+                              Tab Change Limit
+                            </label>
+                            <input
+                              type="number"
+                              min="0"
+                              max="10"
+                              value={tabChangeLimit}
+                              onChange={(e) =>
+                                setTabChangeLimit(
+                                  parseInt(e.target.value) || 0
+                                )
+                              }
+                              className="w-full px-4 py-3 border-2 border-black bg-white text-black font-light focus:outline-none focus:ring-2 focus:ring-black"
+                              placeholder="3"
+                            />
+                            <span className="text-sm font-light text-gray-600">
+                              Maximum number of tab changes allowed before disqualification (0 = unlimited)
+                            </span>
+                          </div>
+
+                          <div className="flex flex-col gap-2 pl-8">
+                            <label className="text-base font-light text-black">
+                              Time Away Threshold (seconds)
+                            </label>
+                            <input
+                              type="number"
+                              min="0"
+                              max="300"
+                              value={timeAwayThreshold}
+                              onChange={(e) =>
+                                setTimeAwayThreshold(
+                                  parseInt(e.target.value) || 0
+                                )
+                              }
+                              className="w-full px-4 py-3 border-2 border-black bg-white text-black font-light focus:outline-none focus:ring-2 focus:ring-black"
+                              placeholder="5"
+                            />
+                            <span className="text-sm font-light text-gray-600">
+                              Time away from window (in seconds) before flagging as violation (0 = disabled)
+                            </span>
+                          </div>
+
+                          <label className="flex items-center gap-3 cursor-pointer pl-8">
+                            <input
+                              type="checkbox"
+                              checked={autoDisqualifyOnRefresh}
+                              onChange={(e) =>
+                                setAutoDisqualifyOnRefresh(e.target.checked)
+                              }
+                              className="w-5 h-5 border-2 border-black"
+                            />
+                            <div className="flex flex-col">
+                              <span className="text-base font-light text-black">
+                                Auto-Disqualify on Page Refresh
+                              </span>
+                              <span className="text-sm font-light text-gray-600">
+                                Automatically disqualify students who refresh the page
+                              </span>
+                            </div>
+                          </label>
+
+                          <label className="flex items-center gap-3 cursor-pointer pl-8">
+                            <input
+                              type="checkbox"
+                              checked={autoSubmitOnDisqualification}
+                              onChange={(e) =>
+                                setAutoSubmitOnDisqualification(e.target.checked)
+                              }
+                              className="w-5 h-5 border-2 border-black"
+                            />
+                            <div className="flex flex-col">
+                              <span className="text-base font-light text-black">
+                                Auto-Submit on Disqualification
+                              </span>
+                              <span className="text-sm font-light text-gray-600">
+                                Automatically submit quiz when student is disqualified
+                              </span>
+                            </div>
+                          </label>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>

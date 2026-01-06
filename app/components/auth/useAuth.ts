@@ -4,13 +4,8 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/lib/firebase";
-
-interface AuthUser {
-  uid: string;
-  email?: string;
-  role: string | null;
-  tier: string;
-}
+import { getCSRFToken, clearCSRFToken } from "@/app/lib/csrf";
+import { apiFetch } from "@/app/lib/api";
 
 export const useAuth = () => {
   const router = useRouter();
@@ -29,6 +24,7 @@ export const useAuth = () => {
         setUserRole(null);
         setProfileCompleted(null);
         setIdToken(null);
+        clearCSRFToken(); // Clear CSRF token on logout
         setLoading(false);
         return;
       }
@@ -37,12 +33,17 @@ export const useAuth = () => {
         const token = await currentUser.getIdToken();
         setIdToken(token);
 
-        const loginResponse = await fetch("/api/auth/login", {
+        // Fetch CSRF token after authentication
+        await getCSRFToken(token);
+
+        const loginResponse = await apiFetch("/api/auth/login", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({ idToken: token }),
+          idToken: token,
+          requireCSRF: false, // Login doesn't require CSRF
         });
 
         if (loginResponse.ok) {
@@ -52,10 +53,10 @@ export const useAuth = () => {
           setUser(currentUser);
 
           if (role) {
-            const profileResponse = await fetch("/api/users/profile", {
-              headers: {
-                Authorization: `Bearer ${token}`,
-              },
+            const profileResponse = await apiFetch("/api/users/profile", {
+              headers: {},
+              idToken: token,
+              requireCSRF: false, // GET request doesn't need CSRF
             });
 
             if (profileResponse.ok) {
@@ -92,10 +93,10 @@ export const useAuth = () => {
 
   const checkProfileCompletion = async (role: string, token: string) => {
     try {
-      const profileResponse = await fetch("/api/users/profile", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+      const profileResponse = await apiFetch("/api/users/profile", {
+        headers: {},
+        idToken: token,
+        requireCSRF: false, // GET request doesn't need CSRF
       });
 
       if (profileResponse.ok) {

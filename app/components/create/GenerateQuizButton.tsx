@@ -3,23 +3,13 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import PDFUploadModal from "./PDFUploadModal";
-
-interface GeneratedQuiz {
-  title: string;
-  description: string;
-  questions: Array<{
-    question: string;
-    type: string;
-    choices?: string[];
-    answer: string;
-  }>;
-}
+import { GeneratedQuizData } from "./QuizForm";
 
 interface GenerateQuizButtonProps {
   idToken: string;
-  onQuizGenerated?: (quiz: GeneratedQuiz) => void;
-  onSave?: (quiz: GeneratedQuiz) => void | Promise<void>;
-  onEdit?: (quiz: GeneratedQuiz) => void;
+  onQuizGenerated?: (quiz: GeneratedQuizData) => void;
+  onSave?: (quiz: GeneratedQuizData) => void | Promise<void>;
+  onEdit?: (quiz: GeneratedQuizData) => void;
   className?: string;
   variant?: "primary" | "secondary";
 }
@@ -44,7 +34,7 @@ const GenerateQuizButton = ({
     setIsModalOpen(false);
   };
 
-  const handleSave = async (quiz: GeneratedQuiz) => {
+  const handleSave = async (quiz: GeneratedQuizData) => {
     if (onSave) {
       await onSave(quiz);
       handleCloseModal();
@@ -65,7 +55,11 @@ const GenerateQuizButton = ({
               answer: q.answer.trim(),
             };
 
-            if (q.type === "multiple_choice" && q.choices && Array.isArray(q.choices)) {
+            if (
+              q.type === "multiple_choice" &&
+              q.choices &&
+              Array.isArray(q.choices)
+            ) {
               const filteredChoices = q.choices
                 .filter((c) => c.trim().length > 0)
                 .map((c) => c.trim());
@@ -78,13 +72,13 @@ const GenerateQuizButton = ({
           }),
         };
 
-        const response = await fetch("/api/quizzes", {
-          method: "POST",
+        const { apiPost } = await import("../../lib/api");
+        const response = await apiPost("/api/quizzes", {
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${idToken}`,
           },
           body: JSON.stringify(quizData),
+          idToken,
         });
 
         const data = await response.json();
@@ -109,7 +103,7 @@ const GenerateQuizButton = ({
     }
   };
 
-  const handleEdit = (quiz: GeneratedQuiz) => {
+  const handleEdit = (quiz: GeneratedQuizData) => {
     if (onEdit) {
       onEdit(quiz);
       handleCloseModal();

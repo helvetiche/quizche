@@ -12,7 +12,7 @@ import PageTitle from "../layout/PageTitle";
 
 interface AuthGuardProps {
   children: React.ReactNode;
-  requiredRole: "teacher" | "student";
+  requiredRole: "teacher" | "student" | null;
   onAuthSuccess?: (user: any) => void;
 }
 
@@ -52,15 +52,41 @@ const AuthGuard = ({
         }
 
         const verifyData = await verifyResponse.json();
-        if (!verifyData.user.role || verifyData.user.role !== requiredRole) {
-          if (verifyData.user.role) {
-            router.push(`/${verifyData.user.role}`);
-          } else {
+        // If requiredRole is null, allow any authenticated user
+        // Otherwise, check if the user's role matches the required role
+        if (requiredRole !== null) {
+          if (!verifyData.user.role || verifyData.user.role !== requiredRole) {
+            if (verifyData.user.role) {
+              router.push(`/${verifyData.user.role}`);
+            } else {
+              router.push("/");
+            }
+            return;
+          }
+        } else {
+          // For profile page (requiredRole is null), just ensure user is authenticated
+          if (!verifyData.user.role) {
             router.push("/");
+            return;
+          }
+        }
+
+        // For profile page (requiredRole is null), skip profile completion check
+        // Allow access to profile page regardless of completion status
+        if (requiredRole === null) {
+          const userData = {
+            ...verifyData.user,
+            role: verifyData.user.role,
+          };
+          setUser(userData);
+          setProfileCompleted(true); // Set to true to skip ProfileSetup component
+          if (onAuthSuccess) {
+            onAuthSuccess(userData);
           }
           return;
         }
 
+        // For other pages, check profile completion
         const profileResponse = await fetch("/api/users/profile", {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -86,7 +112,7 @@ const AuthGuard = ({
 
         const userData = {
           ...verifyData.user,
-          role: requiredRole,
+          role: requiredRole || verifyData.user.role,
         };
         setUser(userData);
         if (onAuthSuccess) {
@@ -112,7 +138,7 @@ const AuthGuard = ({
       <PageContainer>
         <MainLayout>
           <PageTitle>QuizChe</PageTitle>
-          <ProfileSetup userId={user.uid} idToken={idToken} />
+          <ProfileSetup idToken={idToken} />
         </MainLayout>
       </PageContainer>
     );

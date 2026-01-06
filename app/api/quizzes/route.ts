@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyAuth } from "@/lib/auth";
 import { adminDb } from "@/lib/firebase-admin";
+import { verifyCSRF } from "@/lib/csrf";
+import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 
 const QUESTION_TYPES = [
   "multiple_choice",
@@ -18,6 +20,7 @@ interface Question {
   type: QuestionType;
   choices?: string[];
   answer: string;
+  imageUrl?: string;
 }
 
 interface QuizData {
@@ -56,16 +59,27 @@ const validateQuestion = (question: any): question is Question => {
 
 const validateQuizData = (data: any): data is QuizData => {
   if (!data || typeof data !== "object") return false;
-  if (!data.title || typeof data.title !== "string" || data.title.trim().length === 0) {
+  if (
+    !data.title ||
+    typeof data.title !== "string" ||
+    data.title.trim().length === 0
+  ) {
     return false;
   }
   if (data.title.length > 200) return false;
 
-  if (data.description && (typeof data.description !== "string" || data.description.length > 1000)) {
+  if (
+    data.description &&
+    (typeof data.description !== "string" || data.description.length > 1000)
+  ) {
     return false;
   }
 
-  if (!data.questions || !Array.isArray(data.questions) || data.questions.length === 0) {
+  if (
+    !data.questions ||
+    !Array.isArray(data.questions) ||
+    data.questions.length === 0
+  ) {
     return false;
   }
 
@@ -102,6 +116,35 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Rate limiting
+    const rateLimitResult = await rateLimit({
+      identifier: user.uid,
+      key: "quizzes:create",
+      limit: RATE_LIMITS.general.limit,
+      window: RATE_LIMITS.general.window,
+    });
+
+    if (!rateLimitResult.success) {
+      const headers = {
+        "Content-Type": "application/json; charset=utf-8",
+        "X-Content-Type-Options": "nosniff",
+        ...rateLimitResult.headers,
+      };
+      return NextResponse.json(
+        { error: "Rate limit exceeded. Please try again later." },
+        { status: 429, headers }
+      );
+    }
+
+    // CSRF protection
+    const csrfError = await verifyCSRF(request, user.uid);
+    if (csrfError) {
+      return NextResponse.json(
+        { error: csrfError.error },
+        { status: csrfError.status, headers: csrfError.headers }
+      );
+    }
+
     const body = await request.json();
 
     if (!validateQuizData(body)) {
@@ -123,13 +166,25 @@ export async function POST(request: NextRequest) {
         answer: q.answer.trim(),
       };
 
-      if (q.type === "multiple_choice" && q.choices && Array.isArray(q.choices)) {
+      if (
+        q.type === "multiple_choice" &&
+        q.choices &&
+        Array.isArray(q.choices)
+      ) {
         const filteredChoices = q.choices
           .map((c: string) => c.trim())
           .filter((c: string) => c.length > 0);
         if (filteredChoices.length > 0) {
           questionData.choices = filteredChoices;
         }
+      }
+
+      if (
+        q.imageUrl &&
+        typeof q.imageUrl === "string" &&
+        q.imageUrl.trim().length > 0
+      ) {
+        questionData.imageUrl = q.imageUrl.trim();
       }
 
       return questionData;
@@ -216,25 +271,43 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const quizzesSnapshot = await adminDb
+    // Pagination support
+    const url = new URL(request.url);
+    const limit = Math.min(
+      Math.max(parseInt(url.searchParams.get("limit") || "50"), 1),
+      100
+    );
+    const lastDocId = url.searchParams.get("lastDocId");
+
+    // Get quizzes with pagination
+    let quizzesQuery = adminDb
       .collection("quizzes")
       .where("teacherId", "==", user.uid)
       .orderBy("createdAt", "desc")
-      .get();
+      .limit(limit);
+
+    if (lastDocId) {
+      const lastDoc = await adminDb.collection("quizzes").doc(lastDocId).get();
+      if (lastDoc.exists) {
+        quizzesQuery = quizzesQuery.startAfter(lastDoc);
+      }
+    }
+
+    const quizzesSnapshot = await quizzesQuery.get();
 
     const quizzes = quizzesSnapshot.docs.map((doc) => {
       const data = doc.data();
       const createdAt = data.createdAt?.toDate
         ? data.createdAt.toDate().toISOString()
         : data.createdAt instanceof Date
-          ? data.createdAt.toISOString()
-          : data.createdAt || new Date().toISOString();
-      
+        ? data.createdAt.toISOString()
+        : data.createdAt || new Date().toISOString();
+
       const updatedAt = data.updatedAt?.toDate
         ? data.updatedAt.toDate().toISOString()
         : data.updatedAt instanceof Date
-          ? data.updatedAt.toISOString()
-          : data.updatedAt || createdAt;
+        ? data.updatedAt.toISOString()
+        : data.updatedAt || createdAt;
 
       return {
         id: doc.id,
@@ -262,7 +335,20 @@ export async function GET(request: NextRequest) {
       Vary: "Accept, Authorization",
     };
 
-    return NextResponse.json({ quizzes }, { status: 200, headers });
+    const lastDoc = quizzesSnapshot.docs[quizzesSnapshot.docs.length - 1];
+    const hasMore = quizzesSnapshot.docs.length === limit;
+
+    return NextResponse.json(
+      {
+        quizzes,
+        pagination: {
+          limit,
+          hasMore,
+          lastDocId: hasMore && lastDoc ? lastDoc.id : null,
+        },
+      },
+      { status: 200, headers }
+    );
   } catch (error) {
     console.error("Get quizzes error:", error);
 

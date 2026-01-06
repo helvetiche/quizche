@@ -1,27 +1,15 @@
 "use client";
 
 import { useState, useRef, useCallback } from "react";
+import { GeneratedQuizData } from "./QuizForm";
 
 type Difficulty = "easy" | "medium" | "hard";
-
-interface Question {
-  question: string;
-  type: string;
-  choices?: string[];
-  answer: string;
-}
-
-interface GeneratedQuiz {
-  title: string;
-  description: string;
-  questions: Question[];
-}
 
 interface PDFUploadModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (quiz: GeneratedQuiz) => void;
-  onEdit: (quiz: GeneratedQuiz) => void;
+  onSave: (quiz: GeneratedQuizData) => void;
+  onEdit: (quiz: GeneratedQuizData) => void;
   idToken: string;
 }
 
@@ -39,7 +27,7 @@ const PDFUploadModal = ({
   const [additionalInstructions, setAdditionalInstructions] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [generatedQuiz, setGeneratedQuiz] = useState<GeneratedQuiz | null>(null);
+  const [generatedQuiz, setGeneratedQuiz] = useState<GeneratedQuizData | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
 
@@ -124,12 +112,12 @@ const PDFUploadModal = ({
         formData.append("additionalInstructions", additionalInstructions.trim());
       }
 
-      const response = await fetch("/api/quizzes/generate", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${idToken}`,
-        },
+      const { apiPost } = await import("../../lib/api");
+      const response = await apiPost("/api/quizzes/generate", {
         body: formData,
+        idToken,
+        // Don't set Content-Type header for FormData, browser will set it with boundary
+        headers: {},
       });
 
       const data = await response.json();

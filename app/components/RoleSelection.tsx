@@ -7,11 +7,10 @@ import RoleButton from "./auth/RoleButton";
 import ErrorMessage from "./ui/ErrorMessage";
 
 interface RoleSelectionProps {
-  userId: string;
   idToken: string;
 }
 
-const RoleSelection = ({ userId, idToken }: RoleSelectionProps) => {
+const RoleSelection = ({ idToken }: RoleSelectionProps) => {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -21,12 +20,13 @@ const RoleSelection = ({ userId, idToken }: RoleSelectionProps) => {
       setLoading(true);
       setError(null);
 
-      const response = await fetch("/api/auth/register", {
-        method: "POST",
+      const { apiPost } = await import("../lib/api");
+      const response = await apiPost("/api/auth/register", {
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ idToken, role }),
+        idToken: idToken, // Pass idToken for CSRF token fetching
       });
 
       if (!response.ok) {

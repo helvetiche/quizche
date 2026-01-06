@@ -56,13 +56,13 @@ export default function MyQuizzesPage() {
         }),
       };
 
-      const response = await fetch("/api/quizzes", {
-        method: "POST",
+      const { apiPost } = await import("../../lib/api");
+      const response = await apiPost("/api/quizzes", {
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${idToken}`,
         },
         body: JSON.stringify(quizData),
+        idToken,
       });
 
       const data = await response.json();

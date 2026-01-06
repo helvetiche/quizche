@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { uploadImageToImgbb } from "@/lib/imgbb";
+import Image from "next/image";
 
 type QuestionType =
   | "multiple_choice"
@@ -17,6 +19,9 @@ interface Question {
   type: QuestionType;
   choices: string[];
   answer: string;
+  imageUrl?: string;
+  imageFile?: File;
+  imagePreview?: string;
 }
 
 const QUESTION_TYPES: { value: QuestionType; label: string }[] = [
@@ -28,7 +33,7 @@ const QUESTION_TYPES: { value: QuestionType; label: string }[] = [
   { value: "reflection", label: "Reflection" },
 ];
 
-interface GeneratedQuizData {
+export interface GeneratedQuizData {
   title: string;
   description: string;
   questions: Array<{
@@ -36,6 +41,7 @@ interface GeneratedQuizData {
     type: QuestionType;
     choices?: string[];
     answer: string;
+    imageUrl?: string;
   }>;
 }
 
@@ -67,6 +73,7 @@ const QuizForm = ({ idToken, quizId, initialData }: QuizFormProps) => {
                 : ["", "", "", ""]
               : [],
           answer: q.answer,
+          imageUrl: q.imageUrl,
         }))
       : [
           {
@@ -78,6 +85,12 @@ const QuizForm = ({ idToken, quizId, initialData }: QuizFormProps) => {
           },
         ]
   );
+  const [uploadingImages, setUploadingImages] = useState<
+    Record<string, boolean>
+  >({});
+  const [imagePreviewUrls, setImagePreviewUrls] = useState<
+    Record<string, string>
+  >({});
 
   useEffect(() => {
     if (initialData) {
@@ -95,6 +108,7 @@ const QuizForm = ({ idToken, quizId, initialData }: QuizFormProps) => {
                 : ["", "", "", ""]
               : [],
           answer: q.answer,
+          imageUrl: q.imageUrl,
         }))
       );
       return;
@@ -105,10 +119,9 @@ const QuizForm = ({ idToken, quizId, initialData }: QuizFormProps) => {
 
       try {
         setLoadingQuiz(true);
-        const response = await fetch(`/api/quizzes/${quizId}`, {
-          headers: {
-            Authorization: `Bearer ${idToken}`,
-          },
+        const { apiGet } = await import("../../lib/api");
+        const response = await apiGet(`/api/quizzes/${quizId}`, {
+          idToken,
         });
 
         const data = await response.json();
@@ -129,6 +142,7 @@ const QuizForm = ({ idToken, quizId, initialData }: QuizFormProps) => {
           choices:
             q.choices || (q.type === "multiple_choice" ? ["", "", "", ""] : []),
           answer: q.answer,
+          imageUrl: q.imageUrl,
         }));
 
         setQuestions(
@@ -167,6 +181,66 @@ const QuizForm = ({ idToken, quizId, initialData }: QuizFormProps) => {
       },
     ]);
   };
+
+  const handleImageSelect = (questionId: string, file: File) => {
+    if (!file.type.startsWith("image/")) {
+      alert("Please select an image file");
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      alert("Image size must be less than 10MB");
+      return;
+    }
+
+    // Create preview URL
+    const previewUrl = URL.createObjectURL(file);
+    setImagePreviewUrls((prev) => ({ ...prev, [questionId]: previewUrl }));
+
+    // Store file locally
+    setQuestions(
+      questions.map((q) =>
+        q.id === questionId
+          ? { ...q, imageFile: file, imagePreview: previewUrl }
+          : q
+      )
+    );
+  };
+
+  const handleRemoveImage = (questionId: string) => {
+    // Clean up preview URL
+    const previewUrl = imagePreviewUrls[questionId];
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+      setImagePreviewUrls((prev) => {
+        const newUrls = { ...prev };
+        delete newUrls[questionId];
+        return newUrls;
+      });
+    }
+
+    setQuestions(
+      questions.map((q) =>
+        q.id === questionId
+          ? {
+              ...q,
+              imageFile: undefined,
+              imagePreview: undefined,
+              imageUrl: undefined,
+            }
+          : q
+      )
+    );
+  };
+
+  // Cleanup preview URLs on unmount
+  useEffect(() => {
+    return () => {
+      Object.values(imagePreviewUrls).forEach((url) => {
+        URL.revokeObjectURL(url);
+      });
+    };
+  }, [imagePreviewUrls]);
 
   const handleRemoveQuestion = (id: string) => {
     if (questions.length === 1) {
@@ -342,37 +416,93 @@ const QuizForm = ({ idToken, quizId, initialData }: QuizFormProps) => {
       return;
     }
 
+    if (!idToken) {
+      alert("Authentication required. Please refresh the page.");
+      return;
+    }
+
     setLoading(true);
 
     try {
+      // Upload all images first
+      const questionsWithImages = await Promise.all(
+        questions.map(async (q) => {
+          let imageUrl = q.imageUrl; // Keep existing URL if already uploaded
+
+          // Upload new image if file exists
+          if (q.imageFile) {
+            try {
+              setUploadingImages((prev: Record<string, boolean>) => ({
+                ...prev,
+                [q.id]: true,
+              }));
+              imageUrl = await uploadImageToImgbb(q.imageFile, idToken);
+              // Clean up preview URL after successful upload
+              if (q.imagePreview) {
+                URL.revokeObjectURL(q.imagePreview);
+                setImagePreviewUrls((prev) => {
+                  const newUrls = { ...prev };
+                  delete newUrls[q.id];
+                  return newUrls;
+                });
+              }
+            } catch (error) {
+              console.error(
+                `Error uploading image for question ${q.id}:`,
+                error
+              );
+              throw new Error(
+                `Failed to upload image for question. ${
+                  error instanceof Error ? error.message : "Please try again."
+                }`
+              );
+            } finally {
+              setUploadingImages((prev: Record<string, boolean>) => ({
+                ...prev,
+                [q.id]: false,
+              }));
+            }
+          }
+
+          return {
+            question: q.question.trim(),
+            type: q.type,
+            choices:
+              q.type === "multiple_choice"
+                ? q.choices
+                    .filter((c) => c.trim().length > 0)
+                    .map((c) => c.trim())
+                : undefined,
+            answer: q.answer.trim(),
+            imageUrl,
+          };
+        })
+      );
+
       const quizData = {
         title: title.trim(),
         description: description.trim(),
         isActive: isActive,
-        questions: questions.map((q) => ({
-          question: q.question.trim(),
-          type: q.type,
-          choices:
-            q.type === "multiple_choice"
-              ? q.choices
-                  .filter((c) => c.trim().length > 0)
-                  .map((c) => c.trim())
-              : undefined,
-          answer: q.answer.trim(),
-        })),
+        questions: questionsWithImages,
       };
 
+      const { apiPost, apiPut } = await import("../../lib/api");
       const url = quizId ? `/api/quizzes/${quizId}` : "/api/quizzes";
-      const method = quizId ? "PUT" : "POST";
-
-      const response = await fetch(url, {
-        method,
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${idToken}`,
-        },
-        body: JSON.stringify(quizData),
-      });
+      const response = quizId
+        ? await apiPut(url, {
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(quizData),
+            idToken,
+          })
+        : await apiPost(url, {
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(quizData),
+            idToken,
+          });
 
       const data = await response.json();
 
@@ -433,6 +563,18 @@ const QuizForm = ({ idToken, quizId, initialData }: QuizFormProps) => {
                       <p className="text-base font-light text-gray-400 italic">
                         Enter question text...
                       </p>
+                    )}
+
+                    {(question.imagePreview || question.imageUrl) && (
+                      <div className="relative w-full max-w-md h-64 border-2 border-gray-300">
+                        <Image
+                          src={question.imagePreview || question.imageUrl || ""}
+                          alt="Question image"
+                          fill
+                          className="object-contain"
+                          unoptimized={!!question.imagePreview}
+                        />
+                      </div>
                     )}
 
                     {question.type === "multiple_choice" && (
@@ -613,6 +755,60 @@ const QuizForm = ({ idToken, quizId, initialData }: QuizFormProps) => {
                       rows={2}
                       required
                     />
+                  </div>
+
+                  <div className="flex flex-col gap-4">
+                    <label className="text-base font-light text-black">
+                      Question Image (Optional)
+                    </label>
+                    {question.imagePreview || question.imageUrl ? (
+                      <div className="flex flex-col gap-2">
+                        <div className="relative w-full max-w-md h-64 border-2 border-gray-300">
+                          <Image
+                            src={
+                              question.imagePreview || question.imageUrl || ""
+                            }
+                            alt="Question image"
+                            fill
+                            className="object-contain"
+                            unoptimized={!!question.imagePreview}
+                          />
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveImage(question.id)}
+                            className="px-4 py-2 bg-red-600 text-white font-light hover:bg-red-700 transition-colors"
+                          >
+                            Remove Image
+                          </button>
+                          {question.imageFile && !question.imageUrl && (
+                            <span className="text-xs font-light text-gray-600">
+                              (Will be uploaded when quiz is saved)
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col gap-2">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              handleImageSelect(question.id, file);
+                            }
+                            // Reset input so same file can be selected again
+                            e.target.value = "";
+                          }}
+                          className="w-full px-4 py-3 border-2 border-black bg-white text-black font-light focus:outline-none focus:ring-2 focus:ring-black file:mr-4 file:py-2 file:px-4 file:border-0 file:bg-black file:text-white file:font-light file:cursor-pointer hover:file:bg-gray-800"
+                        />
+                        <p className="text-xs font-light text-gray-500">
+                          Image will be uploaded when you save the quiz
+                        </p>
+                      </div>
+                    )}
                   </div>
 
                   <div className="flex flex-col gap-4">

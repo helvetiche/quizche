@@ -28,7 +28,7 @@ export default function Home() {
       <PageContainer>
         <MainLayout>
           <PageTitle>QuizChe</PageTitle>
-          <RoleSelection userId={user.uid} idToken={idToken} />
+          <RoleSelection idToken={idToken} />
         </MainLayout>
       </PageContainer>
     );
@@ -39,7 +39,7 @@ export default function Home() {
       <PageContainer>
         <MainLayout>
           <PageTitle>QuizChe</PageTitle>
-          <ProfileSetup userId={user.uid} idToken={idToken} />
+          <ProfileSetup idToken={idToken} />
         </MainLayout>
       </PageContainer>
     );

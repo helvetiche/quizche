@@ -3,8 +3,6 @@ import { getAuth, Auth } from "firebase-admin/auth";
 import { getFirestore, Firestore } from "firebase-admin/firestore";
 
 let app: App;
-let adminAuth: Auth;
-let adminDb: Firestore;
 
 if (!getApps().length) {
   let serviceAccount;
@@ -54,8 +52,8 @@ if (!getApps().length) {
   app = getApps()[0];
 }
 
-adminAuth = getAuth(app);
-adminDb = getFirestore(app);
+const adminAuth = getAuth(app);
+const adminDb = getFirestore(app);
 
 export { adminAuth, adminDb };
 export default app;

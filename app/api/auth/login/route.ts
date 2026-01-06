@@ -1,8 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminAuth } from "@/lib/firebase-admin";
+import { verifyAuth } from "@/lib/auth";
+import { verifyCSRF } from "@/lib/csrf";
 
 export async function POST(request: NextRequest) {
   try {
+    // Optional CSRF protection: Only verify if user is already authenticated
+    const existingUser = await verifyAuth(request);
+    if (existingUser) {
+      const csrfError = await verifyCSRF(request, existingUser.uid);
+      if (csrfError) {
+        return NextResponse.json(
+          { error: csrfError.error },
+          { status: csrfError.status, headers: csrfError.headers }
+        );
+      }
+    }
+
     const body = await request.json();
     const { idToken } = body;
 

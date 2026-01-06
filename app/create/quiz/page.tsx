@@ -6,20 +6,9 @@ import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import AuthGuard from "../../components/auth/AuthGuard";
 import DashboardLayout from "../../components/layout/DashboardLayout";
-import QuizForm from "../../components/create/QuizForm";
+import QuizForm, { GeneratedQuizData } from "../../components/create/QuizForm";
 import GenerateQuizButton from "../../components/create/GenerateQuizButton";
 import Loading from "../../components/ui/Loading";
-
-interface GeneratedQuizData {
-  title: string;
-  description: string;
-  questions: Array<{
-    question: string;
-    type: string;
-    choices?: string[];
-    answer: string;
-  }>;
-}
 
 export default function CreateQuizPage() {
   const router = useRouter();
@@ -56,13 +45,13 @@ export default function CreateQuizPage() {
         }),
       };
 
-      const response = await fetch("/api/quizzes", {
-        method: "POST",
+      const { apiPost } = await import("../../lib/api");
+      const response = await apiPost("/api/quizzes", {
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${idToken}`,
         },
         body: JSON.stringify(quizData),
+        idToken,
       });
 
       const data = await response.json();
