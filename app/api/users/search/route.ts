@@ -3,6 +3,12 @@ import { verifyAuth } from "@/lib/auth";
 import { adminDb } from "@/lib/firebase-admin";
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 import cache, { getApiCacheKey } from "@/lib/cache";
+import {
+  getSecurityHeaders,
+  getErrorSecurityHeaders,
+  getPublicSecurityHeaders,
+} from "@/lib/security-headers";
+import { handleApiError } from "@/lib/error-handler";
 
 
 export async function GET(request: NextRequest) {
@@ -10,26 +16,16 @@ export async function GET(request: NextRequest) {
     const user = await verifyAuth(request);
 
     if (!user) {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
       return NextResponse.json(
         { error: "Unauthorized: Invalid or missing authentication token" },
-        { status: 401, headers }
+        { status: 401, headers: getErrorSecurityHeaders() }
       );
     }
 
     if (user.role !== "student") {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
       return NextResponse.json(
         { error: "Forbidden: Student role required" },
-        { status: 403, headers }
+        { status: 403, headers: getErrorSecurityHeaders() }
       );
     }
 
@@ -47,14 +43,14 @@ export async function GET(request: NextRequest) {
     });
 
     if (!rateLimitResult.success) {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        ...rateLimitResult.headers,
-      };
       return NextResponse.json(
         { error: "Rate limit exceeded. Please try again later." },
-        { status: 429, headers }
+        {
+          status: 429,
+          headers: getErrorSecurityHeaders({
+            rateLimitHeaders: rateLimitResult.headers,
+          }),
+        }
       );
     }
 
@@ -65,45 +61,26 @@ export async function GET(request: NextRequest) {
     });
     const cached = await cache.get<{ users: any[] }>(cacheKey);
     if (cached) {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "X-Frame-Options": "DENY",
-        "X-XSS-Protection": "1; mode=block",
-        "Strict-Transport-Security":
-          "max-age=31536000; includeSubDomains; preload",
-        "Content-Security-Policy":
-          "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://*.firebaseio.com https://*.googleapis.com;",
-        "Referrer-Policy": "strict-origin-when-cross-origin",
-        "Permissions-Policy": "geolocation=(), microphone=(), camera=()",
-        "Cache-Control": "private, max-age=60",
-        Vary: "Accept, Authorization",
-        ...rateLimitResult.headers,
-      };
-      return NextResponse.json(cached, { status: 200, headers });
+      return NextResponse.json(cached, {
+        status: 200,
+        headers: getPublicSecurityHeaders({
+          rateLimitHeaders: rateLimitResult.headers,
+          cacheControl: "private, max-age=60",
+        }),
+      });
     }
 
     if (!query || query.trim().length === 0) {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
       return NextResponse.json(
         { error: "Search query is required" },
-        { status: 400, headers }
+        { status: 400, headers: getErrorSecurityHeaders() }
       );
     }
 
     if (query.trim().length < 2) {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
       return NextResponse.json(
         { error: "Search query must be at least 2 characters" },
-        { status: 400, headers }
+        { status: 400, headers: getErrorSecurityHeaders() }
       );
     }
 
@@ -233,48 +210,27 @@ export async function GET(request: NextRequest) {
       connectedUserIdsCount: connectedUserIds.size,
     });
 
-    const headers = {
-      "Content-Type": "application/json; charset=utf-8",
-      "X-Content-Type-Options": "nosniff",
-      "X-Frame-Options": "DENY",
-      "X-XSS-Protection": "1; mode=block",
-      "Strict-Transport-Security":
-        "max-age=31536000; includeSubDomains; preload",
-      "Content-Security-Policy":
-        "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://*.firebaseio.com https://*.googleapis.com;",
-      "Referrer-Policy": "strict-origin-when-cross-origin",
-      "Permissions-Policy": "geolocation=(), microphone=(), camera=()",
-      "Cache-Control": "private, max-age=60",
-      Vary: "Accept, Authorization",
-      ...rateLimitResult.headers,
-    };
-
     const result = { users: limitedUsers };
 
     // Cache the response
     await cache.set(cacheKey, result, 60); // 1 minute (shorter for search)
 
-    return NextResponse.json(result, { status: 200, headers });
-  } catch (error) {
-    console.error("Search users error:", error);
-    console.error("Error details:", {
-      message: error instanceof Error ? error.message : String(error),
-      stack: error instanceof Error ? error.stack : undefined,
+    return NextResponse.json(result, {
+      status: 200,
+      headers: getPublicSecurityHeaders({
+        rateLimitHeaders: rateLimitResult.headers,
+        cacheControl: "private, max-age=60",
+      }),
     });
-
-    const errorHeaders = {
-      "Content-Type": "application/json; charset=utf-8",
-      "X-Content-Type-Options": "nosniff",
-      "X-Frame-Options": "DENY",
-      "Cache-Control": "no-store, no-cache, must-revalidate",
-    };
-
-    return NextResponse.json(
-      { 
-        error: "Internal server error",
-        details: error instanceof Error ? error.message : String(error)
-      },
-      { status: 500, headers: errorHeaders }
-    );
+  } catch (error) {
+    // Try to get user for error context, but don't fail if auth fails
+    let userId: string | undefined;
+    try {
+      const user = await verifyAuth(request);
+      userId = user?.uid;
+    } catch {
+      // Ignore auth errors in error handler
+    }
+    return handleApiError(error, { route: "/api/users/search", userId });
   }
 }

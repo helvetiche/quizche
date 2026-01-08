@@ -1,49 +1,37 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyAuth } from "@/lib/auth";
 import { extractTextFromPDF, generateQuizFromContent } from "@/lib/gemini";
-import { z } from "zod";
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 import { trackAIUsage } from "@/lib/monitoring";
 import { verifyCSRF } from "@/lib/csrf";
+import {
+  getSecurityHeaders,
+  getErrorSecurityHeaders,
+} from "@/lib/security-headers";
+import {
+  QuizGenerationSchema,
+  validateInput,
+  validateFileUpload,
+} from "@/lib/validation";
+import { handleApiError } from "@/lib/error-handler";
 
 const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
 
-const generateQuizSchema = z.object({
-  difficulty: z.enum(["easy", "medium", "hard"]),
-  numQuestions: z.number().int().min(1).max(50),
-});
-
-const getHeaders = () => ({
-  "Content-Type": "application/json; charset=utf-8",
-  "X-Content-Type-Options": "nosniff",
-  "X-Frame-Options": "DENY",
-  "X-XSS-Protection": "1; mode=block",
-  "Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
-  "Content-Security-Policy":
-    "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://*.firebaseio.com https://*.googleapis.com;",
-  "Referrer-Policy": "strict-origin-when-cross-origin",
-  "Permissions-Policy": "geolocation=(), microphone=(), camera=()",
-  "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
-  Vary: "Accept, Authorization",
-});
-
 export async function POST(request: NextRequest) {
-  const headers = getHeaders();
-
   try {
     const user = await verifyAuth(request);
 
     if (!user) {
       return NextResponse.json(
         { error: "Unauthorized: Invalid or missing authentication token" },
-        { status: 401, headers }
+        { status: 401, headers: getErrorSecurityHeaders() }
       );
     }
 
     if (user.role !== "teacher") {
       return NextResponse.json(
         { error: "Forbidden: Teacher role required to generate quizzes" },
-        { status: 403, headers }
+        { status: 403, headers: getErrorSecurityHeaders() }
       );
     }
 
@@ -61,7 +49,12 @@ export async function POST(request: NextRequest) {
           error:
             "Rate limit exceeded. You can generate quizzes up to 3 times per hour. Please try again later.",
         },
-        { status: 429, headers: { ...headers, ...rateLimitResult.headers } }
+        {
+          status: 429,
+          headers: getErrorSecurityHeaders({
+            rateLimitHeaders: rateLimitResult.headers,
+          }),
+        }
       );
     }
 
@@ -70,10 +63,7 @@ export async function POST(request: NextRequest) {
     if (csrfError) {
       return NextResponse.json(
         { error: csrfError.error },
-        {
-          status: csrfError.status,
-          headers: { ...headers, ...csrfError.headers },
-        }
+        { status: csrfError.status, headers: csrfError.headers }
       );
     }
 
@@ -88,14 +78,14 @@ export async function POST(request: NextRequest) {
     if (!file) {
       return NextResponse.json(
         { error: "PDF file is required" },
-        { status: 400, headers }
+        { status: 400, headers: getErrorSecurityHeaders() }
       );
     }
 
     if (!difficulty || !numQuestionsStr) {
       return NextResponse.json(
         { error: "Difficulty and number of questions are required" },
-        { status: 400, headers }
+        { status: 400, headers: getErrorSecurityHeaders() }
       );
     }
 
@@ -103,44 +93,48 @@ export async function POST(request: NextRequest) {
     if (isNaN(numQuestions)) {
       return NextResponse.json(
         { error: "Number of questions must be a valid number" },
-        { status: 400, headers }
+        { status: 400, headers: getErrorSecurityHeaders() }
       );
     }
 
-    const validationResult = generateQuizSchema.safeParse({
+    // Validate input using Zod
+    const validation = validateInput(QuizGenerationSchema, {
       difficulty,
       numQuestions,
     });
 
-    if (!validationResult.success) {
+    if (!validation.success) {
       return NextResponse.json(
         {
           error: "Invalid input data",
-          details: validationResult.error.issues,
+          details: validation.error.issues,
         },
-        { status: 400, headers }
+        { status: 400, headers: getErrorSecurityHeaders() }
       );
     }
 
     const {
       difficulty: validatedDifficulty,
       numQuestions: validatedNumQuestions,
-    } = validationResult.data;
+    } = validation.data;
 
-    if (file.size > MAX_FILE_SIZE) {
+    // Validate file upload
+    const fileValidation = validateFileUpload(file, MAX_FILE_SIZE, [
+      "application/pdf",
+    ]);
+
+    if (!fileValidation.valid) {
       return NextResponse.json(
-        { error: "PDF file size exceeds 20MB limit" },
-        { status: 400, headers }
+        { error: fileValidation.error || "Invalid PDF file" },
+        { status: 400, headers: getErrorSecurityHeaders() }
       );
     }
 
-    if (
-      file.type !== "application/pdf" &&
-      !file.name.toLowerCase().endsWith(".pdf")
-    ) {
+    // Also check file extension as additional validation
+    if (!file.name.toLowerCase().endsWith(".pdf")) {
       return NextResponse.json(
         { error: "File must be a PDF" },
-        { status: 400, headers }
+        { status: 400, headers: getErrorSecurityHeaders() }
       );
     }
 
@@ -150,7 +144,7 @@ export async function POST(request: NextRequest) {
     if (pdfBuffer.length === 0) {
       return NextResponse.json(
         { error: "PDF file is empty or corrupted" },
-        { status: 400, headers }
+        { status: 400, headers: getErrorSecurityHeaders() }
       );
     }
 
@@ -162,14 +156,14 @@ export async function POST(request: NextRequest) {
           error:
             "Could not extract text from PDF. Please ensure the PDF contains readable content.",
         },
-        { status: 400, headers }
+        { status: 400, headers: getErrorSecurityHeaders() }
       );
     }
 
     if (extractedText.length < 100) {
       return NextResponse.json(
         { error: "PDF content is too short to generate a meaningful quiz" },
-        { status: 400, headers }
+        { status: 400, headers: getErrorSecurityHeaders() }
       );
     }
 
@@ -197,58 +191,24 @@ export async function POST(request: NextRequest) {
       estimatedCost
     );
 
-    const responseHeaders = {
-      ...headers,
-      ...rateLimitResult.headers,
-    };
-
     return NextResponse.json(
       { quiz },
-      { status: 200, headers: responseHeaders }
+      {
+        status: 200,
+        headers: getSecurityHeaders({
+          rateLimitHeaders: rateLimitResult.headers,
+        }),
+      }
     );
   } catch (error) {
-    console.error("Quiz generation error:", error);
-
-    const errorHeaders = {
-      ...headers,
-      "Cache-Control": "no-store, no-cache, must-revalidate",
-    };
-
-    if (error instanceof Error) {
-      if (error.message.includes("NEXT_PRIVATE_GEMINI_API_KEY")) {
-        return NextResponse.json(
-          { error: "Server configuration error. Please contact support." },
-          { status: 500, headers: errorHeaders }
-        );
-      }
-
-      if (
-        error.message.includes("PDF extraction") ||
-        error.message.includes("extract text")
-      ) {
-        return NextResponse.json(
-          {
-            error:
-              "Failed to process PDF. Please ensure the file is a valid PDF with readable content.",
-          },
-          { status: 400, headers: errorHeaders }
-        );
-      }
-
-      if (error.message.includes("Quiz generation")) {
-        return NextResponse.json(
-          {
-            error:
-              "Failed to generate quiz. Please try again or upload a different PDF.",
-          },
-          { status: 500, headers: errorHeaders }
-        );
-      }
+    // Try to get user for error context, but don't fail if auth fails
+    let userId: string | undefined;
+    try {
+      const user = await verifyAuth(request);
+      userId = user?.uid;
+    } catch {
+      // Ignore auth errors in error handler
     }
-
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500, headers: errorHeaders }
-    );
+    return handleApiError(error, { route: "/api/quizzes/generate", userId });
   }
 }

@@ -1,6 +1,7 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { adminDb } from "./firebase-admin";
 import cache, { withCache } from "./cache";
+import { env } from "./env";
 import * as crypto from "crypto";
 
 let genAI: GoogleGenerativeAI | null = null;
@@ -10,12 +11,7 @@ const initializeGemini = (): GoogleGenerativeAI => {
     return genAI;
   }
 
-  const apiKey = process.env.NEXT_PRIVATE_GEMINI_API_KEY;
-  if (!apiKey) {
-    throw new Error("NEXT_PRIVATE_GEMINI_API_KEY is not set");
-  }
-
-  genAI = new GoogleGenerativeAI(apiKey);
+  genAI = new GoogleGenerativeAI(env.NEXT_PRIVATE_GEMINI_API_KEY);
   return genAI;
 };
 

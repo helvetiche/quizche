@@ -96,7 +96,7 @@ export default function SectionsPage() {
       setCreating(true);
       setError(null);
 
-      const { apiPost } = await import("../../../lib/api");
+      const { apiPost } = await import("../../lib/api");
       const response = await apiPost("/api/teacher/sections", {
         headers: {
           "Content-Type": "application/json",
@@ -193,7 +193,7 @@ export default function SectionsPage() {
     }
 
     try {
-      const { apiDelete } = await import("../../../lib/api");
+      const { apiDelete } = await import("../../lib/api");
       const response = await apiDelete(`/api/teacher/sections/${sectionId}`, {
         idToken,
       });

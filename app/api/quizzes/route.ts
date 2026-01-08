@@ -6,8 +6,15 @@ import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 import {
   getSecurityHeaders,
   getErrorSecurityHeaders,
+  getPublicSecurityHeaders,
 } from "@/lib/security-headers";
-import { QuizDataSchema, validateInput } from "@/lib/validation";
+import {
+  QuizDataSchema,
+  validateInput,
+  sanitizeString,
+  sanitizeStringArray,
+} from "@/lib/validation";
+import { handleApiError } from "@/lib/error-handler";
 
 const QUESTION_TYPES = [
   "multiple_choice",
@@ -92,19 +99,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           error: "Invalid quiz data. Please check all fields.",
-          details: validation.error.errors,
+          details: validation.error.issues,
         },
         { status: 400, headers: getErrorSecurityHeaders() }
       );
     }
 
-    const validatedData = validation.data;
+    const validatedData = validation.data; // Already sanitized by validateInput
 
     const sanitizedQuestions = validatedData.questions.map((q) => {
       const questionData: any = {
-        question: q.question.trim(),
+        question: sanitizeString(q.question),
         type: q.type,
-        answer: q.answer.trim(),
+        answer: sanitizeString(q.answer),
       };
 
       if (
@@ -112,37 +119,41 @@ export async function POST(request: NextRequest) {
         q.choices &&
         Array.isArray(q.choices)
       ) {
-        const filteredChoices = q.choices
-          .map((c: string) => c.trim())
-          .filter((c: string) => c.length > 0);
+        const filteredChoices = sanitizeStringArray(q.choices).filter(
+          (c: string) => c.length > 0
+        );
         if (filteredChoices.length > 0) {
           questionData.choices = filteredChoices;
         }
       }
 
-      if (
-        q.imageUrl &&
-        typeof q.imageUrl === "string" &&
-        q.imageUrl.trim().length > 0
-      ) {
-        questionData.imageUrl = q.imageUrl.trim();
+      if (q.imageUrl && typeof q.imageUrl === "string" && q.imageUrl.length > 0) {
+        questionData.imageUrl = sanitizeString(q.imageUrl);
       }
 
       return questionData;
     });
 
-    const quizData = {
+    const quizData: Record<string, unknown> = {
       teacherId: user.uid,
-      title: validatedData.title,
-      description: validatedData.description || "",
+      title: sanitizeString(validatedData.title),
+      description: validatedData.description
+        ? sanitizeString(validatedData.description)
+        : "",
       questions: sanitizedQuestions,
       totalQuestions: sanitizedQuestions.length,
       isActive: validatedData.isActive ?? true,
-      timeLimit: validatedData.timeLimit,
-      coverImageUrl: validatedData.coverImageUrl || "",
+      coverImageUrl: validatedData.coverImageUrl
+        ? sanitizeString(validatedData.coverImageUrl)
+        : "",
       createdAt: new Date(),
       updatedAt: new Date(),
     };
+
+    // Conditionally add optional fields to avoid undefined values in Firestore
+    if (validatedData.timeLimit !== undefined) {
+      quizData.duration = validatedData.timeLimit;
+    }
 
     const result = await adminDb.collection("quizzes").add(quizData);
 
@@ -155,12 +166,15 @@ export async function POST(request: NextRequest) {
       { status: 201, headers: getSecurityHeaders() }
     );
   } catch (error) {
-    console.error("Quiz creation error:", error);
-
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500, headers: getErrorSecurityHeaders() }
-    );
+    // Try to get user for error context, but don't fail if auth fails
+    let userId: string | undefined;
+    try {
+      const user = await verifyAuth(request);
+      userId = user?.uid;
+    } catch {
+      // Ignore auth errors in error handler
+    }
+    return handleApiError(error, { route: "/api/quizzes", userId });
   }
 }
 
@@ -169,26 +183,16 @@ export async function GET(request: NextRequest) {
     const user = await verifyAuth(request);
 
     if (!user) {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
       return NextResponse.json(
         { error: "Unauthorized: Invalid or missing authentication token" },
-        { status: 401, headers }
+        { status: 401, headers: getErrorSecurityHeaders() }
       );
     }
 
     if (user.role !== "teacher") {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
       return NextResponse.json(
         { error: "Forbidden: Teacher role required to view quizzes" },
-        { status: 403, headers }
+        { status: 403, headers: getErrorSecurityHeaders() }
       );
     }
 
@@ -241,21 +245,6 @@ export async function GET(request: NextRequest) {
       };
     });
 
-    const headers = {
-      "Content-Type": "application/json; charset=utf-8",
-      "X-Content-Type-Options": "nosniff",
-      "X-Frame-Options": "DENY",
-      "X-XSS-Protection": "1; mode=block",
-      "Strict-Transport-Security":
-        "max-age=31536000; includeSubDomains; preload",
-      "Content-Security-Policy":
-        "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://*.firebaseio.com https://*.googleapis.com;",
-      "Referrer-Policy": "strict-origin-when-cross-origin",
-      "Permissions-Policy": "geolocation=(), microphone=(), camera=()",
-      "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
-      Vary: "Accept, Authorization",
-    };
-
     const lastDoc = quizzesSnapshot.docs[quizzesSnapshot.docs.length - 1];
     const hasMore = quizzesSnapshot.docs.length === limit;
 
@@ -268,21 +257,22 @@ export async function GET(request: NextRequest) {
           lastDocId: hasMore && lastDoc ? lastDoc.id : null,
         },
       },
-      { status: 200, headers }
+      {
+        status: 200,
+        headers: getPublicSecurityHeaders({
+          cacheControl: "no-store, no-cache, must-revalidate, proxy-revalidate",
+        }),
+      }
     );
   } catch (error) {
-    console.error("Get quizzes error:", error);
-
-    const errorHeaders = {
-      "Content-Type": "application/json; charset=utf-8",
-      "X-Content-Type-Options": "nosniff",
-      "X-Frame-Options": "DENY",
-      "Cache-Control": "no-store, no-cache, must-revalidate",
-    };
-
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500, headers: errorHeaders }
-    );
+    // Try to get user for error context, but don't fail if auth fails
+    let userId: string | undefined;
+    try {
+      const user = await verifyAuth(request);
+      userId = user?.uid;
+    } catch {
+      // Ignore auth errors in error handler
+    }
+    return handleApiError(error, { route: "/api/quizzes", userId });
   }
 }

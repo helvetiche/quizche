@@ -2,6 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { adminAuth, adminDb } from "@/lib/firebase-admin";
 import { verifyAuth } from "@/lib/auth";
 import { verifyCSRF } from "@/lib/csrf";
+import {
+  getSecurityHeaders,
+  getErrorSecurityHeaders,
+} from "@/lib/security-headers";
+import { AuthRegisterSchema, validateInput } from "@/lib/validation";
+import { handleApiError } from "@/lib/error-handler";
 
 export async function POST(request: NextRequest) {
   try {
@@ -18,31 +24,20 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { idToken, role } = body;
 
-    if (!idToken) {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
+    // Validate input using Zod
+    const validation = validateInput(AuthRegisterSchema, body);
+    if (!validation.success) {
       return NextResponse.json(
-        { error: "Missing ID token" },
-        { status: 400, headers }
+        {
+          error: "Invalid input data. Please check all fields.",
+          details: validation.error.issues,
+        },
+        { status: 400, headers: getErrorSecurityHeaders() }
       );
     }
 
-    if (!role || (role !== "student" && role !== "teacher")) {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
-      return NextResponse.json(
-        { error: "Invalid role. Must be 'student' or 'teacher'" },
-        { status: 400, headers }
-      );
-    }
+    const { idToken, role } = validation.data;
 
     const decodedToken = await adminAuth.verifyIdToken(idToken);
     const uid = decodedToken.uid;
@@ -51,14 +46,9 @@ export async function POST(request: NextRequest) {
     const existingClaims = userRecord.customClaims || {};
 
     if (existingClaims.role) {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
       return NextResponse.json(
         { error: "User already has a role assigned" },
-        { status: 400, headers }
+        { status: 400, headers: getErrorSecurityHeaders() }
       );
     }
 
@@ -80,21 +70,6 @@ export async function POST(request: NextRequest) {
       { merge: true }
     );
 
-    const headers = {
-      "Content-Type": "application/json; charset=utf-8",
-      "X-Content-Type-Options": "nosniff",
-      "X-Frame-Options": "DENY",
-      "X-XSS-Protection": "1; mode=block",
-      "Strict-Transport-Security":
-        "max-age=31536000; includeSubDomains; preload",
-      "Content-Security-Policy":
-        "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://*.firebaseio.com https://*.googleapis.com;",
-      "Referrer-Policy": "strict-origin-when-cross-origin",
-      "Permissions-Policy": "geolocation=(), microphone=(), camera=()",
-      "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
-      Vary: "Accept, Authorization",
-    };
-
     return NextResponse.json(
       {
         success: true,
@@ -105,21 +80,9 @@ export async function POST(request: NextRequest) {
           tier: "free",
         },
       },
-      { status: 201, headers }
+      { status: 201, headers: getSecurityHeaders() }
     );
   } catch (error) {
-    console.error("Register error:", error);
-
-    const errorHeaders = {
-      "Content-Type": "application/json; charset=utf-8",
-      "X-Content-Type-Options": "nosniff",
-      "X-Frame-Options": "DENY",
-      "Cache-Control": "no-store, no-cache, must-revalidate",
-    };
-
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500, headers: errorHeaders }
-    );
+    return handleApiError(error, { route: "/api/auth/register" });
   }
 }

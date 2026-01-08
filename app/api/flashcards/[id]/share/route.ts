@@ -2,6 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifyAuth } from "@/lib/auth";
 import { adminDb } from "@/lib/firebase-admin";
 import { verifyCSRF } from "@/lib/csrf";
+import {
+  getSecurityHeaders,
+  getErrorSecurityHeaders,
+} from "@/lib/security-headers";
+import { FlashcardShareSchema, validateInput } from "@/lib/validation";
+import { handleApiError } from "@/lib/error-handler";
 
 export async function POST(
   request: NextRequest,
@@ -11,26 +17,16 @@ export async function POST(
     const user = await verifyAuth(request);
 
     if (!user) {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
       return NextResponse.json(
         { error: "Unauthorized: Invalid or missing authentication token" },
-        { status: 401, headers }
+        { status: 401, headers: getErrorSecurityHeaders() }
       );
     }
 
     if (user.role !== "student") {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
       return NextResponse.json(
         { error: "Forbidden: Student role required" },
-        { status: 403, headers }
+        { status: 403, headers: getErrorSecurityHeaders() }
       );
     }
 
@@ -45,57 +41,36 @@ export async function POST(
 
     const { id } = await params;
     const body = await request.json();
-    const { userIds } = body;
 
-    if (!Array.isArray(userIds) || userIds.length === 0) {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
+    // Validate input using Zod
+    const validation = validateInput(FlashcardShareSchema, body);
+    if (!validation.success) {
       return NextResponse.json(
-        { error: "User IDs array is required" },
-        { status: 400, headers }
+        {
+          error: "Invalid input data. Please check all fields.",
+          details: validation.error.issues,
+        },
+        { status: 400, headers: getErrorSecurityHeaders() }
       );
     }
 
-    if (userIds.length > 50) {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
-      return NextResponse.json(
-        { error: "Cannot share with more than 50 users at once" },
-        { status: 400, headers }
-      );
-    }
+    const { userIds } = validation.data;
 
     // Verify flashcard exists and user owns it
     const flashcardDoc = await adminDb.collection("flashcards").doc(id).get();
 
     if (!flashcardDoc.exists) {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
       return NextResponse.json(
         { error: "Flashcard set not found" },
-        { status: 404, headers }
+        { status: 404, headers: getErrorSecurityHeaders() }
       );
     }
 
     const flashcardData = flashcardDoc.data();
     if (flashcardData?.userId !== user.uid) {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
       return NextResponse.json(
         { error: "Forbidden: You can only share your own flashcard sets" },
-        { status: 403, headers }
+        { status: 403, headers: getErrorSecurityHeaders() }
       );
     }
 
@@ -116,14 +91,9 @@ export async function POST(
     }
 
     if (validUserIds.length === 0) {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
       return NextResponse.json(
         { error: "No valid users to share with" },
-        { status: 400, headers }
+        { status: 400, headers: getErrorSecurityHeaders() }
       );
     }
 
@@ -141,7 +111,8 @@ export async function POST(
           .get();
         return {
           userId: targetUserId,
-          isConnected: connectionDoc.exists && connectionDoc.data()?.status === "accepted",
+          isConnected:
+            connectionDoc.exists && connectionDoc.data()?.status === "accepted",
         };
       })
     );
@@ -151,14 +122,9 @@ export async function POST(
       .map((check) => check.userId);
 
     if (connectedUserIds.length === 0) {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
       return NextResponse.json(
         { error: "Can only share with connected users" },
-        { status: 400, headers }
+        { status: 400, headers: getErrorSecurityHeaders() }
       );
     }
 
@@ -207,20 +173,6 @@ export async function POST(
       sharedWith: updatedSharedWith,
     });
 
-    const headers = {
-      "Content-Type": "application/json; charset=utf-8",
-      "X-Content-Type-Options": "nosniff",
-      "X-Frame-Options": "DENY",
-      "X-XSS-Protection": "1; mode=block",
-      "Strict-Transport-Security":
-        "max-age=31536000; includeSubDomains; preload",
-      "Content-Security-Policy":
-        "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://*.firebaseio.com https://*.googleapis.com;",
-      "Referrer-Policy": "strict-origin-when-cross-origin",
-      "Permissions-Policy": "geolocation=(), microphone=(), camera=()",
-      "Cache-Control": "no-store, no-cache, must-revalidate",
-    };
-
     return NextResponse.json(
       {
         message: `Flashcard shared with ${newShareUserIds.length} user(s)`,
@@ -229,22 +181,21 @@ export async function POST(
           (id) => !newShareUserIds.includes(id)
         ),
       },
-      { status: 200, headers }
+      { status: 200, headers: getSecurityHeaders() }
     );
   } catch (error) {
-    console.error("Share flashcard error:", error);
-
-    const errorHeaders = {
-      "Content-Type": "application/json; charset=utf-8",
-      "X-Content-Type-Options": "nosniff",
-      "X-Frame-Options": "DENY",
-      "Cache-Control": "no-store, no-cache, must-revalidate",
-    };
-
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500, headers: errorHeaders }
-    );
+    // Try to get user for error context, but don't fail if auth fails
+    let userId: string | undefined;
+    try {
+      const user = await verifyAuth(request);
+      userId = user?.uid;
+    } catch {
+      // Ignore auth errors in error handler
+    }
+    return handleApiError(error, {
+      route: "/api/flashcards/[id]/share",
+      userId,
+    });
   }
 }
 
@@ -256,26 +207,16 @@ export async function DELETE(
     const user = await verifyAuth(request);
 
     if (!user) {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
       return NextResponse.json(
         { error: "Unauthorized: Invalid or missing authentication token" },
-        { status: 401, headers }
+        { status: 401, headers: getErrorSecurityHeaders() }
       );
     }
 
     if (user.role !== "student") {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
       return NextResponse.json(
         { error: "Forbidden: Student role required" },
-        { status: 403, headers }
+        { status: 403, headers: getErrorSecurityHeaders() }
       );
     }
 
@@ -296,27 +237,20 @@ export async function DELETE(
     const flashcardDoc = await adminDb.collection("flashcards").doc(id).get();
 
     if (!flashcardDoc.exists) {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
       return NextResponse.json(
         { error: "Flashcard set not found" },
-        { status: 404, headers }
+        { status: 404, headers: getErrorSecurityHeaders() }
       );
     }
 
     const flashcardData = flashcardDoc.data();
     if (flashcardData?.userId !== user.uid) {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
       return NextResponse.json(
-        { error: "Forbidden: You can only revoke access to your own flashcard sets" },
-        { status: 403, headers }
+        {
+          error:
+            "Forbidden: You can only revoke access to your own flashcard sets",
+        },
+        { status: 403, headers: getErrorSecurityHeaders() }
       );
     }
 
@@ -344,25 +278,11 @@ export async function DELETE(
         sharedWith: updatedSharedWith,
       });
 
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "X-Frame-Options": "DENY",
-        "X-XSS-Protection": "1; mode=block",
-        "Strict-Transport-Security":
-          "max-age=31536000; includeSubDomains; preload",
-        "Content-Security-Policy":
-          "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://*.firebaseio.com https://*.googleapis.com;",
-        "Referrer-Policy": "strict-origin-when-cross-origin",
-        "Permissions-Policy": "geolocation=(), microphone=(), camera=()",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
-
       return NextResponse.json(
         {
           message: "Access revoked successfully",
         },
-        { status: 200, headers }
+        { status: 200, headers: getSecurityHeaders() }
       );
     } else {
       // Revoke access for all users
@@ -382,40 +302,25 @@ export async function DELETE(
         sharedWith: [],
       });
 
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "X-Frame-Options": "DENY",
-        "X-XSS-Protection": "1; mode=block",
-        "Strict-Transport-Security":
-          "max-age=31536000; includeSubDomains; preload",
-        "Content-Security-Policy":
-          "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://*.firebaseio.com https://*.googleapis.com;",
-        "Referrer-Policy": "strict-origin-when-cross-origin",
-        "Permissions-Policy": "geolocation=(), microphone=(), camera=()",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
-
       return NextResponse.json(
         {
           message: "Access revoked for all users",
         },
-        { status: 200, headers }
+        { status: 200, headers: getSecurityHeaders() }
       );
     }
   } catch (error) {
-    console.error("Revoke flashcard access error:", error);
-
-    const errorHeaders = {
-      "Content-Type": "application/json; charset=utf-8",
-      "X-Content-Type-Options": "nosniff",
-      "X-Frame-Options": "DENY",
-      "Cache-Control": "no-store, no-cache, must-revalidate",
-    };
-
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500, headers: errorHeaders }
-    );
+    // Try to get user for error context, but don't fail if auth fails
+    let userId: string | undefined;
+    try {
+      const user = await verifyAuth(request);
+      userId = user?.uid;
+    } catch {
+      // Ignore auth errors in error handler
+    }
+    return handleApiError(error, {
+      route: "/api/flashcards/[id]/share",
+      userId,
+    });
   }
 }

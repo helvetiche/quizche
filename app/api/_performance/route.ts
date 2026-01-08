@@ -3,6 +3,8 @@ import {
   getSecurityHeaders,
   getErrorSecurityHeaders,
 } from "@/lib/security-headers";
+import { PerformanceMetricsSchema, validateInput } from "@/lib/validation";
+import { handleApiError } from "@/lib/error-handler";
 
 /**
  * Performance monitoring endpoint
@@ -12,15 +14,20 @@ import {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { metrics, userId, page } = body;
 
-    // Validate metrics structure
-    if (!metrics || typeof metrics !== "object") {
+    // Validate input using Zod
+    const validation = validateInput(PerformanceMetricsSchema, body);
+    if (!validation.success) {
       return NextResponse.json(
-        { error: "Invalid metrics data" },
+        {
+          error: "Invalid input data. Please check all fields.",
+          details: validation.error.issues,
+        },
         { status: 400, headers: getErrorSecurityHeaders() }
       );
     }
+
+    const { metrics, userId, page } = validation.data;
 
     // Extract Core Web Vitals
     const vitals = {
@@ -50,10 +57,6 @@ export async function POST(request: NextRequest) {
       { status: 200, headers: getSecurityHeaders() }
     );
   } catch (error) {
-    console.error("Performance monitoring error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500, headers: getErrorSecurityHeaders() }
-    );
+    return handleApiError(error, { route: "/api/_performance" });
   }
 }

@@ -4,6 +4,7 @@ import {
   getSecurityHeaders,
   getErrorSecurityHeaders,
 } from "@/lib/security-headers";
+import { handleApiError } from "@/lib/error-handler";
 
 export async function GET(request: NextRequest) {
   try {
@@ -21,11 +22,6 @@ export async function GET(request: NextRequest) {
       { status: 200, headers: getSecurityHeaders() }
     );
   } catch (error) {
-    console.error("Verify error:", error);
-
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500, headers: getErrorSecurityHeaders() }
-    );
+    return handleApiError(error, { route: "/api/auth/verify" });
   }
 }

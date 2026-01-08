@@ -8,7 +8,13 @@ import {
   getErrorSecurityHeaders,
   getPublicSecurityHeaders,
 } from "@/lib/security-headers";
-import { QuizDataSchema, validateInput } from "@/lib/validation";
+import {
+  QuizDataSchema,
+  validateInput,
+  sanitizeString,
+  sanitizeStringArray,
+} from "@/lib/validation";
+import { handleApiError } from "@/lib/error-handler";
 
 export async function GET(
   request: NextRequest,
@@ -56,14 +62,9 @@ export async function GET(
     const quizDoc = await adminDb.collection("quizzes").doc(id).get();
 
     if (!quizDoc.exists) {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
       return NextResponse.json(
         { error: "Quiz not found" },
-        { status: 404, headers }
+        { status: 404, headers: getErrorSecurityHeaders() }
       );
     }
 
@@ -254,12 +255,15 @@ export async function GET(
       }
     );
   } catch (error) {
-    console.error("Get quiz error:", error);
-
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500, headers: getErrorSecurityHeaders() }
-    );
+    // Try to get user for error context, but don't fail if auth fails
+    let userId: string | undefined;
+    try {
+      const user = await verifyAuth(request);
+      userId = user?.uid;
+    } catch {
+      // Ignore auth errors in error handler
+    }
+    return handleApiError(error, { route: "/api/quizzes/[id]", userId });
   }
 }
 
@@ -421,7 +425,7 @@ export async function PUT(
     const body = await request.json();
 
     // Validate input using Zod
-    const validation = validateInput(QuizSchema, body);
+    const validation = validateInput(QuizDataSchema, body);
     if (!validation.success) {
       return NextResponse.json(
         {
@@ -432,30 +436,32 @@ export async function PUT(
       );
     }
 
-    const validatedData = validation.data;
+    const validatedData = validation.data; // Already sanitized by validateInput
 
     const sanitizedQuestions = validatedData.questions.map((q) => {
       const questionData: any = {
-        question: q.question,
+        question: sanitizeString(q.question),
         type: q.type,
-        answer: q.answer,
+        answer: sanitizeString(q.answer),
       };
 
       // Only include choices for multiple_choice questions
       if (q.type === "multiple_choice" && q.choices) {
-        questionData.choices = q.choices;
+        questionData.choices = sanitizeStringArray(q.choices);
       }
 
       if (q.imageUrl) {
-        questionData.imageUrl = q.imageUrl;
+        questionData.imageUrl = sanitizeString(q.imageUrl);
       }
 
       return questionData;
     });
 
     const updateData: any = {
-      title: validatedData.title,
-      description: validatedData.description || "",
+      title: sanitizeString(validatedData.title),
+      description: validatedData.description
+        ? sanitizeString(validatedData.description)
+        : "",
       questions: sanitizedQuestions,
       totalQuestions: sanitizedQuestions.length,
       isActive:
@@ -475,10 +481,8 @@ export async function PUT(
     }
 
     if (validatedData.coverImageUrl) {
-      updateData.coverImageUrl = validatedData.coverImageUrl;
+      updateData.coverImageUrl = sanitizeString(validatedData.coverImageUrl);
     }
-
-    await adminDb.collection("quizzes").doc(id).update(updateData);
 
     await adminDb.collection("quizzes").doc(id).update(updateData);
 
@@ -491,11 +495,14 @@ export async function PUT(
       { status: 200, headers: getSecurityHeaders() }
     );
   } catch (error) {
-    console.error("Quiz update error:", error);
-
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500, headers: getErrorSecurityHeaders() }
-    );
+    // Try to get user for error context, but don't fail if auth fails
+    let userId: string | undefined;
+    try {
+      const user = await verifyAuth(request);
+      userId = user?.uid;
+    } catch {
+      // Ignore auth errors in error handler
+    }
+    return handleApiError(error, { route: "/api/quizzes/[id]", userId });
   }
 }

@@ -10,7 +10,12 @@ import {
   getErrorSecurityHeaders,
   getPublicSecurityHeaders,
 } from "@/lib/security-headers";
-import { FlashcardSetSchema, validateInput } from "@/lib/validation";
+import {
+  FlashcardSetSchema,
+  validateInput,
+  sanitizeString,
+} from "@/lib/validation";
+import { handleApiError } from "@/lib/error-handler";
 
 interface Flashcard {
   front: string;
@@ -295,12 +300,15 @@ export async function GET(request: NextRequest) {
       }),
     });
   } catch (error) {
-    console.error("Get flashcards error:", error);
-
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500, headers: getErrorSecurityHeaders() }
-    );
+    // Try to get user for error context, but don't fail if auth fails
+    let userId: string | undefined;
+    try {
+      const user = await verifyAuth(request);
+      userId = user?.uid;
+    } catch {
+      // Ignore auth errors in error handler
+    }
+    return handleApiError(error, { route: "/api/flashcards", userId });
   }
 }
 
@@ -358,29 +366,29 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const validatedData = validation.data;
+    const validatedData = validation.data; // Already sanitized by validateInput
 
     // Sanitize and prepare data
     const sanitizedCards = validatedData.cards.map((card) => {
       const cardData: any = {
-        front: card.front.trim(),
-        back: card.back.trim(),
+        front: sanitizeString(card.front),
+        back: sanitizeString(card.back),
       };
 
       if (
         card.frontImageUrl &&
         typeof card.frontImageUrl === "string" &&
-        card.frontImageUrl.trim().length > 0
+        card.frontImageUrl.length > 0
       ) {
-        cardData.frontImageUrl = card.frontImageUrl.trim();
+        cardData.frontImageUrl = sanitizeString(card.frontImageUrl);
       }
 
       if (
         card.backImageUrl &&
         typeof card.backImageUrl === "string" &&
-        card.backImageUrl.trim().length > 0
+        card.backImageUrl.length > 0
       ) {
-        cardData.backImageUrl = card.backImageUrl.trim();
+        cardData.backImageUrl = sanitizeString(card.backImageUrl);
       }
 
       return cardData;
@@ -388,12 +396,16 @@ export async function POST(request: NextRequest) {
 
     const flashcardSetData: any = {
       userId: user.uid,
-      title: validatedData.title,
-      description: validatedData.description || "",
+      title: sanitizeString(validatedData.title),
+      description: validatedData.description
+        ? sanitizeString(validatedData.description)
+        : "",
       cards: sanitizedCards,
       isPublic: validatedData.isPublic || false,
       totalCards: sanitizedCards.length,
-      coverImageUrl: validatedData.coverImageUrl || "",
+      coverImageUrl: validatedData.coverImageUrl
+        ? sanitizeString(validatedData.coverImageUrl)
+        : "",
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -424,11 +436,14 @@ export async function POST(request: NextRequest) {
       }
     );
   } catch (error) {
-    console.error("Create flashcard set error:", error);
-
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500, headers: getErrorSecurityHeaders() }
-    );
+    // Try to get user for error context, but don't fail if auth fails
+    let userId: string | undefined;
+    try {
+      const user = await verifyAuth(request);
+      userId = user?.uid;
+    } catch {
+      // Ignore auth errors in error handler
+    }
+    return handleApiError(error, { route: "/api/flashcards", userId });
   }
 }

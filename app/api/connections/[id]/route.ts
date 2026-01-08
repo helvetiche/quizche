@@ -8,6 +8,7 @@ import {
 } from "@/lib/security-headers";
 import { ConnectionActionSchema, validateInput } from "@/lib/validation";
 import cache, { getApiCacheKey } from "@/lib/cache";
+import { handleApiError } from "@/lib/error-handler";
 
 
 export async function PUT(
@@ -18,26 +19,16 @@ export async function PUT(
     const user = await verifyAuth(request);
 
     if (!user) {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
       return NextResponse.json(
         { error: "Unauthorized: Invalid or missing authentication token" },
-        { status: 401, headers }
+        { status: 401, headers: getErrorSecurityHeaders() }
       );
     }
 
     if (user.role !== "student") {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
       return NextResponse.json(
         { error: "Forbidden: Student role required" },
-        { status: 403, headers }
+        { status: 403, headers: getErrorSecurityHeaders() }
       );
     }
 
@@ -146,12 +137,18 @@ export async function PUT(
       );
     }
   } catch (error) {
-    console.error("Update connection error:", error);
-
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500, headers: getErrorSecurityHeaders() }
-    );
+    // Try to get user for error context, but don't fail if auth fails
+    let userId: string | undefined;
+    try {
+      const user = await verifyAuth(request);
+      userId = user?.uid;
+    } catch {
+      // Ignore auth errors in error handler
+    }
+    return handleApiError(error, {
+      route: "/api/connections/[id]",
+      userId,
+    });
   }
 }
 
@@ -163,26 +160,16 @@ export async function DELETE(
     const user = await verifyAuth(request);
 
     if (!user) {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
       return NextResponse.json(
         { error: "Unauthorized: Invalid or missing authentication token" },
-        { status: 401, headers }
+        { status: 401, headers: getErrorSecurityHeaders() }
       );
     }
 
     if (user.role !== "student") {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
       return NextResponse.json(
         { error: "Forbidden: Student role required" },
-        { status: 403, headers }
+        { status: 403, headers: getErrorSecurityHeaders() }
       );
     }
 
@@ -228,9 +215,6 @@ export async function DELETE(
       );
     }
 
-    // Delete connection
-    await adminDb.collection("connections").doc(id).delete();
-
     // Optionally revoke all shared flashcards between these users
     const otherUserId =
       connectionData.userId1 === user.uid
@@ -262,11 +246,10 @@ export async function DELETE(
 
     await batch.commit();
 
+    // Delete connection
+    await adminDb.collection("connections").doc(id).delete();
+
     // Invalidate cache for both users
-    const otherUserId =
-      connectionData.userId1 === user.uid
-        ? connectionData.userId2
-        : connectionData.userId1;
     await cache.delete(getApiCacheKey("/api/connections", user.uid));
     await cache.delete(getApiCacheKey("/api/connections", otherUserId));
 
@@ -278,11 +261,14 @@ export async function DELETE(
       { status: 200, headers: getSecurityHeaders() }
     );
   } catch (error) {
-    console.error("Delete connection error:", error);
-
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500, headers: getErrorSecurityHeaders() }
-    );
+    // Try to get user for error context, but don't fail if auth fails
+    let userId: string | undefined;
+    try {
+      const user = await verifyAuth(request);
+      userId = user?.uid;
+    } catch {
+      // Ignore auth errors in error handler
+    }
+    return handleApiError(error, { route: "/api/connections/[id]", userId });
   }
 }

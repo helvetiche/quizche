@@ -21,9 +21,27 @@ const GoogleAuthButton = ({ onLoginSuccess }: GoogleAuthButtonProps) => {
       setLoading(true);
       setError(null);
 
+      // Verify Firebase is initialized
+      if (!auth) {
+        throw new Error("Firebase authentication is not initialized. Please check your Firebase configuration.");
+      }
+
       const provider = new GoogleAuthProvider();
+      // Add additional scopes if needed
+      provider.addScope('email');
+      provider.addScope('profile');
+      
+      console.log("Attempting Firebase sign-in with popup...");
+      console.log("Firebase config check:", {
+        apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY ? "✓ Set" : "✗ Missing",
+        authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN ? "✓ Set" : "✗ Missing",
+        projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ? "✓ Set" : "✗ Missing",
+      });
+
       const result = await signInWithPopup(auth, provider);
+      console.log("Firebase sign-in successful, getting ID token...");
       const idToken = await result.user.getIdToken();
+      console.log("ID token obtained successfully");
 
       const { apiPost } = await import("../lib/api");
       const response = await apiPost("/api/auth/login", {
@@ -36,7 +54,10 @@ const GoogleAuthButton = ({ onLoginSuccess }: GoogleAuthButtonProps) => {
       });
 
       if (!response.ok) {
-        throw new Error("Login failed");
+        const errorData = await response.json().catch(() => ({}));
+        const errorMessage = errorData.error || errorData.message || `Login failed with status ${response.status}`;
+        console.error("Login API error:", errorMessage, errorData);
+        throw new Error(errorMessage);
       }
 
       const data = await response.json();
@@ -49,9 +70,36 @@ const GoogleAuthButton = ({ onLoginSuccess }: GoogleAuthButtonProps) => {
       } else {
         window.location.reload();
       }
-    } catch (err) {
-      console.error("Google sign-in error:", err);
-      setError("Failed to sign in with Google");
+    } catch (err: any) {
+      // Firebase Auth errors have a code property
+      const firebaseError = err as { code?: string; message?: string; customData?: any };
+      const errorCode = firebaseError.code || "unknown";
+      const errorMessage = firebaseError.message || err?.message || "Failed to sign in with Google";
+      
+      console.error("=== FIREBASE OAUTH ERROR ===");
+      console.error("Error Code:", errorCode);
+      console.error("Error Message:", errorMessage);
+      console.error("Full Error Object:", err);
+      console.error("Firebase Auth Instance:", auth);
+      console.error("Firebase Config:", {
+        apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY ? "✓" : "✗",
+        authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+        projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+      });
+      
+      // Provide user-friendly error messages based on Firebase error codes
+      let userFriendlyMessage = errorMessage;
+      if (errorCode === "auth/internal-error") {
+        userFriendlyMessage = "Firebase authentication error. Please check:\n1. Firebase project settings\n2. OAuth is enabled in Firebase Console\n3. Authorized domains include this site\n4. Browser console for details";
+      } else if (errorCode === "auth/popup-closed-by-user") {
+        userFriendlyMessage = "Sign-in popup was closed. Please try again.";
+      } else if (errorCode === "auth/network-request-failed") {
+        userFriendlyMessage = "Network error. Please check your internet connection.";
+      } else if (errorCode === "auth/unauthorized-domain") {
+        userFriendlyMessage = "This domain is not authorized. Please contact support.";
+      }
+      
+      setError(`${errorCode}: ${userFriendlyMessage}`);
     } finally {
       setLoading(false);
     }

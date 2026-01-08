@@ -8,6 +8,7 @@ import {
   getErrorSecurityHeaders,
   getPublicSecurityHeaders,
 } from "@/lib/security-headers";
+import { handleApiError } from "@/lib/error-handler";
 
 export async function GET(request: NextRequest) {
   try {
@@ -66,22 +67,13 @@ export async function GET(request: NextRequest) {
       pagination: any;
     }>(cacheKey);
     if (cached) {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "X-Frame-Options": "DENY",
-        "X-XSS-Protection": "1; mode=block",
-        "Strict-Transport-Security":
-          "max-age=31536000; includeSubDomains; preload",
-        "Content-Security-Policy":
-          "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://*.firebaseio.com https://*.googleapis.com;",
-        "Referrer-Policy": "strict-origin-when-cross-origin",
-        "Permissions-Policy": "geolocation=(), microphone=(), camera=()",
-        "Cache-Control": "private, max-age=300",
-        Vary: "Accept, Authorization",
-        ...rateLimitResult.headers,
-      };
-      return NextResponse.json(cached, { status: 200, headers });
+      return NextResponse.json(cached, {
+        status: 200,
+        headers: getPublicSecurityHeaders({
+          rateLimitHeaders: rateLimitResult.headers,
+          cacheControl: "private, max-age=300",
+        }),
+      });
     }
 
     // Query quiz attempts for this user, ordered by completion date (newest first)
@@ -173,11 +165,14 @@ export async function GET(request: NextRequest) {
       }
     );
   } catch (error) {
-    console.error("Get quiz history error:", error);
-
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500, headers: getErrorSecurityHeaders() }
-    );
+    // Try to get user for error context, but don't fail if auth fails
+    let userId: string | undefined;
+    try {
+      const user = await verifyAuth(request);
+      userId = user?.uid;
+    } catch {
+      // Ignore auth errors in error handler
+    }
+    return handleApiError(error, { route: "/api/users/history", userId });
   }
 }

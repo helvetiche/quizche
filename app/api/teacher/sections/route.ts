@@ -7,7 +7,12 @@ import {
   getErrorSecurityHeaders,
   getPublicSecurityHeaders,
 } from "@/lib/security-headers";
-import { SectionSchema, validateInput } from "@/lib/validation";
+import {
+  SectionCreateSchema,
+  validateInput,
+  sanitizeString,
+} from "@/lib/validation";
+import { handleApiError } from "@/lib/error-handler";
 
 export async function GET(request: NextRequest) {
   try {
@@ -152,12 +157,15 @@ export async function GET(request: NextRequest) {
       { status: 200, headers: getSecurityHeaders() }
     );
   } catch (error) {
-    console.error("Get sections error:", error);
-
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500, headers: getErrorSecurityHeaders() }
-    );
+    // Try to get user for error context, but don't fail if auth fails
+    let userId: string | undefined;
+    try {
+      const user = await verifyAuth(request);
+      userId = user?.uid;
+    } catch {
+      // Ignore auth errors in error handler
+    }
+    return handleApiError(error, { route: "/api/teacher/sections", userId });
   }
 }
 
@@ -202,7 +210,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const validatedData = validation.data;
+    const validatedData = validation.data; // Already sanitized by validateInput
     const uniqueStudentIds = Array.from(new Set(validatedData.studentIds));
 
     // Batch validate students (Firestore 'in' query limit is 10)
@@ -227,8 +235,8 @@ export async function POST(request: NextRequest) {
 
     // Use transaction for atomic section creation
     const sectionData = {
-      name: validatedData.name,
-      description: validatedData.description || "",
+      name: sanitizeString(validatedData.name),
+      description: validatedData.description ? sanitizeString(validatedData.description) : "",
       teacherId: user.uid,
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -261,11 +269,14 @@ export async function POST(request: NextRequest) {
       { status: 201, headers: getSecurityHeaders() }
     );
   } catch (error) {
-    console.error("Create section error:", error);
-
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500, headers: getErrorSecurityHeaders() }
-    );
+    // Try to get user for error context, but don't fail if auth fails
+    let userId: string | undefined;
+    try {
+      const user = await verifyAuth(request);
+      userId = user?.uid;
+    } catch {
+      // Ignore auth errors in error handler
+    }
+    return handleApiError(error, { route: "/api/teacher/sections", userId });
   }
 }

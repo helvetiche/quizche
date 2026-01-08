@@ -4,6 +4,17 @@ import { adminDb } from "@/lib/firebase-admin";
 import { verifyCSRF } from "@/lib/csrf";
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 import cache, { getApiCacheKey } from "@/lib/cache";
+import {
+  FlashcardSetSchema,
+  validateInput,
+  sanitizeString,
+} from "@/lib/validation";
+import { handleApiError } from "@/lib/error-handler";
+import {
+  getSecurityHeaders,
+  getErrorSecurityHeaders,
+  getPublicSecurityHeaders,
+} from "@/lib/security-headers";
 
 export async function GET(
   request: NextRequest,
@@ -13,42 +24,27 @@ export async function GET(
     const user = await verifyAuth(request);
 
     if (!user) {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
       return NextResponse.json(
         { error: "Unauthorized: Invalid or missing authentication token" },
-        { status: 401, headers }
+        { status: 401, headers: getErrorSecurityHeaders() }
       );
     }
 
     const { id } = await params;
 
     if (!id) {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
       return NextResponse.json(
         { error: "Flashcard set ID is required" },
-        { status: 400, headers }
+        { status: 400, headers: getErrorSecurityHeaders() }
       );
     }
 
     const flashcardDoc = await adminDb.collection("flashcards").doc(id).get();
 
     if (!flashcardDoc.exists) {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
       return NextResponse.json(
         { error: "Flashcard set not found" },
-        { status: 404, headers }
+        { status: 404, headers: getErrorSecurityHeaders() }
       );
     }
 
@@ -70,17 +66,12 @@ export async function GET(
           .get();
 
         if (shareDoc.empty) {
-          const headers = {
-            "Content-Type": "application/json; charset=utf-8",
-            "X-Content-Type-Options": "nosniff",
-            "Cache-Control": "no-store, no-cache, must-revalidate",
-          };
           return NextResponse.json(
             {
               error:
                 "Forbidden: You can only access your own flashcard sets, public ones, or shared ones",
             },
-            { status: 403, headers }
+            { status: 403, headers: getErrorSecurityHeaders() }
           );
         }
       }
@@ -95,14 +86,14 @@ export async function GET(
     });
 
     if (!rateLimitResult.success) {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        ...rateLimitResult.headers,
-      };
       return NextResponse.json(
         { error: "Rate limit exceeded. Please try again later." },
-        { status: 429, headers }
+        {
+          status: 429,
+          headers: getErrorSecurityHeaders({
+            rateLimitHeaders: rateLimitResult.headers,
+          }),
+        }
       );
     }
 
@@ -110,39 +101,14 @@ export async function GET(
     const cacheKey = getApiCacheKey(`/api/flashcards/${id}`, user.uid);
     const cached = await cache.get<{ flashcardSet: any }>(cacheKey);
     if (cached) {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "X-Frame-Options": "DENY",
-        "X-XSS-Protection": "1; mode=block",
-        "Strict-Transport-Security":
-          "max-age=31536000; includeSubDomains; preload",
-        "Content-Security-Policy":
-          "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://*.firebaseio.com https://*.googleapis.com;",
-        "Referrer-Policy": "strict-origin-when-cross-origin",
-        "Permissions-Policy": "geolocation=(), microphone=(), camera=()",
-        "Cache-Control": "private, max-age=300",
-        Vary: "Accept, Authorization",
-        ...rateLimitResult.headers,
-      };
-      return NextResponse.json(cached, { status: 200, headers });
+      return NextResponse.json(cached, {
+        status: 200,
+        headers: getPublicSecurityHeaders({
+          rateLimitHeaders: rateLimitResult.headers,
+          cacheControl: "private, max-age=300",
+        }),
+      });
     }
-
-    const headers = {
-      "Content-Type": "application/json; charset=utf-8",
-      "X-Content-Type-Options": "nosniff",
-      "X-Frame-Options": "DENY",
-      "X-XSS-Protection": "1; mode=block",
-      "Strict-Transport-Security":
-        "max-age=31536000; includeSubDomains; preload",
-      "Content-Security-Policy":
-        "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://*.firebaseio.com https://*.googleapis.com;",
-      "Referrer-Policy": "strict-origin-when-cross-origin",
-      "Permissions-Policy": "geolocation=(), microphone=(), camera=()",
-      "Cache-Control": "private, max-age=300",
-      Vary: "Accept, Authorization",
-      ...rateLimitResult.headers,
-    };
 
     const result = {
       flashcardSet: {
@@ -152,7 +118,7 @@ export async function GET(
         cards: flashcardData?.cards || [],
         totalCards: flashcardData?.totalCards || 0,
         isPublic: flashcardData?.isPublic || false,
-        coverImageUrl: flashcardData?.coverImageUrl || undefined,
+        coverImageUrl: flashcardData?.coverImageUrl || null,
         createdAt:
           flashcardData?.createdAt?.toDate?.()?.toISOString() ||
           flashcardData?.createdAt,
@@ -165,102 +131,27 @@ export async function GET(
     // Cache the response
     await cache.set(cacheKey, result, 300); // 5 minutes
 
-    return NextResponse.json(result, { status: 200, headers });
+    return NextResponse.json(result, {
+      status: 200,
+      headers: getPublicSecurityHeaders({
+        rateLimitHeaders: rateLimitResult.headers,
+        cacheControl: "private, max-age=300",
+      }),
+    });
   } catch (error) {
-    console.error("Get flashcard set error:", error);
-
-    const errorHeaders = {
-      "Content-Type": "application/json; charset=utf-8",
-      "X-Content-Type-Options": "nosniff",
-      "X-Frame-Options": "DENY",
-      "Cache-Control": "no-store, no-cache, must-revalidate",
-    };
-
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500, headers: errorHeaders }
-    );
+    // Try to get user for error context, but don't fail if auth fails
+    let userId: string | undefined;
+    try {
+      const user = await verifyAuth(request);
+      userId = user?.uid;
+    } catch {
+      // Ignore auth errors in error handler
+    }
+    return handleApiError(error, { route: "/api/flashcards/[id]", userId });
   }
 }
 
-interface Flashcard {
-  front: string;
-  back: string;
-  frontImageUrl?: string;
-  backImageUrl?: string;
-}
-
-interface FlashcardSetData {
-  title: string;
-  description?: string;
-  cards: Flashcard[];
-  isPublic?: boolean;
-  coverImageUrl?: string;
-}
-
-const validateFlashcardSet = (data: any): data is FlashcardSetData => {
-  if (!data || typeof data !== "object") return false;
-  if (
-    !data.title ||
-    typeof data.title !== "string" ||
-    data.title.trim().length === 0
-  ) {
-    return false;
-  }
-  if (data.title.trim().length > 200) return false;
-  if (
-    data.description &&
-    (typeof data.description !== "string" || data.description.length > 500)
-  ) {
-    return false;
-  }
-  if (!Array.isArray(data.cards) || data.cards.length === 0) {
-    return false;
-  }
-  if (data.cards.length > 500) return false;
-  if (
-    typeof data.isPublic !== "undefined" &&
-    typeof data.isPublic !== "boolean"
-  ) {
-    return false;
-  }
-  if (
-    data.coverImageUrl !== undefined &&
-    (typeof data.coverImageUrl !== "string" ||
-      data.coverImageUrl.trim().length === 0)
-  ) {
-    return false;
-  }
-  return data.cards.every((card: any) => {
-    if (
-      !card ||
-      typeof card !== "object" ||
-      typeof card.front !== "string" ||
-      typeof card.back !== "string" ||
-      card.front.trim().length === 0 ||
-      card.back.trim().length === 0 ||
-      card.front.trim().length > 1000 ||
-      card.back.trim().length > 1000
-    ) {
-      return false;
-    }
-    if (
-      card.frontImageUrl !== undefined &&
-      (typeof card.frontImageUrl !== "string" ||
-        card.frontImageUrl.trim().length === 0)
-    ) {
-      return false;
-    }
-    if (
-      card.backImageUrl !== undefined &&
-      (typeof card.backImageUrl !== "string" ||
-        card.backImageUrl.trim().length === 0)
-    ) {
-      return false;
-    }
-    return true;
-  });
-};
+// Legacy validation removed - now using Zod schemas from lib/validation.ts
 
 export async function PUT(
   request: NextRequest,
@@ -270,26 +161,16 @@ export async function PUT(
     const user = await verifyAuth(request);
 
     if (!user) {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
       return NextResponse.json(
         { error: "Unauthorized: Invalid or missing authentication token" },
-        { status: 401, headers }
+        { status: 401, headers: getErrorSecurityHeaders() }
       );
     }
 
     if (user.role !== "student") {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
       return NextResponse.json(
         { error: "Forbidden: Student role required to update flashcards" },
-        { status: 403, headers }
+        { status: 403, headers: getErrorSecurityHeaders() }
       );
     }
 
@@ -305,28 +186,18 @@ export async function PUT(
     const { id } = await params;
 
     if (!id) {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
       return NextResponse.json(
         { error: "Flashcard set ID is required" },
-        { status: 400, headers }
+        { status: 400, headers: getErrorSecurityHeaders() }
       );
     }
 
     const flashcardDoc = await adminDb.collection("flashcards").doc(id).get();
 
     if (!flashcardDoc.exists) {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
       return NextResponse.json(
         { error: "Flashcard set not found" },
-        { status: 404, headers }
+        { status: 404, headers: getErrorSecurityHeaders() }
       );
     }
 
@@ -344,56 +215,53 @@ export async function PUT(
         .get();
 
       if (shareDoc.empty) {
-        const headers = {
-          "Content-Type": "application/json; charset=utf-8",
-          "X-Content-Type-Options": "nosniff",
-          "Cache-Control": "no-store, no-cache, must-revalidate",
-        };
         return NextResponse.json(
           {
             error:
               "Forbidden: You can only update your own flashcard sets or shared ones",
           },
-          { status: 403, headers }
+          { status: 403, headers: getErrorSecurityHeaders() }
         );
       }
 
       // Clone-on-edit: Create a new flashcard copy
       const body = await request.json();
 
-      if (!validateFlashcardSet(body)) {
-        const headers = {
-          "Content-Type": "application/json; charset=utf-8",
-          "X-Content-Type-Options": "nosniff",
-          "Cache-Control": "no-store, no-cache, must-revalidate",
-        };
+      // Validate input using Zod
+      const validation = validateInput(FlashcardSetSchema, body);
+      if (!validation.success) {
         return NextResponse.json(
-          { error: "Invalid flashcard set data. Please check all fields." },
-          { status: 400, headers }
+          {
+            error: "Invalid flashcard set data. Please check all fields.",
+            details: validation.error.issues,
+          },
+          { status: 400, headers: getErrorSecurityHeaders() }
         );
       }
 
+      const validatedData = validation.data; // Already sanitized by validateInput
+
       // Sanitize and prepare data
-      const sanitizedCards = body.cards.map((card: Flashcard) => {
+      const sanitizedCards = validatedData.cards.map((card) => {
         const cardData: any = {
-          front: card.front.trim(),
-          back: card.back.trim(),
+          front: sanitizeString(card.front),
+          back: sanitizeString(card.back),
         };
 
         if (
           card.frontImageUrl &&
           typeof card.frontImageUrl === "string" &&
-          card.frontImageUrl.trim().length > 0
+          card.frontImageUrl.length > 0
         ) {
-          cardData.frontImageUrl = card.frontImageUrl.trim();
+          cardData.frontImageUrl = sanitizeString(card.frontImageUrl);
         }
 
         if (
           card.backImageUrl &&
           typeof card.backImageUrl === "string" &&
-          card.backImageUrl.trim().length > 0
+          card.backImageUrl.length > 0
         ) {
-          cardData.backImageUrl = card.backImageUrl.trim();
+          cardData.backImageUrl = sanitizeString(card.backImageUrl);
         }
 
         return cardData;
@@ -401,43 +269,31 @@ export async function PUT(
 
       const clonedFlashcardData: any = {
         userId: user.uid,
-        title: body.title.trim(),
-        description: body.description?.trim() || "",
+        title: sanitizeString(validatedData.title),
+        description: validatedData.description
+          ? sanitizeString(validatedData.description)
+          : "",
         cards: sanitizedCards,
-        isPublic: body.isPublic || false,
+        isPublic: validatedData.isPublic || false,
         totalCards: sanitizedCards.length,
         clonedFrom: id, // Reference to original
         createdAt: new Date(),
         updatedAt: new Date(),
       };
 
-      if (
-        body.coverImageUrl &&
-        typeof body.coverImageUrl === "string" &&
-        body.coverImageUrl.trim().length > 0
-      ) {
-        clonedFlashcardData.coverImageUrl = body.coverImageUrl.trim();
+      if (validatedData.coverImageUrl) {
+        clonedFlashcardData.coverImageUrl = sanitizeString(
+          validatedData.coverImageUrl
+        );
       } else if (flashcardData?.coverImageUrl) {
-        clonedFlashcardData.coverImageUrl = flashcardData.coverImageUrl;
+        clonedFlashcardData.coverImageUrl = sanitizeString(
+          flashcardData.coverImageUrl
+        );
       }
 
       const newDocRef = await adminDb
         .collection("flashcards")
         .add(clonedFlashcardData);
-
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "X-Frame-Options": "DENY",
-        "X-XSS-Protection": "1; mode=block",
-        "Strict-Transport-Security":
-          "max-age=31536000; includeSubDomains; preload",
-        "Content-Security-Policy":
-          "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://*.firebaseio.com https://*.googleapis.com;",
-        "Referrer-Policy": "strict-origin-when-cross-origin",
-        "Permissions-Policy": "geolocation=(), microphone=(), camera=()",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
 
       return NextResponse.json(
         {
@@ -446,103 +302,85 @@ export async function PUT(
           cloned: true,
           originalId: id,
         },
-        { status: 201, headers }
+        { status: 201, headers: getSecurityHeaders() }
       );
     }
 
     const body = await request.json();
 
-    if (!validateFlashcardSet(body)) {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
+    // Validate input using Zod
+    const validation = validateInput(FlashcardSetSchema, body);
+    if (!validation.success) {
       return NextResponse.json(
-        { error: "Invalid flashcard set data. Please check all fields." },
-        { status: 400, headers }
+        {
+          error: "Invalid flashcard set data. Please check all fields.",
+          details: validation.error.issues,
+        },
+        { status: 400, headers: getErrorSecurityHeaders() }
       );
     }
 
+    const validatedData = validation.data; // Already sanitized by validateInput
+
     // Sanitize and prepare data
-    const sanitizedCards = body.cards.map((card: Flashcard) => {
+    const sanitizedCards = validatedData.cards.map((card) => {
       const cardData: any = {
-        front: card.front.trim(),
-        back: card.back.trim(),
+        front: sanitizeString(card.front),
+        back: sanitizeString(card.back),
       };
 
       if (
         card.frontImageUrl &&
         typeof card.frontImageUrl === "string" &&
-        card.frontImageUrl.trim().length > 0
+        card.frontImageUrl.length > 0
       ) {
-        cardData.frontImageUrl = card.frontImageUrl.trim();
+        cardData.frontImageUrl = sanitizeString(card.frontImageUrl);
       }
 
       if (
         card.backImageUrl &&
         typeof card.backImageUrl === "string" &&
-        card.backImageUrl.trim().length > 0
+        card.backImageUrl.length > 0
       ) {
-        cardData.backImageUrl = card.backImageUrl.trim();
+        cardData.backImageUrl = sanitizeString(card.backImageUrl);
       }
 
       return cardData;
     });
 
     const updateData: any = {
-      title: body.title.trim(),
-      description: body.description?.trim() || "",
+      title: sanitizeString(validatedData.title),
+      description: validatedData.description
+        ? sanitizeString(validatedData.description)
+        : "",
       cards: sanitizedCards,
-      isPublic: body.isPublic || false,
+      isPublic: validatedData.isPublic || false,
       totalCards: sanitizedCards.length,
       updatedAt: new Date(),
     };
 
-    if (
-      body.coverImageUrl &&
-      typeof body.coverImageUrl === "string" &&
-      body.coverImageUrl.trim().length > 0
-    ) {
-      updateData.coverImageUrl = body.coverImageUrl.trim();
+    if (validatedData.coverImageUrl) {
+      updateData.coverImageUrl = sanitizeString(validatedData.coverImageUrl);
     }
 
     await adminDb.collection("flashcards").doc(id).update(updateData);
-
-    const headers = {
-      "Content-Type": "application/json; charset=utf-8",
-      "X-Content-Type-Options": "nosniff",
-      "X-Frame-Options": "DENY",
-      "X-XSS-Protection": "1; mode=block",
-      "Strict-Transport-Security":
-        "max-age=31536000; includeSubDomains; preload",
-      "Content-Security-Policy":
-        "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://*.firebaseio.com https://*.googleapis.com;",
-      "Referrer-Policy": "strict-origin-when-cross-origin",
-      "Permissions-Policy": "geolocation=(), microphone=(), camera=()",
-      "Cache-Control": "no-store, no-cache, must-revalidate",
-    };
 
     return NextResponse.json(
       {
         id,
         message: "Flashcard set updated successfully",
       },
-      { status: 200, headers }
+      { status: 200, headers: getSecurityHeaders() }
     );
   } catch (error) {
-    console.error("Update flashcard set error:", error);
-
-    const errorHeaders = {
-      "Content-Type": "application/json; charset=utf-8",
-      "X-Content-Type-Options": "nosniff",
-      "X-Frame-Options": "DENY",
-      "Cache-Control": "no-store, no-cache, must-revalidate",
-    };
-
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500, headers: errorHeaders }
-    );
+    // Try to get user for error context, but don't fail if auth fails
+    let userId: string | undefined;
+    try {
+      const user = await verifyAuth(request);
+      userId = user?.uid;
+    } catch {
+      // Ignore auth errors in error handler
+    }
+    return handleApiError(error, { route: "/api/flashcards/[id]", userId });
   }
 }

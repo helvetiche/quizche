@@ -1,20 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyAuth } from "@/lib/auth";
 import { verifyCSRF } from "@/lib/csrf";
+import {
+  getSecurityHeaders,
+  getErrorSecurityHeaders,
+} from "@/lib/security-headers";
+import { validateFileUpload } from "@/lib/validation";
+import { env } from "@/lib/env";
+import { handleApiError } from "@/lib/error-handler";
 
 export async function POST(request: NextRequest) {
   try {
     const user = await verifyAuth(request);
 
     if (!user) {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
       return NextResponse.json(
         { error: "Unauthorized: Invalid or missing authentication token" },
-        { status: 401, headers }
+        { status: 401, headers: getErrorSecurityHeaders() }
       );
     }
 
@@ -31,53 +33,33 @@ export async function POST(request: NextRequest) {
     const file = formData.get("image") as File;
 
     if (!file) {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
       return NextResponse.json(
         { error: "No image file provided" },
-        { status: 400, headers }
+        { status: 400, headers: getErrorSecurityHeaders() }
       );
     }
 
-    if (!file.type.startsWith("image/")) {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
+    // Validate file upload using utility
+    const fileValidation = validateFileUpload(
+      file,
+      10 * 1024 * 1024, // 10MB
+      ["image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp", "image/svg+xml"]
+    );
+
+    if (!fileValidation.valid) {
       return NextResponse.json(
-        { error: "File must be an image" },
-        { status: 400, headers }
+        { error: fileValidation.error || "Invalid image file" },
+        { status: 400, headers: getErrorSecurityHeaders() }
       );
     }
 
-    if (file.size > 10 * 1024 * 1024) {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
-      return NextResponse.json(
-        { error: "Image size must be less than 10MB" },
-        { status: 400, headers }
-      );
-    }
+    const apiKey = env.IMGBB_API_KEY;
 
-    const apiKey = process.env.IMGBB_API_KEY;
-
-    if (!apiKey) {
+    if (!apiKey || apiKey.length === 0) {
       console.error("IMGBB API key is not configured");
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
       return NextResponse.json(
         { error: "Image upload service is not configured" },
-        { status: 500, headers }
+        { status: 500, headers: getErrorSecurityHeaders() }
       );
     }
 
@@ -95,53 +77,34 @@ export async function POST(request: NextRequest) {
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       console.error("ImgBB API error:", errorData);
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
       return NextResponse.json(
         { error: errorData.error?.message || "Failed to upload image" },
-        { status: 500, headers }
+        { status: 500, headers: getErrorSecurityHeaders() }
       );
     }
 
     const data = await response.json();
 
     if (!data.success || !data.data?.url) {
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      };
       return NextResponse.json(
         { error: "Failed to upload image: Invalid response from imgbb" },
-        { status: 500, headers }
+        { status: 500, headers: getErrorSecurityHeaders() }
       );
     }
 
-    const headers = {
-      "Content-Type": "application/json; charset=utf-8",
-      "X-Content-Type-Options": "nosniff",
-      "X-Frame-Options": "DENY",
-      "Cache-Control": "no-store, no-cache, must-revalidate",
-    };
-
     return NextResponse.json(
       { url: data.data.url },
-      { status: 200, headers }
+      { status: 200, headers: getSecurityHeaders() }
     );
   } catch (error) {
-    console.error("Image upload error:", error);
-    const errorHeaders = {
-      "Content-Type": "application/json; charset=utf-8",
-      "X-Content-Type-Options": "nosniff",
-      "Cache-Control": "no-store, no-cache, must-revalidate",
-    };
-
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500, headers: errorHeaders }
-    );
+    // Try to get user for error context, but don't fail if auth fails
+    let userId: string | undefined;
+    try {
+      const user = await verifyAuth(request);
+      userId = user?.uid;
+    } catch {
+      // Ignore auth errors in error handler
+    }
+    return handleApiError(error, { route: "/api/upload/image", userId });
   }
 }

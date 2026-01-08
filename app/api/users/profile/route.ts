@@ -13,7 +13,9 @@ import {
   UserProfileSchema,
   UserProfileUpdateSchema,
   validateInput,
+  sanitizeString,
 } from "@/lib/validation";
+import { handleApiError } from "@/lib/error-handler";
 
 export async function POST(request: NextRequest) {
   try {
@@ -73,12 +75,18 @@ export async function POST(request: NextRequest) {
       { status: 200, headers: getSecurityHeaders() }
     );
   } catch (error) {
-    console.error("Profile update error:", error);
-
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500, headers: getErrorSecurityHeaders() }
-    );
+    // Try to get user for error context, but don't fail if auth fails
+    let userId: string | undefined;
+    try {
+      const user = await verifyAuth(request);
+      userId = user?.uid;
+    } catch {
+      // Ignore auth errors in error handler
+    }
+    return handleApiError(error, {
+      route: "/api/users/profile",
+      userId,
+    });
   }
 }
 
@@ -143,27 +151,27 @@ export async function PUT(request: NextRequest) {
       updatedAt: new Date(),
     };
 
-    // Only update provided fields
+    // Only update provided fields (already sanitized by validateInput)
     if (validatedData.firstName !== undefined) {
-      updateData.firstName = validatedData.firstName;
+      updateData.firstName = sanitizeString(validatedData.firstName);
     }
     if (validatedData.middleName !== undefined) {
-      updateData.middleName = validatedData.middleName || "";
+      updateData.middleName = validatedData.middleName ? sanitizeString(validatedData.middleName) : "";
     }
     if (validatedData.lastName !== undefined) {
-      updateData.lastName = validatedData.lastName;
+      updateData.lastName = sanitizeString(validatedData.lastName);
     }
     if (validatedData.nameExtension !== undefined) {
-      updateData.nameExtension = validatedData.nameExtension || "";
+      updateData.nameExtension = validatedData.nameExtension ? sanitizeString(validatedData.nameExtension) : "";
     }
     if (validatedData.age !== undefined) {
       updateData.age = validatedData.age;
     }
     if (validatedData.school !== undefined) {
-      updateData.school = validatedData.school;
+      updateData.school = sanitizeString(validatedData.school);
     }
     if (validatedData.profilePhotoUrl !== undefined) {
-      updateData.profilePhotoUrl = validatedData.profilePhotoUrl || null;
+      updateData.profilePhotoUrl = validatedData.profilePhotoUrl ? sanitizeString(validatedData.profilePhotoUrl) : null;
     }
 
     await userRef.update(updateData);
@@ -179,12 +187,18 @@ export async function PUT(request: NextRequest) {
       { status: 200, headers: getSecurityHeaders() }
     );
   } catch (error) {
-    console.error("Profile update error:", error);
-
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500, headers: getErrorSecurityHeaders() }
-    );
+    // Try to get user for error context, but don't fail if auth fails
+    let userId: string | undefined;
+    try {
+      const user = await verifyAuth(request);
+      userId = user?.uid;
+    } catch {
+      // Ignore auth errors in error handler
+    }
+    return handleApiError(error, {
+      route: "/api/users/profile",
+      userId,
+    });
   }
 }
 
@@ -293,11 +307,14 @@ export async function GET(request: NextRequest) {
       }
     );
   } catch (error) {
-    console.error("Get profile error:", error);
-
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500, headers: getErrorSecurityHeaders() }
-    );
+    // Try to get user for error context, but don't fail if auth fails
+    let userId: string | undefined;
+    try {
+      const user = await verifyAuth(request);
+      userId = user?.uid;
+    } catch {
+      // Ignore auth errors in error handler
+    }
+    return handleApiError(error, { route: "/api/users/profile", userId });
   }
 }

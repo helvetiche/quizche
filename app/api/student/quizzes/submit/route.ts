@@ -6,7 +6,12 @@ import {
   getSecurityHeaders,
   getErrorSecurityHeaders,
 } from "@/lib/security-headers";
-import { QuizSubmissionSchema, validateInput } from "@/lib/validation";
+import {
+  QuizSubmissionSchema,
+  validateInput,
+  sanitizeString,
+} from "@/lib/validation";
+import { handleApiError } from "@/lib/error-handler";
 
 export async function POST(request: NextRequest) {
   try {
@@ -89,7 +94,7 @@ export async function POST(request: NextRequest) {
     const answerMap: Record<number, string> = {};
 
     validatedData.answers.forEach((answer) => {
-      answerMap[answer.questionIndex] = answer.answer.trim().toLowerCase();
+      answerMap[answer.questionIndex] = sanitizeString(answer.answer).toLowerCase();
     });
 
     questions.forEach((question: any, index: number) => {
@@ -169,11 +174,14 @@ export async function POST(request: NextRequest) {
       { status: 200, headers: getSecurityHeaders() }
     );
   } catch (error) {
-    console.error("Submit quiz error:", error);
-
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500, headers: getErrorSecurityHeaders() }
-    );
+    // Try to get user for error context, but don't fail if auth fails
+    let userId: string | undefined;
+    try {
+      const user = await verifyAuth(request);
+      userId = user?.uid;
+    } catch {
+      // Ignore auth errors in error handler
+    }
+    return handleApiError(error, { route: "/api/student/quizzes/submit", userId });
   }
 }

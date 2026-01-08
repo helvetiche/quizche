@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "analyze": "ANALYZE=true next build"
+    "analyze": "ANALYZE=true next build",
+    "test:implementation": "npx tsx test-implementation.ts"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
@@ -20,9 +21,11 @@
     "@upstash/redis": "^1.36.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "envalid": "^8.1.1",
     "firebase": "^12.7.0",
     "firebase-admin": "^13.6.0",
     "gsap": "^3.14.2",
+    "isomorphic-dompurify": "^2.35.0",
     "lucide-react": "^0.562.0",
     "next": "16.1.1",
     "pdf-parse": "^2.4.5",

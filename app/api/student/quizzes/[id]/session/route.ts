@@ -7,6 +7,7 @@ import {
   getErrorSecurityHeaders,
 } from "@/lib/security-headers";
 import { SessionUpdateSchema, validateInput } from "@/lib/validation";
+import { handleApiError } from "@/lib/error-handler";
 
 export async function POST(
   request: NextRequest,
@@ -123,12 +124,18 @@ export async function POST(
       { status: 200, headers: getSecurityHeaders() }
     );
   } catch (error) {
-    console.error("Create session error:", error);
-
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500, headers: getErrorSecurityHeaders() }
-    );
+    // Try to get user for error context, but don't fail if auth fails
+    let userId: string | undefined;
+    try {
+      const user = await verifyAuth(request);
+      userId = user?.uid;
+    } catch {
+      // Ignore auth errors in error handler
+    }
+    return handleApiError(error, {
+      route: "/api/student/quizzes/[id]/session",
+      userId,
+    });
   }
 }
 
@@ -225,12 +232,18 @@ export async function PUT(request: NextRequest) {
       { status: 200, headers: getSecurityHeaders() }
     );
   } catch (error) {
-    console.error("Update session error:", error);
-
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500, headers: getErrorSecurityHeaders() }
-    );
+    // Try to get user for error context, but don't fail if auth fails
+    let userId: string | undefined;
+    try {
+      const user = await verifyAuth(request);
+      userId = user?.uid;
+    } catch {
+      // Ignore auth errors in error handler
+    }
+    return handleApiError(error, {
+      route: "/api/student/quizzes/[id]/session",
+      userId,
+    });
   }
 }
 
@@ -303,11 +316,17 @@ export async function DELETE(request: NextRequest) {
       { status: 200, headers: getSecurityHeaders() }
     );
   } catch (error) {
-    console.error("Delete session error:", error);
-
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500, headers: getErrorSecurityHeaders() }
-    );
+    // Try to get user for error context, but don't fail if auth fails
+    let userId: string | undefined;
+    try {
+      const user = await verifyAuth(request);
+      userId = user?.uid;
+    } catch {
+      // Ignore auth errors in error handler
+    }
+    return handleApiError(error, {
+      route: "/api/student/quizzes/[id]/session",
+      userId,
+    });
   }
 }

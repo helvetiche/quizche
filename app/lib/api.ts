@@ -42,7 +42,23 @@ export const apiFetch = async (
   }
 
   // Add CSRF token if needed
-  if (needsCSRF && idToken) {
+  if (needsCSRF) {
+    if (!idToken) {
+      // CSRF is needed but no idToken provided
+      console.error("CSRF token required but no idToken provided");
+      return new Response(
+        JSON.stringify({
+          error: "Authentication required. Please log in and try again.",
+        }),
+        {
+          status: 401,
+          headers: {
+            "Content-Type": "application/json; charset=utf-8",
+          },
+        }
+      );
+    }
+
     // Always fetch/refresh token before making request
     let csrfToken = await getCSRFToken(idToken);
 
@@ -89,20 +105,6 @@ export const apiFetch = async (
       );
     }
     requestHeaders["X-CSRF-Token"] = trimmedToken;
-  } else if (needsCSRF && !idToken) {
-    // CSRF is needed but no idToken provided
-    console.error("CSRF token required but no idToken provided");
-    return new Response(
-      JSON.stringify({
-        error: "Authentication required. Please log in and try again.",
-      }),
-      {
-        status: 401,
-        headers: {
-          "Content-Type": "application/json; charset=utf-8",
-        },
-      }
-    );
   }
 
   // Make the request

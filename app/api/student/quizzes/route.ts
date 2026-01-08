@@ -8,6 +8,7 @@ import {
   getErrorSecurityHeaders,
   getPublicSecurityHeaders,
 } from "@/lib/security-headers";
+import { handleApiError } from "@/lib/error-handler";
 
 export async function GET(request: NextRequest) {
   try {
@@ -210,11 +211,14 @@ export async function GET(request: NextRequest) {
       }),
     });
   } catch (error) {
-    console.error("Get student quizzes error:", error);
-
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500, headers: getErrorSecurityHeaders() }
-    );
+    // Try to get user for error context, but don't fail if auth fails
+    let userId: string | undefined;
+    try {
+      const user = await verifyAuth(request);
+      userId = user?.uid;
+    } catch {
+      // Ignore auth errors in error handler
+    }
+    return handleApiError(error, { route: "/api/student/quizzes", userId });
   }
 }

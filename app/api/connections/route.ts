@@ -9,7 +9,12 @@ import {
   getErrorSecurityHeaders,
   getPublicSecurityHeaders,
 } from "@/lib/security-headers";
-import { ConnectionRequestSchema, validateInput } from "@/lib/validation";
+import {
+  ConnectionRequestSchema,
+  validateInput,
+  sanitizeString,
+} from "@/lib/validation";
+import { handleApiError } from "@/lib/error-handler";
 
 const getConnectionId = (userId1: string, userId2: string): string => {
   return userId1 < userId2 ? `${userId1}_${userId2}` : `${userId2}_${userId1}`;
@@ -163,12 +168,15 @@ export async function GET(request: NextRequest) {
       }
     );
   } catch (error) {
-    console.error("Get connections error:", error);
-
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500, headers: getErrorSecurityHeaders() }
-    );
+    // Try to get user for error context, but don't fail if auth fails
+    let userId: string | undefined;
+    try {
+      const user = await verifyAuth(request);
+      userId = user?.uid;
+    } catch {
+      // Ignore auth errors in error handler
+    }
+    return handleApiError(error, { route: "/api/connections", userId });
   }
 }
 
@@ -213,7 +221,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const validatedData = validation.data;
+    const validatedData = validation.data; // Already sanitized by validateInput
     const targetUserId = validatedData.toUserId;
 
     if (targetUserId === user.uid) {
@@ -313,11 +321,14 @@ export async function POST(request: NextRequest) {
       { status: 201, headers: getSecurityHeaders() }
     );
   } catch (error) {
-    console.error("Create connection request error:", error);
-
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500, headers: getErrorSecurityHeaders() }
-    );
+    // Try to get user for error context, but don't fail if auth fails
+    let userId: string | undefined;
+    try {
+      const user = await verifyAuth(request);
+      userId = user?.uid;
+    } catch {
+      // Ignore auth errors in error handler
+    }
+    return handleApiError(error, { route: "/api/connections", userId });
   }
 }

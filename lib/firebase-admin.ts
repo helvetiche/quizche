@@ -1,47 +1,29 @@
 import { initializeApp, getApps, cert, App } from "firebase-admin/app";
 import { getAuth, Auth } from "firebase-admin/auth";
 import { getFirestore, Firestore } from "firebase-admin/firestore";
+import { env } from "./env";
 
 let app: App;
 
 if (!getApps().length) {
   let serviceAccount;
 
-  if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
-    serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
+  if (env.FIREBASE_SERVICE_ACCOUNT_KEY && env.FIREBASE_SERVICE_ACCOUNT_KEY.length > 0) {
+    serviceAccount = JSON.parse(env.FIREBASE_SERVICE_ACCOUNT_KEY);
   } else {
-    const privateKey = process.env.FIREBASE_ADMIN_PRIVATE_KEY?.replace(
-      /\\n/g,
-      "\n"
-    );
-
-    if (
-      !process.env.FIREBASE_ADMIN_PROJECT_ID ||
-      !privateKey ||
-      !process.env.FIREBASE_ADMIN_CLIENT_EMAIL
-    ) {
-      throw new Error(
-        "Firebase Admin configuration is incomplete. Please set either FIREBASE_SERVICE_ACCOUNT_KEY or all FIREBASE_ADMIN_* environment variables."
-      );
-    }
+    const privateKey = env.FIREBASE_ADMIN_PRIVATE_KEY.replace(/\\n/g, "\n");
 
     serviceAccount = {
-      type: process.env.FIREBASE_ADMIN_TYPE || "service_account",
-      project_id: process.env.FIREBASE_ADMIN_PROJECT_ID,
-      private_key_id: process.env.FIREBASE_ADMIN_PRIVATE_KEY_ID,
+      type: env.FIREBASE_ADMIN_TYPE,
+      project_id: env.FIREBASE_ADMIN_PROJECT_ID,
+      private_key_id: env.FIREBASE_ADMIN_PRIVATE_KEY_ID || undefined,
       private_key: privateKey,
-      client_email: process.env.FIREBASE_ADMIN_CLIENT_EMAIL,
-      client_id: process.env.FIREBASE_ADMIN_CLIENT_ID,
-      auth_uri:
-        process.env.FIREBASE_ADMIN_AUTH_URI ||
-        "https://accounts.google.com/o/oauth2/auth",
-      token_uri:
-        process.env.FIREBASE_ADMIN_TOKEN_URI ||
-        "https://oauth2.googleapis.com/token",
-      auth_provider_x509_cert_url:
-        process.env.FIREBASE_ADMIN_AUTH_PROVIDER_X509_CERT_URL ||
-        "https://www.googleapis.com/oauth2/v1/certs",
-      client_x509_cert_url: process.env.FIREBASE_ADMIN_CLIENT_X509_CERT_URL,
+      client_email: env.FIREBASE_ADMIN_CLIENT_EMAIL,
+      client_id: env.FIREBASE_ADMIN_CLIENT_ID || undefined,
+      auth_uri: env.FIREBASE_ADMIN_AUTH_URI,
+      token_uri: env.FIREBASE_ADMIN_TOKEN_URI,
+      auth_provider_x509_cert_url: env.FIREBASE_ADMIN_AUTH_PROVIDER_X509_CERT_URL || undefined,
+      client_x509_cert_url: env.FIREBASE_ADMIN_CLIENT_X509_CERT_URL || undefined,
     };
   }
 

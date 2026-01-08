@@ -6,6 +6,8 @@ import {
   getSecurityHeaders,
   getErrorSecurityHeaders,
 } from "@/lib/security-headers";
+import { AuthLoginSchema, validateInput } from "@/lib/validation";
+import { handleApiError } from "@/lib/error-handler";
 
 export async function POST(request: NextRequest) {
   try {
@@ -22,14 +24,20 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { idToken } = body;
 
-    if (!idToken) {
+    // Validate input using Zod
+    const validation = validateInput(AuthLoginSchema, body);
+    if (!validation.success) {
       return NextResponse.json(
-        { error: "Missing ID token" },
+        {
+          error: "Invalid input data. Please check all fields.",
+          details: validation.error.issues,
+        },
         { status: 400, headers: getErrorSecurityHeaders() }
       );
     }
+
+    const { idToken } = validation.data;
 
     const decodedToken = await adminAuth.verifyIdToken(idToken);
     const hasRole = decodedToken.role && decodedToken.role !== undefined;
@@ -49,11 +57,6 @@ export async function POST(request: NextRequest) {
       { status: 200, headers: getSecurityHeaders() }
     );
   } catch (error) {
-    console.error("Login error:", error);
-
-    return NextResponse.json(
-      { error: "Invalid token" },
-      { status: 401, headers: getErrorSecurityHeaders() }
-    );
+    return handleApiError(error, { route: "/api/auth/login" });
   }
 }
