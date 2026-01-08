@@ -1,0 +1,438 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { onAuthStateChanged } from "firebase/auth";
+import { auth } from "@/lib/firebase";
+import { uploadImageToImgbb } from "@/lib/imgbb";
+import Image from "next/image";
+
+interface ProfileData {
+  firstName: string;
+  lastName: string;
+  age: number | null;
+  school: string;
+  profilePhotoUrl: string | null;
+  profileCompleted: boolean;
+}
+
+export default function ProfileContent() {
+  const [idToken, setIdToken] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+  const [profileData, setProfileData] = useState<ProfileData>({
+    firstName: "",
+    lastName: "",
+    age: null,
+    school: "",
+    profilePhotoUrl: null,
+    profileCompleted: false,
+  });
+  const [profilePhotoFile, setProfilePhotoFile] = useState<File | null>(null);
+  const [profilePhotoPreview, setProfilePhotoPreview] = useState<string | null>(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      if (currentUser) {
+        try {
+          const token = await currentUser.getIdToken();
+          setIdToken(token);
+        } catch (error) {
+          console.error("Error getting token:", error);
+        }
+      } else {
+        setIdToken(null);
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      if (!idToken) return;
+
+      try {
+        setLoading(true);
+        const response = await fetch("/api/users/profile", {
+          headers: {
+            Authorization: `Bearer ${idToken}`,
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to fetch profile");
+        }
+
+        const data = await response.json();
+        const profile = data.profile;
+        setProfileData({
+          firstName: profile.firstName || "",
+          lastName: profile.lastName || "",
+          age: profile.age || null,
+          school: profile.school || "",
+          profilePhotoUrl: profile.profilePhotoUrl || null,
+          profileCompleted: profile.profileCompleted || false,
+        });
+      } catch (err) {
+        console.error("Error fetching profile:", err);
+        setError("Failed to load profile");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProfile();
+  }, [idToken]);
+
+  const handleInputChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
+    const { name, value } = e.target;
+    setProfileData((prev) => ({
+      ...prev,
+      [name]: name === "age" ? (value ? parseInt(value) : null) : value,
+    }));
+  };
+
+  const handlePhotoSelect = (file: File) => {
+    if (!file.type.startsWith("image/")) {
+      alert("Please select an image file");
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      alert("Image size must be less than 10MB");
+      return;
+    }
+
+    const previewUrl = URL.createObjectURL(file);
+    setProfilePhotoPreview(previewUrl);
+    setProfilePhotoFile(file);
+  };
+
+  const handleRemovePhoto = () => {
+    if (profilePhotoPreview) {
+      URL.revokeObjectURL(profilePhotoPreview);
+    }
+    setProfilePhotoPreview(null);
+    setProfilePhotoFile(null);
+    setProfileData((prev) => ({ ...prev, profilePhotoUrl: null }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setSuccess(null);
+
+    if (!profileData.firstName.trim() || !profileData.lastName.trim()) {
+      setError("Name is required");
+      return;
+    }
+
+    if (!profileData.age || profileData.age <= 0) {
+      setError("Please enter a valid age");
+      return;
+    }
+
+    if (!idToken) {
+      setError("Authentication required. Please refresh the page.");
+      return;
+    }
+
+    setSaving(true);
+
+    try {
+      let profilePhotoUrl = profileData.profilePhotoUrl;
+
+      if (profilePhotoFile) {
+        setUploadingPhoto(true);
+        try {
+          profilePhotoUrl = await uploadImageToImgbb(profilePhotoFile, idToken);
+          if (profilePhotoPreview) {
+            URL.revokeObjectURL(profilePhotoPreview);
+          }
+        } catch (error) {
+          console.error("Error uploading photo:", error);
+          throw new Error(
+            `Failed to upload profile photo. ${
+              error instanceof Error ? error.message : "Please try again."
+            }`
+          );
+        } finally {
+          setUploadingPhoto(false);
+        }
+      }
+
+      const { apiPut } = await import("../../../lib/api");
+      const response = await apiPut("/api/users/profile", {
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          firstName: profileData.firstName.trim(),
+          middleName: "",
+          lastName: profileData.lastName.trim(),
+          nameExtension: "",
+          age: profileData.age,
+          school: profileData.school.trim() || "Not specified",
+          profilePhotoUrl: profilePhotoUrl || null,
+        }),
+        idToken,
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Failed to update profile");
+      }
+
+      const currentUser = auth.currentUser;
+      if (currentUser) {
+        await currentUser.getIdToken(true);
+      }
+
+      setSuccess("Profile updated successfully!");
+      setProfilePhotoFile(null);
+      setProfilePhotoPreview(null);
+
+      const profileResponse = await fetch("/api/users/profile", {
+        headers: {
+          Authorization: `Bearer ${await currentUser?.getIdToken()}`,
+        },
+      });
+      if (profileResponse.ok) {
+        const profileResponseData = await profileResponse.json();
+        const profile = profileResponseData.profile;
+        setProfileData({
+          firstName: profile.firstName || "",
+          lastName: profile.lastName || "",
+          age: profile.age || null,
+          school: profile.school || "",
+          profilePhotoUrl: profile.profilePhotoUrl || null,
+          profileCompleted: profile.profileCompleted || false,
+        });
+      }
+    } catch (err) {
+      console.error("Error updating profile:", err);
+      setError(err instanceof Error ? err.message : "Failed to update profile");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (profilePhotoPreview) {
+        URL.revokeObjectURL(profilePhotoPreview);
+      }
+    };
+  }, [profilePhotoPreview]);
+
+  return (
+    <div className="flex flex-col gap-8 max-w-2xl mx-auto">
+      {/* Header */}
+      <div className="bg-white border-4 border-gray-900 shadow-[6px_6px_0px_0px_rgba(31,41,55,1)] overflow-hidden">
+        <div className="bg-pink-400 border-b-4 border-gray-900 px-6 py-4">
+          <div className="flex items-center gap-2">
+            <div className="flex gap-2">
+              <div className="w-4 h-4 bg-red-500 rounded-full border-2 border-gray-900"></div>
+              <div className="w-4 h-4 bg-yellow-500 rounded-full border-2 border-gray-900"></div>
+              <div className="w-4 h-4 bg-green-500 rounded-full border-2 border-gray-900"></div>
+            </div>
+            <h2 className="text-2xl font-black text-gray-900 ml-4">Profile Settings</h2>
+          </div>
+        </div>
+        <div className="p-6">
+          <p className="text-lg font-medium text-gray-700">
+            [ manage your profile information and photo ]
+          </p>
+        </div>
+      </div>
+
+      {error && (
+        <div className="bg-red-400 border-4 border-gray-900 p-4 shadow-[4px_4px_0px_0px_rgba(31,41,55,1)]">
+          <div className="flex items-center gap-3">
+            <span className="material-icons-outlined text-gray-900">error</span>
+            <p className="font-bold text-gray-900">{error}</p>
+          </div>
+        </div>
+      )}
+
+      {success && (
+        <div className="bg-lime-400 border-4 border-gray-900 p-4 shadow-[4px_4px_0px_0px_rgba(31,41,55,1)]">
+          <div className="flex items-center gap-3">
+            <span className="material-icons-outlined text-gray-900">check_circle</span>
+            <p className="font-bold text-gray-900">{success}</p>
+          </div>
+        </div>
+      )}
+
+      {loading ? (
+        <div className="bg-white border-4 border-gray-900 p-12 shadow-[4px_4px_0px_0px_rgba(31,41,55,1)] flex items-center justify-center">
+          <div className="flex items-center gap-3">
+            <div className="w-6 h-6 border-3 border-gray-900 border-t-transparent rounded-full animate-spin"></div>
+            <span className="font-bold text-gray-900">Loading profile...</span>
+          </div>
+        </div>
+      ) : (
+        <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+          {/* Profile Photo Card */}
+          <div className="bg-white border-4 border-gray-900 shadow-[4px_4px_0px_0px_rgba(31,41,55,1)] p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <span className="material-icons-outlined text-gray-900">photo_camera</span>
+              <h3 className="text-lg font-black text-gray-900">Profile Picture</h3>
+            </div>
+            
+            {profilePhotoPreview || profileData.profilePhotoUrl ? (
+              <div className="flex flex-col sm:flex-row items-center gap-6">
+                <div className="relative w-32 h-32 rounded-full border-4 border-gray-900 overflow-hidden bg-amber-100 shadow-[4px_4px_0px_0px_rgba(31,41,55,1)]">
+                  <Image
+                    src={profilePhotoPreview || profileData.profilePhotoUrl || ""}
+                    alt="Profile photo"
+                    fill
+                    className="object-cover"
+                    unoptimized={!!profilePhotoPreview}
+                  />
+                </div>
+                <div className="flex flex-col gap-3">
+                  <label className="px-4 py-2 bg-cyan-400 text-gray-900 font-bold border-3 border-gray-900 shadow-[3px_3px_0px_0px_rgba(31,41,55,1)] hover:shadow-[4px_4px_0px_0px_rgba(31,41,55,1)] active:shadow-[1px_1px_0px_0px_rgba(31,41,55,1)] transition-all cursor-pointer text-center">
+                    Change Photo
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handlePhotoSelect(file);
+                        e.target.value = "";
+                      }}
+                      disabled={saving || uploadingPhoto}
+                      className="hidden"
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    onClick={handleRemovePhoto}
+                    className="px-4 py-2 bg-red-500 text-white font-bold border-3 border-gray-900 shadow-[3px_3px_0px_0px_rgba(31,41,55,1)] hover:shadow-[4px_4px_0px_0px_rgba(31,41,55,1)] active:shadow-[1px_1px_0px_0px_rgba(31,41,55,1)] transition-all disabled:opacity-50"
+                    disabled={saving || uploadingPhoto}
+                  >
+                    Remove
+                  </button>
+                </div>
+                {uploadingPhoto && (
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 border-2 border-gray-900 border-t-transparent rounded-full animate-spin"></div>
+                    <p className="text-sm font-bold text-gray-600">Uploading...</p>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="flex flex-col items-center gap-4 py-6">
+                <div className="w-24 h-24 bg-amber-200 rounded-full border-4 border-gray-900 flex items-center justify-center">
+                  <span className="material-icons-outlined text-gray-900 text-4xl">person</span>
+                </div>
+                <label className="px-6 py-3 bg-gray-900 text-amber-100 font-bold border-3 border-gray-900 shadow-[4px_4px_0px_0px_rgba(31,41,55,1)] hover:shadow-[5px_5px_0px_0px_rgba(31,41,55,1)] active:shadow-[2px_2px_0px_0px_rgba(31,41,55,1)] transition-all cursor-pointer">
+                  Choose Photo
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) handlePhotoSelect(file);
+                      e.target.value = "";
+                    }}
+                    disabled={saving || uploadingPhoto}
+                    className="hidden"
+                  />
+                </label>
+                <p className="text-sm font-medium text-gray-600">
+                  Photo will be uploaded when you save
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* Personal Info Card */}
+          <div className="bg-white border-4 border-gray-900 shadow-[4px_4px_0px_0px_rgba(31,41,55,1)] p-6">
+            <div className="flex items-center gap-2 mb-6">
+              <span className="material-icons-outlined text-gray-900">badge</span>
+              <h3 className="text-lg font-black text-gray-900">Personal Information</h3>
+            </div>
+
+            <div className="flex flex-col gap-5">
+              {/* First Name */}
+              <div className="flex flex-col gap-2">
+                <label htmlFor="firstName" className="text-sm font-black text-gray-900">
+                  First Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  id="firstName"
+                  name="firstName"
+                  type="text"
+                  value={profileData.firstName}
+                  onChange={handleInputChange}
+                  required
+                  placeholder="Enter your first name"
+                  className="w-full px-4 py-3 border-3 border-gray-900 bg-amber-50 font-medium placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-cyan-400"
+                  disabled={saving || uploadingPhoto}
+                />
+              </div>
+
+              {/* Last Name */}
+              <div className="flex flex-col gap-2">
+                <label htmlFor="lastName" className="text-sm font-black text-gray-900">
+                  Last Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  id="lastName"
+                  name="lastName"
+                  type="text"
+                  value={profileData.lastName}
+                  onChange={handleInputChange}
+                  required
+                  placeholder="Enter your last name"
+                  className="w-full px-4 py-3 border-3 border-gray-900 bg-amber-50 font-medium placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-cyan-400"
+                  disabled={saving || uploadingPhoto}
+                />
+              </div>
+
+              {/* Age */}
+              <div className="flex flex-col gap-2">
+                <label htmlFor="age" className="text-sm font-black text-gray-900">
+                  Age <span className="text-red-500">*</span>
+                </label>
+                <input
+                  id="age"
+                  name="age"
+                  type="number"
+                  value={profileData.age || ""}
+                  onChange={handleInputChange}
+                  required
+                  min="1"
+                  max="150"
+                  placeholder="Enter your age"
+                  className="w-full px-4 py-3 border-3 border-gray-900 bg-amber-50 font-medium placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-cyan-400"
+                  disabled={saving || uploadingPhoto}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Submit Button */}
+          <button
+            type="submit"
+            disabled={saving || uploadingPhoto}
+            className="w-full px-8 py-4 bg-lime-400 text-gray-900 font-bold border-4 border-gray-900 shadow-[5px_5px_0px_0px_rgba(31,41,55,1)] hover:shadow-[6px_6px_0px_0px_rgba(31,41,55,1)] hover:-translate-x-0.5 hover:-translate-y-0.5 active:shadow-[2px_2px_0px_0px_rgba(31,41,55,1)] active:translate-x-0.5 active:translate-y-0.5 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
+          >
+            {saving && (
+              <div className="w-5 h-5 border-3 border-gray-900 border-t-transparent rounded-full animate-spin"></div>
+            )}
+            <span className="material-icons-outlined">save</span>
+            <span>{saving ? "Saving..." : "Save Changes"}</span>
+          </button>
+        </form>
+      )}
+    </div>
+  );
+}
