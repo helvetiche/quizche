@@ -170,7 +170,6 @@ export default function QuizAttemptDetailPage() {
   };
 
   const goToHistory = () => router.push("/student?tab=history");
-
   if (loading && !idToken) {
     return <Loading />;
   }

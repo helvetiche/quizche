@@ -1,13 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import AuthGuard from "../components/auth/AuthGuard";
 import TabDashboardLayout from "../components/layout/TabDashboardLayout";
 import StudentDashboard from "../components/dashboard/StudentDashboard";
 import { StudentTab } from "../components/dashboard/TabContext";
+import Loading from "../components/ui/Loading";
 
-export default function StudentPage() {
+function StudentPageContent() {
   const [user, setUser] = useState<any>(null);
   const searchParams = useSearchParams();
   
@@ -29,5 +30,13 @@ export default function StudentPage() {
         <StudentDashboard user={user} />
       </TabDashboardLayout>
     </AuthGuard>
+  );
+}
+
+export default function StudentPage() {
+  return (
+    <Suspense fallback={<Loading />}>
+      <StudentPageContent />
+    </Suspense>
   );
 }

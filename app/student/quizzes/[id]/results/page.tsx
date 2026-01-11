@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/lib/firebase";
@@ -49,7 +49,7 @@ interface QuizAttempt {
   disqualified?: boolean;
 }
 
-export default function QuizResultsPage() {
+function QuizResultsContent() {
   const params = useParams();
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -485,5 +485,13 @@ export default function QuizResultsPage() {
         </div>
       </DashboardLayout>
     </AuthGuard>
+  );
+}
+
+export default function QuizResultsPage() {
+  return (
+    <Suspense fallback={<Loading />}>
+      <QuizResultsContent />
+    </Suspense>
   );
 }

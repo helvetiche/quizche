@@ -21,9 +21,7 @@ interface TeacherHomeContentProps {
   userEmail?: string;
 }
 
-const ITEMS_PER_PAGE = 6;
-
-export default function TeacherHomeContent({ userEmail: _userEmail }: TeacherHomeContentProps) {
+export default function TeacherHomeContent({ userEmail }: TeacherHomeContentProps) {
   const { setActiveTab } = useTabContext();
   const [searchQuery, setSearchQuery] = useState("");
   const [showFilters, setShowFilters] = useState(false);
@@ -32,6 +30,7 @@ export default function TeacherHomeContent({ userEmail: _userEmail }: TeacherHom
   const [quizzes, setQuizzes] = useState<Quiz[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 6;
 
   const filters = [
     { id: "all", label: "All", icon: "apps" },
@@ -103,10 +102,12 @@ export default function TeacherHomeContent({ userEmail: _userEmail }: TeacherHom
     return matchesSearch;
   });
 
-  // Pagination calculations
-  const totalPages = Math.ceil(filteredQuizzes.length / ITEMS_PER_PAGE);
-  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-  const paginatedQuizzes = filteredQuizzes.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  // Pagination
+  const totalPages = Math.ceil(filteredQuizzes.length / itemsPerPage);
+  const paginatedQuizzes = filteredQuizzes.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
 
   // Reset to page 1 when filters change
   useEffect(() => {
@@ -161,6 +162,13 @@ export default function TeacherHomeContent({ userEmail: _userEmail }: TeacherHom
 
   return (
     <div className="flex flex-col items-center min-h-[60vh] relative">
+      {/* Amber Vignette Effect */}
+      <div 
+        className="fixed inset-0 pointer-events-none z-50"
+        style={{
+          background: `radial-gradient(ellipse at center, transparent 40%, rgba(251, 191, 36, 0.15) 70%, rgba(251, 191, 36, 0.35) 100%)`
+        }}
+      />
       {/* Circular Progress Bars - Right Side */}
       <div className="fixed right-8 top-40 flex-col gap-4 hidden xl:flex">
         {progressData.map((item, index) => {
@@ -298,15 +306,89 @@ export default function TeacherHomeContent({ userEmail: _userEmail }: TeacherHom
       </div>
 
       {/* Quiz Cards - Wider container */}
-      <div className="w-full max-w-6xl px-4 mt-6">
-        {loading ? (
-          <div className="flex justify-center py-8">
-            <div className="flex items-center gap-3">
-              <div className="w-5 h-5 border-3 border-gray-900 border-t-transparent rounded-full animate-spin"></div>
-              <span className="font-bold text-gray-900">Loading quizzes...</span>
-            </div>
+      <div className="w-full max-w-6xl px-4 mt-6 relative">
+        {/* Vertical Pagination - Left Side of Cards */}
+        {!loading && filteredQuizzes.length > 0 && (
+          <div className="absolute -left-16 top-0 flex flex-col gap-2">
+            {/* Up Button */}
+            <button
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+              className={`w-10 h-10 rounded-full border-3 border-gray-900 flex items-center justify-center transition-all ${
+                currentPage === 1
+                  ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                  : "bg-amber-100 text-gray-900 hover:bg-amber-200 shadow-[3px_3px_0px_0px_rgba(17,24,39,1)] hover:shadow-[4px_4px_0px_0px_rgba(17,24,39,1)]"
+              }`}
+            >
+              <span className="material-icons-outlined text-lg">expand_less</span>
+            </button>
+
+            {/* Page Dots */}
+            {Array.from({ length: Math.max(1, totalPages) }, (_, i) => i + 1).map((page) => (
+              <button
+                key={page}
+                onClick={() => setCurrentPage(page)}
+                className={`w-10 h-10 rounded-full border-3 border-gray-900 flex items-center justify-center font-bold transition-all ${
+                  currentPage === page
+                    ? "bg-gray-900 text-amber-100"
+                    : "bg-amber-100 text-gray-900 hover:bg-amber-200 shadow-[3px_3px_0px_0px_rgba(17,24,39,1)] hover:shadow-[4px_4px_0px_0px_rgba(17,24,39,1)]"
+                }`}
+              >
+                {page}
+              </button>
+            ))}
+
+            {/* Down Button */}
+            <button
+              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages || totalPages <= 1}
+              className={`w-10 h-10 rounded-full border-3 border-gray-900 flex items-center justify-center transition-all ${
+                currentPage === totalPages || totalPages <= 1
+                  ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                  : "bg-amber-100 text-gray-900 hover:bg-amber-200 shadow-[3px_3px_0px_0px_rgba(17,24,39,1)] hover:shadow-[4px_4px_0px_0px_rgba(17,24,39,1)]"
+              }`}
+            >
+              <span className="material-icons-outlined text-lg">expand_more</span>
+            </button>
           </div>
-        ) : paginatedQuizzes.length === 0 ? (
+        )}
+        {loading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {[...Array(6)].map((_, i) => (
+              <div 
+                key={i} 
+                className="bg-amber-100 border-3 border-gray-900 rounded-2xl shadow-[4px_4px_0px_0px_rgba(17,24,39,1)] overflow-hidden animate-pulse"
+                style={{ height: '220px' }}
+              >
+                {/* Header with traffic lights */}
+                <div className="flex items-center justify-between px-3 py-2.5 border-b-2 border-gray-900">
+                  <div className="flex gap-1.5">
+                    <div className="w-4 h-4 bg-gray-300 rounded-full border-2 border-gray-900"></div>
+                    <div className="w-4 h-4 bg-gray-300 rounded-full border-2 border-gray-900"></div>
+                    <div className="w-4 h-4 bg-gray-300 rounded-full border-2 border-gray-900"></div>
+                  </div>
+                  <div className="w-8 h-8 bg-gray-300 rounded-full border-2 border-gray-900"></div>
+                </div>
+                
+                {/* Content skeleton */}
+                <div className="p-4 flex flex-col gap-3">
+                  <div className="h-5 bg-gray-300 rounded-full border-2 border-gray-900 w-3/4"></div>
+                  <div className="h-4 bg-gray-200 rounded-full border-2 border-gray-900 w-full"></div>
+                  <div className="h-4 bg-gray-200 rounded-full border-2 border-gray-900 w-2/3"></div>
+                </div>
+                
+                {/* Progress bar skeleton */}
+                <div className="px-4 pb-3 mt-auto">
+                  <div className="flex justify-between mb-1">
+                    <div className="h-3 bg-gray-300 rounded-full border border-gray-900 w-16"></div>
+                    <div className="h-3 bg-gray-300 rounded-full border border-gray-900 w-20"></div>
+                  </div>
+                  <div className="h-2 bg-gray-200 rounded-full border border-gray-900 w-full"></div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : filteredQuizzes.length === 0 ? (
           <div className="text-center py-8">
             <p className="font-bold text-gray-700">
               {searchQuery ? "No quizzes found matching your search." : "No quizzes yet. Create your first quiz!"}
@@ -319,8 +401,9 @@ export default function TeacherHomeContent({ userEmail: _userEmail }: TeacherHom
             </button>
           </div>
         ) : (
-          <Masonry
-            items={paginatedQuizzes.map((quiz): MasonryItem => {
+          <>
+            <Masonry
+              items={paginatedQuizzes.map((quiz): MasonryItem => {
               const hasDescription = quiz.description && quiz.description.length > 0;
               const deadlineProgress = getDeadlineProgress(quiz.createdAt, quiz.deadline);
               const timeRemaining = getTimeRemainingText(quiz.createdAt, quiz.deadline);
@@ -349,7 +432,7 @@ export default function TeacherHomeContent({ userEmail: _userEmail }: TeacherHom
                       showTooltip={true}
                       displayOverlayContent={true}
                       overlayContent={
-                        <div className="bg-amber-100 border-3 border-black rounded-2xl relative w-full h-full overflow-hidden flex flex-col">
+                        <div className="bg-amber-100 border-3 border-gray-900 rounded-2xl relative w-full h-full overflow-hidden flex flex-col shadow-[4px_4px_0px_0px_rgba(17,24,39,1)]">
                           {/* macOS Traffic Lights */}
                           <div className="absolute top-3 left-3 flex gap-1.5 z-10">
                             <div className="w-4 h-4 bg-red-500 rounded-full border-2 border-black"></div>
@@ -407,7 +490,58 @@ export default function TeacherHomeContent({ userEmail: _userEmail }: TeacherHom
             animateFrom="bottom"
             stagger={0.08}
             blurToFocus={true}
+            gap={32}
+            animationKey={currentPage}
           />
+          
+{/* Vertical Pagination - Left Side */}
+          {filteredQuizzes.length > 0 && totalPages > 1 && (
+            <div className="flex flex-col items-center gap-2 mt-8 xl:hidden">
+              <div className="flex items-center gap-2">
+                {/* Previous Button */}
+                <button
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className={`w-10 h-10 rounded-full border-3 border-gray-900 flex items-center justify-center transition-all ${
+                    currentPage === 1
+                      ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                      : "bg-amber-100 text-gray-900 hover:bg-amber-200 shadow-[3px_3px_0px_0px_rgba(17,24,39,1)] hover:shadow-[4px_4px_0px_0px_rgba(17,24,39,1)]"
+                  }`}
+                >
+                  <span className="material-icons-outlined text-lg">chevron_left</span>
+                </button>
+
+                {/* Page Dots */}
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                  <button
+                    key={page}
+                    onClick={() => setCurrentPage(page)}
+                    className={`w-10 h-10 rounded-full border-3 border-gray-900 flex items-center justify-center font-bold transition-all ${
+                      currentPage === page
+                        ? "bg-gray-900 text-amber-100"
+                        : "bg-amber-100 text-gray-900 hover:bg-amber-200 shadow-[3px_3px_0px_0px_rgba(17,24,39,1)] hover:shadow-[4px_4px_0px_0px_rgba(17,24,39,1)]"
+                    }`}
+                  >
+                    {page}
+                  </button>
+                ))}
+
+                {/* Next Button */}
+                <button
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  className={`w-10 h-10 rounded-full border-3 border-gray-900 flex items-center justify-center transition-all ${
+                    currentPage === totalPages
+                      ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                      : "bg-amber-100 text-gray-900 hover:bg-amber-200 shadow-[3px_3px_0px_0px_rgba(17,24,39,1)] hover:shadow-[4px_4px_0px_0px_rgba(17,24,39,1)]"
+                  }`}
+                >
+                  <span className="material-icons-outlined text-lg">chevron_right</span>
+                </button>
+              </div>
+            </div>
+          )}
+          </>
         )}
       </div>
     </div>

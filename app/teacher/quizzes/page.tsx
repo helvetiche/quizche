@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Loading from "../../components/ui/Loading";
 
 // This page redirects to the teacher dashboard with quizzes tab active
 // Preserves any quizView and quizId params for deep linking
-export default function MyQuizzesRedirectPage() {
+function MyQuizzesRedirectContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   
@@ -28,4 +28,12 @@ export default function MyQuizzesRedirectPage() {
   }, [router, searchParams]);
 
   return <Loading />;
+}
+
+export default function MyQuizzesRedirectPage() {
+  return (
+    <Suspense fallback={<Loading />}>
+      <MyQuizzesRedirectContent />
+    </Suspense>
+  );
 }

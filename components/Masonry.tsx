@@ -48,6 +48,8 @@ interface MasonryProps {
   animateFrom?: 'top' | 'bottom' | 'left' | 'right' | 'center' | 'random';
   blurToFocus?: boolean;
   columnBreakpoints?: { query: string; columns: number }[];
+  gap?: number;
+  animationKey?: string | number;
 }
 
 interface GridItem extends MasonryItem {
@@ -64,7 +66,9 @@ const Masonry = ({
   stagger = 0.05,
   animateFrom = 'bottom',
   blurToFocus = true,
-  columnBreakpoints
+  columnBreakpoints,
+  gap: gapProp = 20,
+  animationKey
 }: MasonryProps) => {
   const defaultQueries = ['(min-width:1500px)', '(min-width:1000px)', '(min-width:600px)'];
   const defaultValues = [3, 2, 1];
@@ -112,7 +116,7 @@ const Masonry = ({
   const grid = useMemo((): GridItem[] => {
     if (!width) return [];
 
-    const gap = 20;
+    const gap = gapProp;
     const colHeights = new Array(columns).fill(0);
     const columnWidth = (width - gap * (columns - 1)) / columns;
 
@@ -134,6 +138,15 @@ const Masonry = ({
   }, [grid]);
 
   const hasMounted = useRef(false);
+  const prevAnimationKey = useRef(animationKey);
+
+  // Reset hasMounted when animationKey changes to re-trigger entrance animation
+  useEffect(() => {
+    if (animationKey !== prevAnimationKey.current) {
+      hasMounted.current = false;
+      prevAnimationKey.current = animationKey;
+    }
+  }, [animationKey]);
 
   useLayoutEffect(() => {
     if (!ready || !grid.length) return;

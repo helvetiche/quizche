@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import AuthGuard from "../components/auth/AuthGuard";
 import TabDashboardLayout from "../components/layout/TabDashboardLayout";
 import TeacherDashboard from "../components/dashboard/TeacherDashboard";
+import Loading from "../components/ui/Loading";
 
-export default function TeacherPage() {
+function TeacherPageContent() {
   const [user, setUser] = useState<any>(null);
   const searchParams = useSearchParams();
   
@@ -42,5 +43,13 @@ export default function TeacherPage() {
         <TeacherDashboard user={user} initialQuizView={initialQuizView} />
       </TabDashboardLayout>
     </AuthGuard>
+  );
+}
+
+export default function TeacherPage() {
+  return (
+    <Suspense fallback={<Loading />}>
+      <TeacherPageContent />
+    </Suspense>
   );
 }

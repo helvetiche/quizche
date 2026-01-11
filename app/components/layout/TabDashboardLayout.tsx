@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import TabNavigation from "../navigation/TabNavigation";
 import { useNavigationBadges } from "@/app/hooks/useNavigationBadges";
@@ -20,12 +21,25 @@ function TabDashboardLayoutInner({
   children,
 }: Omit<TabDashboardLayoutProps, "initialTab">) {
   const { badges } = useNavigationBadges(userRole);
+  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+
+  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    setMousePos({ x: e.clientX, y: e.clientY });
+  }, []);
 
   return (
     <div 
       className="min-h-screen pb-28 relative"
+      onMouseMove={handleMouseMove}
       style={{
-        background: "linear-gradient(to bottom right, rgb(254 243 199), rgb(253 230 138))",
+        backgroundImage: `
+          radial-gradient(circle 150px at ${mousePos.x}px ${mousePos.y}px, rgba(251,191,36,0.3), transparent),
+          linear-gradient(to right, rgba(17,24,39,0.08) 1px, transparent 1px),
+          linear-gradient(to bottom, rgba(17,24,39,0.08) 1px, transparent 1px),
+          linear-gradient(to bottom right, rgb(254 243 199), rgb(253 230 138))
+        `,
+        backgroundSize: "100% 100%, 48px 48px, 48px 48px, 100% 100%",
+        backgroundAttachment: "fixed, scroll, scroll, fixed",
       }}
     >
       {/* Corner Plus Signs */}
