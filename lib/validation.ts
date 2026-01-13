@@ -28,8 +28,24 @@ export const QuizDataSchema = z.object({
   description: z.string().max(1000).trim().optional(),
   questions: z.array(QuestionSchema).min(1).max(100),
   isActive: z.boolean().optional(),
-  timeLimit: z.number().int().min(0).max(3600).optional(), // in seconds
+  timeLimit: z.number().int().min(0).max(3600).optional(), // in seconds (legacy)
+  duration: z.number().int().min(0).max(600).nullable().optional(), // in minutes
+  deadline: z.string().max(50).optional(),
   coverImageUrl: z.string().url().optional().or(z.literal("")),
+  // Quiz Options
+  shuffleQuestions: z.boolean().optional(),
+  shuffleChoices: z.boolean().optional(),
+  showResults: z.boolean().optional(),
+  allowRetake: z.boolean().optional(),
+  maxAttempts: z.number().int().min(1).max(100).optional(),
+  // Anti-Cheat Options
+  preventTabSwitch: z.boolean().optional(),
+  maxTabSwitches: z.number().int().min(1).max(10).optional(),
+  preventCopyPaste: z.boolean().optional(),
+  fullscreenMode: z.boolean().optional(),
+  webcamProctoring: z.boolean().optional(),
+  disableRightClick: z.boolean().optional(),
+  lockdownBrowser: z.boolean().optional(),
 });
 
 // Flashcard validation schemas

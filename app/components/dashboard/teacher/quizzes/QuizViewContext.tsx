@@ -46,7 +46,10 @@ export function QuizViewProvider({ children, initialView = { type: "list" } }: Q
   }, []);
 
   const goToList = useCallback(() => setView({ type: "list" }), [setView]);
-  const goToCreate = useCallback(() => setView({ type: "create" }), [setView]);
+  const goToCreate = useCallback(() => {
+    // Redirect to the new composer page
+    window.location.href = "/teacher/composer";
+  }, []);
   const goToDetail = useCallback((quizId: string) => setView({ type: "detail", quizId }), [setView]);
   const goToEdit = useCallback((quizId: string) => setView({ type: "edit", quizId }), [setView]);
   const goToSettings = useCallback((quizId: string) => setView({ type: "settings", quizId }), [setView]);

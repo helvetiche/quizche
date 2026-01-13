@@ -44,12 +44,29 @@ const getRateLimiter = (limit: number, window: number): Ratelimit => {
  * Rate limiting using Upstash Ratelimit
  * Provides distributed rate limiting across multiple serverless instances
  * Uses sliding window algorithm for accurate rate limiting
+ * 
+ * NOTE: Rate limiting is disabled in development mode (NODE_ENV=development)
  */
 export const rateLimit = async (
   config: RateLimitConfig
 ): Promise<RateLimitResult> => {
   const { limit, window, identifier, key } = config;
   const rateLimitKey = `${key}:${identifier}`;
+
+  // Skip rate limiting in development mode
+  if (process.env.NODE_ENV === "development") {
+    const reset = Math.floor(Date.now() / 1000) + window;
+    return {
+      success: true,
+      remaining: limit,
+      reset,
+      headers: {
+        "X-RateLimit-Limit": limit.toString(),
+        "X-RateLimit-Remaining": limit.toString(),
+        "X-RateLimit-Reset": reset.toString(),
+      },
+    };
+  }
 
   try {
     const ratelimit = getRateLimiter(limit, window);

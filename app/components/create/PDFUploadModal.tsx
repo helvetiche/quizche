@@ -13,13 +13,7 @@ interface PDFUploadModalProps {
   idToken: string;
 }
 
-const PDFUploadModal = ({
-  isOpen,
-  onClose,
-  onSave,
-  onEdit,
-  idToken,
-}: PDFUploadModalProps) => {
+const PDFUploadModal = ({ isOpen, onClose, onSave, onEdit, idToken }: PDFUploadModalProps) => {
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [file, setFile] = useState<File | null>(null);
   const [difficulty, setDifficulty] = useState<Difficulty>("medium");
@@ -36,571 +30,348 @@ const PDFUploadModal = ({
       setError("Please select a PDF file");
       return;
     }
-
     if (selectedFile.size > 20 * 1024 * 1024) {
       setError("File size must be less than 20MB");
       return;
     }
-
     setFile(selectedFile);
     setError(null);
   }, []);
 
-  const handleDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(true);
-  }, []);
-
-  const handleDragLeave = useCallback((e: React.DragEvent) => {
+  const handleDragOver = useCallback((e: React.DragEvent) => { e.preventDefault(); setIsDragging(true); }, []);
+  const handleDragLeave = useCallback((e: React.DragEvent) => { e.preventDefault(); setIsDragging(false); }, []);
+  const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
-  }, []);
-
-  const handleDrop = useCallback(
-    (e: React.DragEvent) => {
-      e.preventDefault();
-      setIsDragging(false);
-
-      const droppedFile = e.dataTransfer.files[0];
-      if (droppedFile) {
-        handleFileSelect(droppedFile);
-      }
-    },
-    [handleFileSelect]
-  );
-
-  const handleFileInputChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const selectedFile = e.target.files?.[0];
-      if (selectedFile) {
-        handleFileSelect(selectedFile);
-      }
-    },
-    [handleFileSelect]
-  );
+    const droppedFile = e.dataTransfer.files[0];
+    if (droppedFile) handleFileSelect(droppedFile);
+  }, [handleFileSelect]);
+  const handleFileInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = e.target.files?.[0];
+    if (selectedFile) handleFileSelect(selectedFile);
+  }, [handleFileSelect]);
 
   const handleNext = () => {
     if (step === 1) {
-      if (!file) {
-        setError("Please select a PDF file");
-        return;
-      }
+      if (!file) { setError("Please select a PDF file"); return; }
       setStep(2);
       setError(null);
     } else if (step === 2) {
-      if (numQuestions < 1 || numQuestions > 50) {
-        setError("Number of questions must be between 1 and 50");
-        return;
-      }
+      if (numQuestions < 1 || numQuestions > 50) { setError("Number of questions must be between 1 and 50"); return; }
       handleGenerate();
     }
   };
 
   const handleGenerate = async () => {
     if (!file) return;
-
     setStep(3);
     setLoading(true);
     setError(null);
-
     try {
+      // Get fresh token before making the request
+      const { auth } = await import("@/lib/firebase");
+      const user = auth.currentUser;
+      if (!user) {
+        throw new Error("Please sign in to generate quizzes");
+      }
+      const freshToken = await user.getIdToken(true); // Force refresh
+      
       const formData = new FormData();
       formData.append("file", file);
       formData.append("difficulty", difficulty);
       formData.append("numQuestions", numQuestions.toString());
-      if (additionalInstructions.trim()) {
-        formData.append("additionalInstructions", additionalInstructions.trim());
-      }
-
-      const { apiPost } = await import("../../lib/api");
-      const response = await apiPost("/api/quizzes/generate", {
+      if (additionalInstructions.trim()) formData.append("additionalInstructions", additionalInstructions.trim());
+      const { getCSRFToken } = await import("../../lib/csrf");
+      const csrfToken = await getCSRFToken(freshToken);
+      const response = await fetch("/api/quizzes/generate", {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${freshToken}`, ...(csrfToken ? { "X-CSRF-Token": csrfToken } : {}) },
         body: formData,
-        idToken,
-        // Don't set Content-Type header for FormData, browser will set it with boundary
-        headers: {},
       });
-
       const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to generate quiz");
-      }
-
+      if (!response.ok) throw new Error(data.error || "Failed to generate quiz");
       setGeneratedQuiz(data.quiz);
       setStep(4);
     } catch (err) {
       console.error("Error generating quiz:", err);
-      setError(
-        err instanceof Error ? err.message : "Failed to generate quiz. Please try again."
-      );
+      setError(err instanceof Error ? err.message : "Failed to generate quiz. Please try again.");
       setStep(2);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSave = () => {
-    if (generatedQuiz) {
-      onSave(generatedQuiz);
-      handleClose();
-    }
-  };
-
-  const handleContinueEditing = () => {
-    if (generatedQuiz) {
-      onEdit(generatedQuiz);
-      handleClose();
-    }
-  };
-
+  const handleSave = () => { if (generatedQuiz) { onSave(generatedQuiz); handleClose(); } };
+  const handleContinueEditing = () => { if (generatedQuiz) { onEdit(generatedQuiz); handleClose(); } };
   const handleClose = () => {
-    setStep(1);
-    setFile(null);
-    setDifficulty("medium");
-    setNumQuestions(10);
-    setAdditionalInstructions("");
-    setError(null);
-    setGeneratedQuiz(null);
-    setLoading(false);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
+    setStep(1); setFile(null); setDifficulty("medium"); setNumQuestions(10);
+    setAdditionalInstructions(""); setError(null); setGeneratedQuiz(null); setLoading(false);
+    if (fileInputRef.current) fileInputRef.current.value = "";
     onClose();
   };
-
-  const handleBack = () => {
-    if (step > 1 && step < 4) {
-      setStep((prev) => (prev - 1) as 1 | 2 | 3 | 4);
-      setError(null);
-    }
-  };
+  const handleBack = () => { if (step > 1 && step < 4) { setStep((prev) => (prev - 1) as 1 | 2 | 3 | 4); setError(null); } };
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-      <div className="bg-white border-2 border-black w-full max-w-4xl max-h-[90vh] overflow-y-auto flex flex-col">
-        <div className="sticky top-0 bg-white border-b-2 border-black p-6 flex items-center justify-between z-10">
-          <h2 className="text-2xl font-light text-black">Generate Quiz from PDF</h2>
-          <button
-            onClick={handleClose}
-            className="text-black hover:text-gray-600 font-light text-xl"
-            aria-label="Close modal"
-          >
-            ×
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-sm">
+      <div className="bg-amber-50 border-3 border-gray-900 rounded-2xl shadow-[8px_8px_0px_0px_rgba(17,24,39,1)] w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
+        {/* Header */}
+        <div className="bg-amber-200 px-6 py-4 flex items-center justify-between border-b-3 border-gray-900">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-amber-400 rounded-xl flex items-center justify-center border-2 border-gray-900 shadow-[2px_2px_0px_0px_rgba(17,24,39,1)]">
+              <span className="material-icons text-gray-900">auto_awesome</span>
+            </div>
+            <div>
+              <h2 className="text-xl font-black text-gray-900">AI Quiz Generator</h2>
+              <p className="text-xs text-gray-700 font-medium">Step {step} of 4</p>
+            </div>
+          </div>
+          <button onClick={handleClose} className="w-10 h-10 bg-red-400 rounded-xl flex items-center justify-center border-2 border-gray-900 hover:bg-red-500 transition-colors shadow-[2px_2px_0px_0px_rgba(17,24,39,1)]">
+            <span className="material-icons text-gray-900">close</span>
           </button>
         </div>
 
-        <div className="p-6 flex-1">
+        {/* Progress Bar */}
+        <div className="px-6 py-3 bg-amber-100 border-b-2 border-gray-900">
+          <div className="flex items-center gap-2">
+            {[1, 2, 3, 4].map((s) => (
+              <div key={s} className="flex-1 flex items-center gap-2">
+                <div className={`h-2 flex-1 rounded-full border border-gray-900 ${s <= step ? 'bg-amber-400' : 'bg-white'}`} />
+                {s < 4 && <span className="text-gray-400 text-xs">→</span>}
+              </div>
+            ))}
+          </div>
+          <div className="flex justify-between mt-1">
+            <span className={`text-[10px] font-bold ${step >= 1 ? 'text-gray-900' : 'text-gray-400'}`}>Upload</span>
+            <span className={`text-[10px] font-bold ${step >= 2 ? 'text-gray-900' : 'text-gray-400'}`}>Configure</span>
+            <span className={`text-[10px] font-bold ${step >= 3 ? 'text-gray-900' : 'text-gray-400'}`}>Generate</span>
+            <span className={`text-[10px] font-bold ${step >= 4 ? 'text-gray-900' : 'text-gray-400'}`}>Preview</span>
+          </div>
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto p-6">
+          {/* Step 1: Upload */}
           {step === 1 && (
             <div className="flex flex-col gap-6">
-              <div className="flex flex-col gap-4">
-                <h3 className="text-xl font-light text-black">Upload PDF</h3>
-                <p className="text-base font-light text-gray-600">
-                  Upload a PDF file containing educational content to generate quiz questions.
-                </p>
+              <div>
+                <h3 className="text-lg font-black text-gray-900 mb-2">Upload Your PDF</h3>
+                <p className="text-sm text-gray-600">Upload educational content like lecture notes, textbooks, or study materials to generate quiz questions automatically.</p>
               </div>
 
               <div
-                className={`border-2 border-dashed p-12 text-center transition-colors ${
-                  isDragging
-                    ? "border-black bg-gray-50"
-                    : "border-gray-300 bg-white"
-                }`}
-                onDragOver={handleDragOver}
-                onDragLeave={handleDragLeave}
-                onDrop={handleDrop}
+                className={`border-3 border-dashed rounded-xl p-8 text-center transition-all cursor-pointer ${isDragging ? "border-amber-500 bg-amber-100" : "border-gray-400 bg-white hover:border-gray-900 hover:bg-amber-50"}`}
+                onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}
+                onClick={() => fileInputRef.current?.click()}
               >
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept=".pdf,application/pdf"
-                  onChange={handleFileInputChange}
-                  className="hidden"
-                  id="pdf-upload"
-                />
-                <label
-                  htmlFor="pdf-upload"
-                  className="cursor-pointer flex flex-col items-center gap-4"
-                >
-                  <svg
-                    className="w-16 h-16 text-gray-400"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
-                    />
-                  </svg>
-                  <div className="flex flex-col gap-2">
-                    <span className="text-base font-light text-black">
-                      {isDragging
-                        ? "Drop PDF file here"
-                        : "Click to upload or drag and drop"}
-                    </span>
-                    <span className="text-sm font-light text-gray-500">
-                      PDF files only (max 20MB)
-                    </span>
+                <input ref={fileInputRef} type="file" accept=".pdf,application/pdf" onChange={handleFileInputChange} className="hidden" />
+                <div className="flex flex-col items-center gap-3">
+                  <div className="w-16 h-16 bg-amber-200 rounded-2xl flex items-center justify-center border-2 border-gray-900">
+                    <span className="material-icons-outlined text-gray-900 text-3xl">cloud_upload</span>
                   </div>
-                </label>
+                  <div>
+                    <p className="text-gray-900 font-bold">{isDragging ? "Drop your PDF here!" : "Click to upload or drag & drop"}</p>
+                    <p className="text-gray-500 text-sm mt-1">PDF files only • Max 20MB</p>
+                  </div>
+                </div>
               </div>
 
               {file && (
-                <div className="p-4 bg-gray-50 border-2 border-gray-300">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <svg
-                        className="w-8 h-8 text-red-600"
-                        fill="currentColor"
-                        viewBox="0 0 20 20"
-                      >
-                        <path
-                          fillRule="evenodd"
-                          d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z"
-                          clipRule="evenodd"
-                        />
-                      </svg>
-                      <div className="flex flex-col">
-                        <span className="text-base font-light text-black">{file.name}</span>
-                        <span className="text-sm font-light text-gray-600">
-                          {(file.size / 1024 / 1024).toFixed(2)} MB
-                        </span>
-                      </div>
+                <div className="bg-white border-2 border-gray-900 rounded-xl p-4 flex items-center justify-between shadow-[2px_2px_0px_0px_rgba(17,24,39,1)]">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center border-2 border-red-300">
+                      <span className="material-icons text-red-600">picture_as_pdf</span>
                     </div>
-                    <button
-                      onClick={() => {
-                        setFile(null);
-                        if (fileInputRef.current) {
-                          fileInputRef.current.value = "";
-                        }
-                      }}
-                      className="text-red-600 hover:text-red-700 font-light"
-                    >
-                      Remove
-                    </button>
+                    <div>
+                      <p className="text-gray-900 font-bold text-sm truncate max-w-[200px]">{file.name}</p>
+                      <p className="text-gray-500 text-xs">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
+                    </div>
                   </div>
+                  <button onClick={(e) => { e.stopPropagation(); setFile(null); if (fileInputRef.current) fileInputRef.current.value = ""; }} className="text-red-500 hover:text-red-700 font-bold text-sm flex items-center gap-1">
+                    <span className="material-icons text-sm">delete</span> Remove
+                  </button>
                 </div>
               )}
 
+              {/* Disclaimer */}
+              <div className="bg-amber-100 border-2 border-amber-400 rounded-xl p-4">
+                <p className="text-gray-900 font-bold text-sm mb-1">Important Notice</p>
+                <p className="text-gray-700 text-xs leading-relaxed">AI-generated questions should always be reviewed for accuracy before use. Complex diagrams or images within PDFs may not be processed correctly. This tool works best with text-heavy educational content like lecture notes and textbooks. Your PDF is processed securely and is not stored permanently on our servers.</p>
+              </div>
+
               {error && (
-                <div className="p-4 bg-red-50 border-2 border-red-600">
-                  <p className="text-sm font-light text-red-600">{error}</p>
+                <div className="bg-red-100 border-2 border-red-500 rounded-xl p-4 flex items-center gap-3">
+                  <span className="material-icons text-red-600">error</span>
+                  <p className="text-red-700 font-medium text-sm">{error}</p>
                 </div>
               )}
             </div>
           )}
 
+          {/* Step 2: Configure */}
           {step === 2 && (
             <div className="flex flex-col gap-6">
-              <div className="flex flex-col gap-4">
-                <h3 className="text-xl font-light text-black">Configuration</h3>
-                <p className="text-base font-light text-gray-600">
-                  Configure the difficulty level and number of questions for your quiz.
-                </p>
+              <div>
+                <h3 className="text-lg font-black text-gray-900 mb-2">Configure Your Quiz</h3>
+                <p className="text-sm text-gray-600">Customize the difficulty and number of questions to match your needs.</p>
               </div>
 
-              <div className="flex flex-col gap-6">
-                <div className="flex flex-col gap-4">
-                  <label className="text-lg font-light text-black">
-                    Difficulty Level
-                  </label>
-                  <div className="flex flex-col gap-3">
-                    {(["easy", "medium", "hard"] as Difficulty[]).map((level) => (
-                      <label
-                        key={level}
-                        className="flex items-center gap-3 p-4 border-2 border-gray-300 cursor-pointer hover:bg-gray-50 transition-colors"
-                      >
-                        <input
-                          type="radio"
-                          name="difficulty"
-                          value={level}
-                          checked={difficulty === level}
-                          onChange={(e) =>
-                            setDifficulty(e.target.value as Difficulty)
-                          }
-                          className="w-4 h-4 text-black"
-                        />
-                        <div className="flex flex-col">
-                          <span className="text-base font-light text-black capitalize">
-                            {level}
-                          </span>
-                          <span className="text-sm font-light text-gray-600">
-                            {level === "easy" &&
-                              "Original descriptions, straightforward questions"}
-                            {level === "medium" &&
-                              "Rewritten descriptions, requires understanding"}
-                            {level === "hard" &&
-                              "Completely rewritten, requires deep understanding"}
-                          </span>
-                        </div>
-                      </label>
-                    ))}
+              {/* Difficulty */}
+              <div>
+                <label className="text-sm font-black text-gray-900 mb-3 block">Difficulty Level</label>
+                <div className="grid grid-cols-3 gap-3">
+                  {([
+                    { value: "easy", label: "Easy", desc: "Straightforward questions", icon: "sentiment_satisfied", color: "bg-green-100 border-green-400" },
+                    { value: "medium", label: "Medium", desc: "Requires understanding", icon: "sentiment_neutral", color: "bg-amber-100 border-amber-400" },
+                    { value: "hard", label: "Hard", desc: "Deep comprehension", icon: "sentiment_very_dissatisfied", color: "bg-red-100 border-red-400" },
+                  ] as const).map((level) => (
+                    <button key={level.value} onClick={() => setDifficulty(level.value)}
+                      className={`p-4 rounded-xl border-2 transition-all text-left ${difficulty === level.value ? `${level.color} border-gray-900 shadow-[3px_3px_0px_0px_rgba(17,24,39,1)]` : "bg-white border-gray-300 hover:border-gray-900"}`}>
+                      <span className="material-icons text-2xl mb-2">{level.icon}</span>
+                      <p className="font-bold text-gray-900">{level.label}</p>
+                      <p className="text-xs text-gray-600">{level.desc}</p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Number of Questions */}
+              <div>
+                <label className="text-sm font-black text-gray-900 mb-2 block">Number of Questions</label>
+                <div className="flex items-center gap-4">
+                  <input type="range" min={1} max={50} value={numQuestions} onChange={(e) => setNumQuestions(parseInt(e.target.value))} className="flex-1 h-2 bg-amber-200 rounded-lg appearance-none cursor-pointer accent-amber-500" />
+                  <div className="w-16 h-12 bg-white border-2 border-gray-900 rounded-xl flex items-center justify-center shadow-[2px_2px_0px_0px_rgba(17,24,39,1)]">
+                    <span className="text-xl font-black text-gray-900">{numQuestions}</span>
                   </div>
                 </div>
+                <p className="text-xs text-gray-500 mt-2">Recommended: 10-20 questions for optimal results</p>
+              </div>
 
-                <div className="flex flex-col gap-4">
-                  <label htmlFor="numQuestions" className="text-lg font-light text-black">
-                    Number of Questions
-                  </label>
-                  <input
-                    id="numQuestions"
-                    type="number"
-                    min={1}
-                    max={50}
-                    value={numQuestions}
-                    onChange={(e) => {
-                      const value = parseInt(e.target.value, 10);
-                      if (!isNaN(value) && value >= 1 && value <= 50) {
-                        setNumQuestions(value);
-                      }
-                    }}
-                    className="w-full px-4 py-3 border-2 border-black bg-white text-black font-light focus:outline-none focus:ring-2 focus:ring-black"
-                  />
-                  <p className="text-sm font-light text-gray-600">
-                    Enter a number between 1 and 50
-                  </p>
-                </div>
+              {/* Additional Instructions */}
+              <div>
+                <label className="text-sm font-black text-gray-900 mb-2 block">Additional Instructions <span className="text-gray-400 font-normal">(Optional)</span></label>
+                <textarea value={additionalInstructions} onChange={(e) => setAdditionalInstructions(e.target.value)}
+                  className="w-full px-4 py-3 bg-white border-2 border-gray-900 rounded-xl font-medium placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-400 resize-none shadow-[2px_2px_0px_0px_rgba(17,24,39,1)]"
+                  placeholder="e.g., Focus on Chapter 3, Include practical examples, Avoid theoretical questions..."
+                  rows={3}
+                />
+              </div>
 
-                <div className="flex flex-col gap-4">
-                  <label htmlFor="additionalInstructions" className="text-lg font-light text-black">
-                    Additional Instructions (Optional)
-                  </label>
-                  <textarea
-                    id="additionalInstructions"
-                    value={additionalInstructions}
-                    onChange={(e) => setAdditionalInstructions(e.target.value)}
-                    className="w-full px-4 py-3 border-2 border-black bg-white text-black font-light focus:outline-none focus:ring-2 focus:ring-black resize-none"
-                    placeholder="e.g., Focus on networking protocols, Include questions about TCP/IP, Emphasize practical applications..."
-                    rows={4}
-                  />
-                  <p className="text-sm font-light text-gray-600">
-                    Provide specific instructions or focus areas for the quiz generation
-                  </p>
-                </div>
+              {/* Tips */}
+              <div className="bg-amber-100 border-2 border-amber-400 rounded-xl p-4">
+                <p className="text-gray-900 font-bold text-sm mb-1">Pro Tips</p>
+                <p className="text-gray-700 text-xs leading-relaxed">Use specific instructions to help the AI focus on particular topics or chapters from your content. Starting with fewer questions allows you to assess quality before generating more. Medium difficulty typically works best for standard classroom assessments and provides a good balance between challenge and accessibility.</p>
               </div>
 
               {error && (
-                <div className="p-4 bg-red-50 border-2 border-red-600">
-                  <p className="text-sm font-light text-red-600">{error}</p>
+                <div className="bg-red-100 border-2 border-red-500 rounded-xl p-4 flex items-center gap-3">
+                  <span className="material-icons text-red-600">error</span>
+                  <p className="text-red-700 font-medium text-sm">{error}</p>
                 </div>
               )}
             </div>
           )}
 
+          {/* Step 3: Generating */}
           {step === 3 && (
-            <div className="flex flex-col items-center justify-center gap-6 py-12">
-              <div className="flex flex-col items-center gap-4">
-                <svg
-                  className="animate-spin h-12 w-12 text-black"
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                >
-                  <circle
-                    className="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                  ></circle>
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                  ></path>
-                </svg>
-                <p className="text-lg font-light text-black">
-                  Processing PDF and generating quiz...
-                </p>
-                <p className="text-sm font-light text-gray-600">
-                  This may take a few moments
-                </p>
+            <div className="flex flex-col items-center justify-center py-16">
+          
+              <div className="w-12 h-12 border-4 border-amber-400 border-t-amber-50 rounded-full animate-spin mb-6" />
+              <h3 className="text-xl font-black text-gray-900 mb-2">AI is Working Its Magic</h3>
+              <p className="text-gray-600 text-center max-w-md mb-6">Analyzing your PDF and generating high-quality quiz questions. This usually takes 30-60 seconds.</p>
+              <div className="bg-amber-100 border-2 border-amber-300 rounded-xl p-4 max-w-md">
+                <p className="text-gray-700 text-xs text-center">Our AI analyzes your document content and context to generate meaningful questions that effectively test comprehension and understanding.</p>
               </div>
             </div>
           )}
 
+          {/* Step 4: Preview */}
           {step === 4 && generatedQuiz && (
             <div className="flex flex-col gap-6">
-              <div className="flex flex-col gap-4">
-                <h3 className="text-xl font-light text-black">Preview Generated Quiz</h3>
-                <p className="text-base font-light text-gray-600">
-                  Review the generated quiz. You can save it directly or continue editing.
-                </p>
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-black text-gray-900 mb-1">Quiz Generated Successfully!</h3>
+                  <p className="text-sm text-gray-600">Review the questions below. You can edit them after importing.</p>
+                </div>
+                <div className="bg-green-100 border-2 border-green-500 rounded-xl px-4 py-2 flex items-center gap-2">
+                  <span className="material-icons text-green-600">check_circle</span>
+                  <span className="text-green-700 font-bold text-sm">{generatedQuiz.questions.length} Questions</span>
+                </div>
               </div>
 
-              <div className="flex flex-col gap-6 border-2 border-gray-300 p-6">
-                <div className="flex flex-col gap-2">
-                  <h4 className="text-lg font-light text-black">Title</h4>
-                  <p className="text-base font-light text-black">{generatedQuiz.title}</p>
-                </div>
+              {/* Quiz Info */}
+              <div className="bg-white border-2 border-gray-900 rounded-xl p-4 shadow-[2px_2px_0px_0px_rgba(17,24,39,1)]">
+                <h4 className="font-black text-gray-900 text-lg">{generatedQuiz.title}</h4>
+                {generatedQuiz.description && <p className="text-gray-600 text-sm mt-1">{generatedQuiz.description}</p>}
+              </div>
 
-                {generatedQuiz.description && (
-                  <div className="flex flex-col gap-2">
-                    <h4 className="text-lg font-light text-black">Description</h4>
-                    <p className="text-base font-light text-gray-600">
-                      {generatedQuiz.description}
-                    </p>
-                  </div>
-                )}
-
-                <div className="flex flex-col gap-4">
-                  <h4 className="text-lg font-light text-black">
-                    Questions ({generatedQuiz.questions.length})
-                  </h4>
-                  <div className="flex flex-col gap-4 max-h-96 overflow-y-auto">
-                    {generatedQuiz.questions.map((question, index) => (
-                      <div
-                        key={index}
-                        className="flex flex-col gap-3 p-4 border-2 border-gray-300 bg-white"
-                      >
-                        <div className="flex items-start gap-3">
-                          <span className="text-base font-light text-black min-w-[24px]">
-                            {index + 1}.
-                          </span>
-                          <div className="flex-1 flex flex-col gap-3">
-                            <p className="text-base font-light text-black">
-                              {question.question}
-                            </p>
-
-                            {question.type === "multiple_choice" && question.choices && (
-                              <div className="flex flex-wrap gap-2 ml-4">
-                                {question.choices.map((choice, choiceIndex) => {
-                                  const isCorrectAnswer =
-                                    question.answer.trim() === choice.trim();
-                                  return (
-                                    <div
-                                      key={choiceIndex}
-                                      className={`px-4 py-2 border-2 font-light ${
-                                        isCorrectAnswer
-                                          ? "bg-green-100 text-green-800 border-green-600"
-                                          : "bg-white text-black border-gray-300"
-                                      }`}
-                                    >
-                                      {choice}
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            )}
-
-                            {question.type === "true_or_false" && (
-                              <div className="flex gap-2 ml-4">
-                                <div
-                                  className={`px-4 py-2 border-2 font-light ${
-                                    question.answer === "true"
-                                      ? "bg-green-100 text-green-800 border-green-600"
-                                      : "bg-white text-black border-gray-300"
-                                  }`}
-                                >
-                                  True
-                                </div>
-                                <div
-                                  className={`px-4 py-2 border-2 font-light ${
-                                    question.answer === "false"
-                                      ? "bg-green-100 text-green-800 border-green-600"
-                                      : "bg-white text-black border-gray-300"
-                                  }`}
-                                >
-                                  False
-                                </div>
-                              </div>
-                            )}
-
-                            <div className="ml-4 mt-2 p-3 bg-gray-100 border border-gray-300">
-                              <p className="text-xs font-light text-gray-600 mb-1">
-                                Correct Answer:
-                              </p>
-                              <p className="text-sm font-light text-black">
-                                {question.answer}
-                              </p>
-                            </div>
-                          </div>
+              {/* Questions Preview */}
+              <div className="flex flex-col gap-3 max-h-64 overflow-y-auto pr-2">
+                {generatedQuiz.questions.map((question, index) => (
+                  <div key={index} className="bg-white border-2 border-gray-300 rounded-xl p-4 hover:border-gray-900 transition-colors">
+                    <div className="flex items-start gap-3">
+                      <div className="w-8 h-8 bg-amber-200 rounded-lg flex items-center justify-center border border-gray-900 flex-shrink-0">
+                        <span className="text-sm font-black text-gray-900">{index + 1}</span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-gray-900 font-medium text-sm line-clamp-2">{question.question}</p>
+                        <div className="flex items-center gap-2 mt-2">
+                          <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-medium capitalize">{question.type.replace('_', ' ')}</span>
+                          <span className="text-xs text-green-600 font-medium">✓ {question.answer.substring(0, 30)}{question.answer.length > 30 ? '...' : ''}</span>
                         </div>
                       </div>
-                    ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Disclaimer */}
+              <div className="bg-amber-100 border-2 border-amber-400 rounded-xl p-4">
+                <div className="flex items-start gap-3">
+                  <span className="material-icons text-amber-600">warning</span>
+                  <div>
+                    <p className="text-gray-900 font-bold text-sm mb-1">Review Recommended</p>
+                    <p className="text-gray-700 text-xs">AI-generated content may contain inaccuracies. Please review all questions and answers before publishing your quiz.</p>
                   </div>
                 </div>
               </div>
-
-              {error && (
-                <div className="p-4 bg-red-50 border-2 border-red-600">
-                  <p className="text-sm font-light text-red-600">{error}</p>
-                </div>
-              )}
             </div>
           )}
         </div>
 
-        <div className="sticky bottom-0 bg-white border-t-2 border-black p-6 flex items-center justify-between gap-4">
-          <div className="flex gap-2">
+        {/* Footer */}
+        <div className="bg-amber-100 px-6 py-4 border-t-2 border-gray-900 flex items-center justify-between">
+          <div>
             {step > 1 && step < 4 && (
-              <button
-                onClick={handleBack}
-                disabled={loading}
-                className="px-6 py-3 bg-gray-200 text-black font-light hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                Back
+              <button onClick={handleBack} disabled={loading}
+                className="px-5 py-2.5 bg-white text-gray-900 font-bold rounded-xl border-2 border-gray-900 hover:bg-gray-100 disabled:opacity-50 transition-colors flex items-center gap-2 shadow-[2px_2px_0px_0px_rgba(17,24,39,1)]">
+                <span className="material-icons text-sm">arrow_back</span> Back
               </button>
             )}
           </div>
-
-          <div className="flex gap-4">
+          <div className="flex gap-3">
             {step === 4 && generatedQuiz ? (
               <>
-                <button
-                  onClick={handleContinueEditing}
-                  className="px-6 py-3 bg-gray-200 text-black font-light hover:bg-gray-300 transition-colors"
-                >
-                  Continue Editing
+                <button onClick={handleContinueEditing}
+                  className="px-5 py-2.5 bg-white text-gray-900 font-bold rounded-xl border-2 border-gray-900 hover:bg-gray-100 transition-colors flex items-center gap-2 shadow-[2px_2px_0px_0px_rgba(17,24,39,1)]">
+                  <span className="material-icons text-sm">edit</span> Edit Questions
                 </button>
-                <button
-                  onClick={handleSave}
-                  className="px-6 py-3 bg-black text-white font-light hover:bg-gray-800 transition-colors"
-                >
-                  Save Quiz
+                <button onClick={handleSave}
+                  className="px-5 py-2.5 bg-amber-400 text-gray-900 font-bold rounded-xl border-2 border-gray-900 hover:bg-amber-500 transition-colors flex items-center gap-2 shadow-[3px_3px_0px_0px_rgba(17,24,39,1)]">
+                  <span className="material-icons text-sm">save</span> Save & Publish
                 </button>
               </>
             ) : (
               <>
-                <button
-                  onClick={handleClose}
-                  className="px-6 py-3 bg-gray-200 text-black font-light hover:bg-gray-300 transition-colors"
-                >
+                <button onClick={handleClose}
+                  className="px-5 py-2.5 bg-white text-gray-900 font-bold rounded-xl border-2 border-gray-900 hover:bg-gray-100 transition-colors shadow-[2px_2px_0px_0px_rgba(17,24,39,1)]">
                   Cancel
                 </button>
-                <button
-                  onClick={handleNext}
-                  disabled={loading || (step === 1 && !file)}
-                  className="px-6 py-3 bg-black text-white font-light hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
-                >
-                  {loading && (
-                    <svg
-                      className="animate-spin h-5 w-5 text-white"
-                      xmlns="http://www.w3.org/2000/svg"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                    >
-                      <circle
-                        className="opacity-25"
-                        cx="12"
-                        cy="12"
-                        r="10"
-                        stroke="currentColor"
-                        strokeWidth="4"
-                      ></circle>
-                      <path
-                        className="opacity-75"
-                        fill="currentColor"
-                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                      ></path>
-                    </svg>
-                  )}
-                  {step === 1 ? "Next" : step === 2 ? "Generate Quiz" : "Processing..."}
+                <button onClick={handleNext} disabled={loading || (step === 1 && !file)}
+                  className="px-5 py-2.5 bg-amber-400 text-gray-900 font-bold rounded-xl border-2 border-gray-900 hover:bg-amber-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2 shadow-[3px_3px_0px_0px_rgba(17,24,39,1)]">
+                  {step === 1 ? "Continue" : step === 2 ? "Generate Quiz" : "Processing..."}
+                  <span className="material-icons text-sm">arrow_forward</span>
                 </button>
               </>
             )}

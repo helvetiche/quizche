@@ -36,6 +36,15 @@ export const apiFetch = async (
     ...(headers as Record<string, string>),
   };
 
+  // Check if body is FormData - if so, remove Content-Type to let browser set it with boundary
+  const isFormData = restOptions.body instanceof FormData;
+  console.log("apiFetch - isFormData:", isFormData, "body type:", typeof restOptions.body, "body constructor:", restOptions.body?.constructor?.name);
+  
+  if (isFormData) {
+    delete requestHeaders["Content-Type"];
+    delete requestHeaders["content-type"];
+  }
+
   // Add Authorization header if idToken provided
   if (idToken) {
     requestHeaders["Authorization"] = `Bearer ${idToken}`;
@@ -108,47 +117,37 @@ export const apiFetch = async (
   }
 
   // Make the request
-  // #region agent log
-  fetch("http://127.0.0.1:7244/ingest/0cdefbcf-c0dd-4af8-9322-fa937123a23b", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      location: "api.ts:68",
-      message: "apiFetch: making request",
-      data: {
-        url,
-        method,
-        hasCsrfHeader: !!requestHeaders["X-CSRF-Token"],
-        hasAuthHeader: !!requestHeaders["Authorization"],
-        csrfTokenLength: requestHeaders["X-CSRF-Token"]?.length || 0,
-      },
-      timestamp: Date.now(),
-      sessionId: "debug-session",
-      runId: "run1",
-      hypothesisId: "C",
-    }),
-  }).catch(() => {});
-  // #endregion
-  let response = await fetch(url, {
-    ...restOptions,
+  // For FormData, we need to ensure NO Content-Type header is set so browser adds it with boundary
+  const fetchOptions: RequestInit = {
     method,
-    headers: requestHeaders,
-  });
-  // #region agent log
-  fetch("http://127.0.0.1:7244/ingest/0cdefbcf-c0dd-4af8-9322-fa937123a23b", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      location: "api.ts:75",
-      message: "apiFetch: response received",
-      data: { status: response.status, ok: response.ok },
-      timestamp: Date.now(),
-      sessionId: "debug-session",
-      runId: "run1",
-      hypothesisId: "D",
-    }),
-  }).catch(() => {});
-  // #endregion
+    body: restOptions.body,
+    credentials: restOptions.credentials,
+    cache: restOptions.cache,
+    redirect: restOptions.redirect,
+    referrer: restOptions.referrer,
+    referrerPolicy: restOptions.referrerPolicy,
+    integrity: restOptions.integrity,
+    keepalive: restOptions.keepalive,
+    signal: restOptions.signal,
+    mode: restOptions.mode,
+  };
+  
+  // Set headers - for FormData, only include auth headers (no Content-Type)
+  if (isFormData) {
+    const formDataHeaders: HeadersInit = {};
+    if (requestHeaders["Authorization"]) {
+      (formDataHeaders as Record<string, string>)["Authorization"] = requestHeaders["Authorization"];
+    }
+    if (requestHeaders["X-CSRF-Token"]) {
+      (formDataHeaders as Record<string, string>)["X-CSRF-Token"] = requestHeaders["X-CSRF-Token"];
+    }
+    console.log("apiFetch - FormData headers being sent:", formDataHeaders);
+    fetchOptions.headers = formDataHeaders;
+  } else {
+    fetchOptions.headers = requestHeaders;
+  }
+
+  let response = await fetch(url, fetchOptions);
 
   // Handle CSRF token expiration (403 error)
   if (response.status === 403 && needsCSRF && idToken) {
@@ -166,15 +165,35 @@ export const apiFetch = async (
 
       if (newToken) {
         // Retry request with new token
-        const retryHeaders: Record<string, string> = {
-          ...requestHeaders,
-          "X-CSRF-Token": newToken,
-        };
-        response = await fetch(url, {
-          ...restOptions,
+        const retryFetchOptions: RequestInit = {
           method,
-          headers: retryHeaders,
-        });
+          body: restOptions.body,
+          credentials: restOptions.credentials,
+          cache: restOptions.cache,
+          redirect: restOptions.redirect,
+          referrer: restOptions.referrer,
+          referrerPolicy: restOptions.referrerPolicy,
+          integrity: restOptions.integrity,
+          keepalive: restOptions.keepalive,
+          signal: restOptions.signal,
+          mode: restOptions.mode,
+        };
+        
+        if (isFormData) {
+          const retryHeaders: HeadersInit = {};
+          if (requestHeaders["Authorization"]) {
+            (retryHeaders as Record<string, string>)["Authorization"] = requestHeaders["Authorization"];
+          }
+          (retryHeaders as Record<string, string>)["X-CSRF-Token"] = newToken;
+          retryFetchOptions.headers = retryHeaders;
+        } else {
+          retryFetchOptions.headers = {
+            ...requestHeaders,
+            "X-CSRF-Token": newToken,
+          };
+        }
+        
+        response = await fetch(url, retryFetchOptions);
       }
     }
   }

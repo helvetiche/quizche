@@ -6,6 +6,10 @@ import * as crypto from "crypto";
 
 let genAI: GoogleGenerativeAI | null = null;
 
+// Primary and fallback models
+const PRIMARY_MODEL = "gemini-2.0-flash-exp";
+const FALLBACK_MODEL = "gemini-1.5-flash";
+
 const initializeGemini = (): GoogleGenerativeAI => {
   if (genAI) {
     return genAI;
@@ -13,6 +17,20 @@ const initializeGemini = (): GoogleGenerativeAI => {
 
   genAI = new GoogleGenerativeAI(env.NEXT_PRIVATE_GEMINI_API_KEY);
   return genAI;
+};
+
+/**
+ * Get model with fallback support
+ */
+const getModelWithFallback = async (genAIInstance: GoogleGenerativeAI, preferredModel: string = PRIMARY_MODEL) => {
+  try {
+    const model = genAIInstance.getGenerativeModel({ model: preferredModel });
+    return { model, modelName: preferredModel };
+  } catch (error) {
+    console.warn(`Failed to get model ${preferredModel}, falling back to ${FALLBACK_MODEL}`);
+    const model = genAIInstance.getGenerativeModel({ model: FALLBACK_MODEL });
+    return { model, modelName: FALLBACK_MODEL };
+  }
 };
 
 /**
@@ -98,30 +116,46 @@ export const extractTextFromPDF = async (
     }
 
     const genAIInstance = initializeGemini();
-    const model = genAIInstance.getGenerativeModel({
-      model: "gemini-2.0-flash-exp",
-    });
+    
+    // Try primary model first, then fallback
+    let extractedText: string | null = null;
+    let lastError: Error | null = null;
+    
+    for (const modelName of [PRIMARY_MODEL, FALLBACK_MODEL]) {
+      try {
+        console.log(`Attempting PDF extraction with model: ${modelName}`);
+        const model = genAIInstance.getGenerativeModel({ model: modelName });
 
-    const base64Pdf = pdfBuffer.toString("base64");
-    const mimeType = "application/pdf";
+        const base64Pdf = pdfBuffer.toString("base64");
+        const mimeType = "application/pdf";
 
-    const result = await model.generateContent([
-      {
-        inlineData: {
-          data: base64Pdf,
-          mimeType,
-        },
-      },
-      {
-        text: "Extract all text content from this PDF. Return only the extracted text, preserving the structure and formatting as much as possible. Do not include any explanations or additional text, just return the extracted content.",
-      },
-    ]);
+        const result = await model.generateContent([
+          {
+            inlineData: {
+              data: base64Pdf,
+              mimeType,
+            },
+          },
+          {
+            text: "Extract all text content from this PDF. Return only the extracted text, preserving the structure and formatting as much as possible. Do not include any explanations or additional text, just return the extracted content.",
+          },
+        ]);
 
-    const response = result.response;
-    const extractedText = response.text();
+        const response = result.response;
+        extractedText = response.text();
+        
+        if (extractedText && extractedText.trim().length > 0) {
+          console.log(`PDF extraction successful with model: ${modelName}`);
+          break;
+        }
+      } catch (error) {
+        console.warn(`Model ${modelName} failed:`, error);
+        lastError = error instanceof Error ? error : new Error(String(error));
+      }
+    }
 
     if (!extractedText || extractedText.trim().length === 0) {
-      throw new Error("Failed to extract text from PDF");
+      throw lastError || new Error("Failed to extract text from PDF");
     }
 
     // Cache the result
@@ -195,9 +229,6 @@ export const generateQuizFromContent = async (
     }
 
     const genAIInstance = initializeGemini();
-    const model = genAIInstance.getGenerativeModel({
-      model: "gemini-2.0-flash-exp",
-    });
 
     const difficultyInstructions = {
       easy: "Use the original descriptions and terminology from the content. Questions should be straightforward and directly reference the material.",
@@ -250,29 +281,43 @@ Important:
 - Make sure all questions are answerable based on the provided content
 - Return ONLY valid JSON, no additional text or markdown formatting`;
 
-    const aiResult = await model.generateContent(prompt);
-    const response = aiResult.response;
-    const text = response.text();
+    // Try primary model first, then fallback
+    let quizData: any = null;
+    let lastError: Error | null = null;
+    
+    for (const modelName of [PRIMARY_MODEL, FALLBACK_MODEL]) {
+      try {
+        console.log(`Attempting quiz generation with model: ${modelName}`);
+        const model = genAIInstance.getGenerativeModel({ model: modelName });
+        
+        const aiResult = await model.generateContent(prompt);
+        const response = aiResult.response;
+        const text = response.text();
 
-    let quizData;
-    try {
-      const jsonMatch = text.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        quizData = JSON.parse(jsonMatch[0]);
-      } else {
-        quizData = JSON.parse(text);
+        try {
+          const jsonMatch = text.match(/\{[\s\S]*\}/);
+          if (jsonMatch) {
+            quizData = JSON.parse(jsonMatch[0]);
+          } else {
+            quizData = JSON.parse(text);
+          }
+          
+          if (quizData.title && quizData.questions && Array.isArray(quizData.questions)) {
+            console.log(`Quiz generation successful with model: ${modelName}`);
+            break;
+          }
+        } catch (parseError) {
+          console.warn(`Failed to parse response from ${modelName}:`, text.substring(0, 200));
+          lastError = new Error("Failed to parse quiz generation response");
+        }
+      } catch (error) {
+        console.warn(`Model ${modelName} failed:`, error);
+        lastError = error instanceof Error ? error : new Error(String(error));
       }
-    } catch (parseError) {
-      console.error("Failed to parse Gemini response:", text);
-      throw new Error("Failed to parse quiz generation response");
     }
 
-    if (
-      !quizData.title ||
-      !quizData.questions ||
-      !Array.isArray(quizData.questions)
-    ) {
-      throw new Error("Invalid quiz data structure from AI");
+    if (!quizData || !quizData.title || !quizData.questions) {
+      throw lastError || new Error("Failed to generate quiz with all available models");
     }
 
     if (quizData.questions.length !== numQuestions) {
@@ -391,9 +436,6 @@ export const generateFlashcardsFromContent = async (
     }
 
     const genAIInstance = initializeGemini();
-    const model = genAIInstance.getGenerativeModel({
-      model: "gemini-2.0-flash-exp",
-    });
 
     const difficultyInstructions = {
       easy: "Use the original descriptions and terminology from the content. Front side should be straightforward questions or terms, back side should directly reference the material.",
@@ -443,29 +485,43 @@ Important:
 - Make sure all flashcards are based on the provided content
 - Return ONLY valid JSON, no additional text or markdown formatting`;
 
-    const aiResult = await model.generateContent(prompt);
-    const response = aiResult.response;
-    const text = response.text();
+    // Try primary model first, then fallback
+    let flashcardData: any = null;
+    let lastError: Error | null = null;
+    
+    for (const modelName of [PRIMARY_MODEL, FALLBACK_MODEL]) {
+      try {
+        console.log(`Attempting flashcard generation with model: ${modelName}`);
+        const model = genAIInstance.getGenerativeModel({ model: modelName });
+        
+        const aiResult = await model.generateContent(prompt);
+        const response = aiResult.response;
+        const text = response.text();
 
-    let flashcardData;
-    try {
-      const jsonMatch = text.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        flashcardData = JSON.parse(jsonMatch[0]);
-      } else {
-        flashcardData = JSON.parse(text);
+        try {
+          const jsonMatch = text.match(/\{[\s\S]*\}/);
+          if (jsonMatch) {
+            flashcardData = JSON.parse(jsonMatch[0]);
+          } else {
+            flashcardData = JSON.parse(text);
+          }
+          
+          if (flashcardData.title && flashcardData.cards && Array.isArray(flashcardData.cards)) {
+            console.log(`Flashcard generation successful with model: ${modelName}`);
+            break;
+          }
+        } catch (parseError) {
+          console.warn(`Failed to parse response from ${modelName}:`, text.substring(0, 200));
+          lastError = new Error("Failed to parse flashcard generation response");
+        }
+      } catch (error) {
+        console.warn(`Model ${modelName} failed:`, error);
+        lastError = error instanceof Error ? error : new Error(String(error));
       }
-    } catch (parseError) {
-      console.error("Failed to parse Gemini response:", text);
-      throw new Error("Failed to parse flashcard generation response");
     }
 
-    if (
-      !flashcardData.title ||
-      !flashcardData.cards ||
-      !Array.isArray(flashcardData.cards)
-    ) {
-      throw new Error("Invalid flashcard data structure from AI");
+    if (!flashcardData || !flashcardData.title || !flashcardData.cards) {
+      throw lastError || new Error("Failed to generate flashcards with all available models");
     }
 
     if (flashcardData.cards.length !== numCards) {

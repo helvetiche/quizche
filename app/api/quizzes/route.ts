@@ -148,11 +148,28 @@ export async function POST(request: NextRequest) {
         : "",
       createdAt: new Date(),
       updatedAt: new Date(),
+      // Time settings
+      duration: validatedData.duration ?? null,
+      deadline: validatedData.deadline ?? null,
+      // Quiz Options
+      shuffleQuestions: validatedData.shuffleQuestions ?? false,
+      shuffleChoices: validatedData.shuffleChoices ?? false,
+      showResults: validatedData.showResults ?? true,
+      allowRetake: validatedData.allowRetake ?? false,
+      maxAttempts: validatedData.maxAttempts ?? 1,
+      // Anti-Cheat Options
+      preventTabSwitch: validatedData.preventTabSwitch ?? true,
+      maxTabSwitches: validatedData.maxTabSwitches ?? 3,
+      preventCopyPaste: validatedData.preventCopyPaste ?? true,
+      fullscreenMode: validatedData.fullscreenMode ?? false,
+      webcamProctoring: validatedData.webcamProctoring ?? false,
+      disableRightClick: validatedData.disableRightClick ?? true,
+      lockdownBrowser: validatedData.lockdownBrowser ?? false,
     };
 
     // Conditionally add optional fields to avoid undefined values in Firestore
     if (validatedData.timeLimit !== undefined) {
-      quizData.duration = validatedData.timeLimit;
+      quizData.timeLimit = validatedData.timeLimit;
     }
 
     const result = await adminDb.collection("quizzes").add(quizData);
@@ -240,6 +257,7 @@ export async function GET(request: NextRequest) {
         description: data.description || "",
         totalQuestions: data.totalQuestions || 0,
         isActive: data.isActive !== undefined ? data.isActive : true,
+        duration: data.duration || null,
         createdAt,
         updatedAt,
       };

@@ -23,9 +23,8 @@ function TeacherPageContent() {
     if (validViews.includes(quizView) && /^[a-zA-Z0-9_-]+$/.test(quizId)) {
       initialQuizView = { type: quizView, quizId };
     }
-  } else if (quizView === "create") {
-    initialQuizView = { type: "create" };
   }
+  // Note: "create" view is now handled by /teacher/composer page
   
   // Determine initial tab - if quizView is set, default to quizzes tab
   const initialTab = tab === "quizzes" || tab === "sections" || tab === "profile" 

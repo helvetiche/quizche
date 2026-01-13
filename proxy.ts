@@ -24,6 +24,15 @@ export function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Skip proxy for file upload routes to preserve multipart/form-data Content-Type
+  if (
+    pathname === "/api/quizzes/generate" || 
+    pathname === "/api/flashcards/generate" ||
+    pathname === "/api/upload/image"
+  ) {
+    return NextResponse.next();
+  }
+
   // Create response
   const response = NextResponse.next();
 

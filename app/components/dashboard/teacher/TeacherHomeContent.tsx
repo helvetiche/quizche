@@ -15,6 +15,7 @@ interface Quiz {
   isActive: boolean;
   createdAt: string;
   deadline?: string;
+  duration?: number | null;
 }
 
 interface TeacherHomeContentProps {
@@ -439,9 +440,16 @@ export default function TeacherHomeContent({ userEmail }: TeacherHomeContentProp
                             <div className="w-4 h-4 bg-yellow-500 rounded-full border-2 border-black"></div>
                             <div className="w-4 h-4 bg-green-500 rounded-full border-2 border-black"></div>
                           </div>
-                          {/* Card Icon */}
-                          <div className="absolute top-2 right-3 w-8 h-8 rounded-full flex items-center justify-center border-2 border-black z-10 bg-white">
-                            <span className="text-black text-sm font-black">{quiz.totalQuestions}</span>
+                          {/* Header Right - Duration & Question Count */}
+                          <div className="absolute top-2 right-3 flex items-center gap-2 z-10">
+                            <div className="flex items-center gap-1 px-2 py-0.5 bg-amber-200 border-2 border-black rounded-full">
+                              <span className="material-icons-outlined text-black text-xs">schedule</span>
+                              <span className="font-bold text-black text-xs">{quiz.duration ? `${quiz.duration}m` : "∞"}</span>
+                            </div>
+                            <div className="flex items-center gap-1 px-2 py-0.5 bg-amber-200 border-2 border-black rounded-full">
+                              <span className="material-icons-outlined text-black text-xs">help_outline</span>
+                              <span className="font-bold text-black text-xs">{quiz.totalQuestions}</span>
+                            </div>
                           </div>
                           {/* Separator Line */}
                           <div className="absolute top-11 left-0 right-0 h-0.5 bg-black z-10"></div>
