@@ -386,21 +386,41 @@ export async function PUT(
       );
     }
 
-    // CSRF protection
-    const csrfError = await verifyCSRF(request, user.uid);
-    if (csrfError) {
-      return NextResponse.json(
-        { error: csrfError.error },
-        { status: csrfError.status, headers: csrfError.headers }
-      );
-    }
-
     const { id } = await params;
 
     if (!id) {
       return NextResponse.json(
         { error: "Quiz ID is required" },
         { status: 400, headers: getErrorSecurityHeaders() }
+      );
+    }
+
+    // Rate limiting
+    const rateLimitResult = await rateLimit({
+      identifier: user.uid,
+      key: `quizzes:update:${id}`,
+      limit: RATE_LIMITS.general.limit,
+      window: RATE_LIMITS.general.window,
+    });
+
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: "Rate limit exceeded. Please try again later." },
+        {
+          status: 429,
+          headers: getErrorSecurityHeaders({
+            rateLimitHeaders: rateLimitResult.headers,
+          }),
+        }
+      );
+    }
+
+    // CSRF protection
+    const csrfError = await verifyCSRF(request, user.uid);
+    if (csrfError) {
+      return NextResponse.json(
+        { error: csrfError.error },
+        { status: csrfError.status, headers: csrfError.headers }
       );
     }
 
@@ -492,7 +512,7 @@ export async function PUT(
         id,
         message: "Quiz updated successfully",
       },
-      { status: 200, headers: getSecurityHeaders() }
+      { status: 200, headers: getSecurityHeaders({ rateLimitHeaders: rateLimitResult.headers }) }
     );
   } catch (error) {
     // Try to get user for error context, but don't fail if auth fails

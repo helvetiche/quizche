@@ -7,6 +7,61 @@ import { useTabContext } from "../TabContext";
 import TiltedCard from "@/components/TiltedCard";
 import Masonry, { MasonryItem } from "@/components/Masonry";
 
+interface DeleteModalProps {
+  isOpen: boolean;
+  quizTitle: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+  isDeleting: boolean;
+}
+
+function DeleteConfirmModal({ isOpen, quizTitle, onConfirm, onCancel, isDeleting }: DeleteModalProps) {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/50" onClick={onCancel} />
+      <div className="relative bg-amber-100 border-4 border-gray-900 rounded-2xl shadow-[8px_8px_0px_0px_rgba(31,41,55,1)] p-6 max-w-md w-full mx-4">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-12 h-12 bg-red-500 rounded-full flex items-center justify-center border-3 border-gray-900">
+            <span className="material-icons-outlined text-white text-2xl">delete</span>
+          </div>
+          <h3 className="text-xl font-black text-gray-900">Delete Quiz?</h3>
+        </div>
+        <p className="text-gray-700 font-medium mb-6">
+          Are you sure you want to delete <span className="font-bold text-gray-900">&quot;{quizTitle}&quot;</span>? This action cannot be undone.
+        </p>
+        <div className="flex gap-3 justify-end">
+          <button
+            onClick={onCancel}
+            disabled={isDeleting}
+            className="px-5 py-2.5 bg-amber-200 text-gray-900 font-bold border-3 border-gray-900 rounded-full shadow-[3px_3px_0px_0px_rgba(31,41,55,1)] hover:shadow-[4px_4px_0px_0px_rgba(31,41,55,1)] active:shadow-[1px_1px_0px_0px_rgba(31,41,55,1)] transition-all disabled:opacity-50"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onConfirm}
+            disabled={isDeleting}
+            className="px-5 py-2.5 bg-red-500 text-white font-bold border-3 border-gray-900 rounded-full shadow-[3px_3px_0px_0px_rgba(31,41,55,1)] hover:shadow-[4px_4px_0px_0px_rgba(31,41,55,1)] active:shadow-[1px_1px_0px_0px_rgba(31,41,55,1)] transition-all disabled:opacity-50 flex items-center gap-2"
+          >
+            {isDeleting ? (
+              <>
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                <span>Deleting...</span>
+              </>
+            ) : (
+              <>
+                <span className="material-icons-outlined text-lg">delete</span>
+                <span>Delete</span>
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 interface Quiz {
   id: string;
   title: string;
@@ -31,7 +86,16 @@ export default function TeacherHomeContent({ userEmail }: TeacherHomeContentProp
   const [quizzes, setQuizzes] = useState<Quiz[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
+  const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; quizId: string; quizTitle: string }>({
+    isOpen: false,
+    quizId: "",
+    quizTitle: "",
+  });
+  const [isDeleting, setIsDeleting] = useState(false);
   const itemsPerPage = 6;
+  
+  // Suppress unused variable warning
+  void userEmail;
 
   const filters = [
     { id: "all", label: "All", icon: "apps" },
@@ -115,17 +179,44 @@ export default function TeacherHomeContent({ userEmail }: TeacherHomeContentProp
     setCurrentPage(1);
   }, [searchQuery, activeFilter]);
 
-  // Circular progress data
-  const progressData = [
-    { label: "Quiz Completion", value: 75, icon: "auto_awesome", badge: 3 },
-    { label: "Student Engagement", value: 62, icon: "school", badge: 5 },
-  ];
+  const handleViewQuiz = (quizId: string) => {
+    window.location.href = `/teacher/quiz/${quizId}`;
+  };
 
-  // Get color based on percentage (0 = green, 100 = red)
-  const getProgressColor = (value: number) => {
-    if (value <= 33) return "#22c55e"; // green
-    if (value <= 66) return "#f59e0b"; // amber/orange
-    return "#ef4444"; // red
+  const handleEditQuiz = (quizId: string) => {
+    window.location.href = `/teacher/composer?edit=${quizId}`;
+  };
+
+  const handleDeleteClick = (quizId: string, quizTitle: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setDeleteModal({ isOpen: true, quizId, quizTitle });
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!idToken || !deleteModal.quizId) return;
+
+    setIsDeleting(true);
+    try {
+      const response = await fetch(`/api/quizzes/${deleteModal.quizId}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${idToken}` },
+      });
+
+      if (response.ok) {
+        setQuizzes((prev) => prev.filter((q) => q.id !== deleteModal.quizId));
+        setDeleteModal({ isOpen: false, quizId: "", quizTitle: "" });
+      } else {
+        console.error("Failed to delete quiz");
+      }
+    } catch (error) {
+      console.error("Error deleting quiz:", error);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleDeleteCancel = () => {
+    setDeleteModal({ isOpen: false, quizId: "", quizTitle: "" });
   };
 
   // Calculate deadline progress (returns percentage of time remaining)
@@ -163,75 +254,6 @@ export default function TeacherHomeContent({ userEmail }: TeacherHomeContentProp
 
   return (
     <div className="flex flex-col items-center min-h-[60vh] relative">
-      {/* Amber Vignette Effect */}
-      <div 
-        className="fixed inset-0 pointer-events-none z-50"
-        style={{
-          background: `radial-gradient(ellipse at center, transparent 40%, rgba(251, 191, 36, 0.15) 70%, rgba(251, 191, 36, 0.35) 100%)`
-        }}
-      />
-      {/* Circular Progress Bars - Right Side */}
-      <div className="fixed right-8 top-40 flex-col gap-4 hidden xl:flex">
-        {progressData.map((item, index) => {
-          const circumference = 2 * Math.PI * 36;
-          const strokeDashoffset = circumference - (item.value / 100) * circumference;
-          
-          return (
-            <div key={index} className="w-18 h-18 relative" style={{ width: '72px', height: '72px' }}>
-              <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
-                {/* Outer border */}
-                <circle
-                  cx="50"
-                  cy="50"
-                  r="42"
-                  fill="none"
-                  stroke="#111827"
-                  strokeWidth="3"
-                />
-                {/* Inner border */}
-                <circle
-                  cx="50"
-                  cy="50"
-                  r="30"
-                  fill="none"
-                  stroke="#111827"
-                  strokeWidth="3"
-                />
-                {/* Background track */}
-                <circle
-                  cx="50"
-                  cy="50"
-                  r="36"
-                  fill="none"
-                  stroke="#fffbeb"
-                  strokeWidth="8"
-                />
-
-                <circle
-                  cx="50"
-                  cy="50"
-                  r="36"
-                  fill="none"
-                  stroke={getProgressColor(item.value)}
-                  strokeWidth="8"
-                  strokeLinecap="butt"
-                  strokeDasharray={circumference}
-                  strokeDashoffset={strokeDashoffset}
-                />
-              </svg>
-              {item.icon && (
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <span className="material-icons text-gray-900 text-base">{item.icon}</span>
-                </div>
-              )}
-              {/* Badge */}
-              <div className="absolute bottom-2 right-0 w-5 h-5 bg-red-500 border-2 border-gray-900 rounded-full flex items-center justify-center">
-                <span className="text-white text-xs font-bold">?</span>
-              </div>
-            </div>
-          );
-        })}
-      </div>
       <div className="w-full max-w-2xl px-4 flex flex-col gap-6">
         {/* Title Section */}
         <div className="text-center">
@@ -477,16 +499,39 @@ export default function TeacherHomeContent({ userEmail }: TeacherHomeContentProp
                           </div>
                           
                           {/* Hover Overlay */}
-                          <div className="absolute inset-0 bg-gradient-to-t from-amber-100/90 via-amber-50/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-2xl flex items-end justify-end p-4 z-20">
-                            <button 
-                              className="w-12 h-12 bg-white border-3 border-black rounded-full flex items-center justify-center shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-0.5 active:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] active:translate-y-0.5 transition-all transform translate-y-4 group-hover:translate-y-0"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setActiveTab("quizzes");
-                              }}
-                            >
-                              <span className="material-icons-outlined text-black text-xl">edit</span>
-                            </button>
+                          <div className="absolute inset-0 bg-gradient-to-t from-amber-100/95 via-amber-50/70 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-2xl flex items-end justify-end p-4 z-20">
+                            <div className="flex gap-2 transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300">
+                              {/* View Button */}
+                              <button 
+                                className="w-11 h-11 bg-amber-100 border-3 border-black rounded-full flex items-center justify-center shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-0.5 active:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] active:translate-y-0.5 transition-all"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleViewQuiz(quiz.id);
+                                }}
+                                title="View"
+                              >
+                                <span className="material-icons-outlined text-black text-lg">visibility</span>
+                              </button>
+                              {/* Edit Button */}
+                              <button 
+                                className="w-11 h-11 bg-amber-100 border-3 border-black rounded-full flex items-center justify-center shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-0.5 active:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] active:translate-y-0.5 transition-all"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleEditQuiz(quiz.id);
+                                }}
+                                title="Edit"
+                              >
+                                <span className="material-icons-outlined text-black text-lg">edit</span>
+                              </button>
+                              {/* Delete Button */}
+                              <button 
+                                className="w-11 h-11 bg-amber-100 border-3 border-black rounded-full flex items-center justify-center shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-0.5 active:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] active:translate-y-0.5 transition-all"
+                                onClick={(e) => handleDeleteClick(quiz.id, quiz.title, e)}
+                                title="Delete"
+                              >
+                                <span className="material-icons-outlined text-black text-lg">delete</span>
+                              </button>
+                            </div>
                           </div>
                         </div>
                       }
@@ -552,6 +597,15 @@ export default function TeacherHomeContent({ userEmail }: TeacherHomeContentProp
           </>
         )}
       </div>
+
+      {/* Delete Confirmation Modal */}
+      <DeleteConfirmModal
+        isOpen={deleteModal.isOpen}
+        quizTitle={deleteModal.quizTitle}
+        onConfirm={handleDeleteConfirm}
+        onCancel={handleDeleteCancel}
+        isDeleting={isDeleting}
+      />
     </div>
   );
 }

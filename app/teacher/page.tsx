@@ -19,7 +19,7 @@ function TeacherPageContent() {
   // Determine initial quiz view based on URL params
   let initialQuizView = undefined;
   if (quizView && quizId) {
-    const validViews = ["detail", "edit", "settings", "results", "live"];
+    const validViews = ["detail", "settings", "results", "live"];
     if (validViews.includes(quizView) && /^[a-zA-Z0-9_-]+$/.test(quizId)) {
       initialQuizView = { type: quizView, quizId };
     }

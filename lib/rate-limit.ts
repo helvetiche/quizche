@@ -164,4 +164,9 @@ export const RATE_LIMITS = {
     limit: 20,
     window: 3600, // 1 hour
   },
+  // Quiz draft operations
+  draft: {
+    limit: 30,
+    window: 60, // 1 minute - allow frequent auto-saves
+  },
 } as const;

@@ -182,6 +182,40 @@ export const QuizGenerationSchema = z.object({
   numQuestions: z.number().int().min(1).max(50),
 });
 
+// Quiz Draft validation schemas (more lenient - allows partial data)
+export const DraftQuestionSchema = z.object({
+  id: z.string().max(100).optional(),
+  question: z.string().max(1000).trim().optional().default(""),
+  type: QuestionTypeSchema.optional().default("multiple_choice"),
+  choices: z.array(z.string().max(500).trim()).optional().default([]),
+  answer: z.string().max(2000).trim().optional().default(""),
+  imageUrl: z.string().url().optional().or(z.literal("")),
+});
+
+export const QuizDraftSchema = z.object({
+  title: z.string().max(200).trim().optional().default(""),
+  description: z.string().max(1000).trim().optional().default(""),
+  questions: z.array(DraftQuestionSchema).max(100).optional().default([]),
+  isActive: z.boolean().optional(),
+  duration: z.number().int().min(0).max(600).nullable().optional(),
+  deadline: z.string().max(50).optional(),
+  coverImageUrl: z.string().url().optional().or(z.literal("")),
+  // Quiz Options
+  shuffleQuestions: z.boolean().optional(),
+  shuffleChoices: z.boolean().optional(),
+  showResults: z.boolean().optional(),
+  allowRetake: z.boolean().optional(),
+  maxAttempts: z.number().int().min(1).max(100).optional(),
+  // Anti-Cheat Options
+  preventTabSwitch: z.boolean().optional(),
+  maxTabSwitches: z.number().int().min(1).max(10).optional(),
+  preventCopyPaste: z.boolean().optional(),
+  fullscreenMode: z.boolean().optional(),
+  webcamProctoring: z.boolean().optional(),
+  disableRightClick: z.boolean().optional(),
+  lockdownBrowser: z.boolean().optional(),
+});
+
 /**
  * Sanitize HTML content using DOMPurify
  * Use this for content that may contain HTML (descriptions, rich text)

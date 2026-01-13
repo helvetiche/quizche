@@ -1,12 +1,12 @@
 "use client";
 
 import { createContext, useContext, useState, useCallback, ReactNode } from "react";
+import { useRouter } from "next/navigation";
 
 export type QuizView = 
   | { type: "list" }
   | { type: "create" }
   | { type: "detail"; quizId: string }
-  | { type: "edit"; quizId: string }
   | { type: "settings"; quizId: string }
   | { type: "results"; quizId: string }
   | { type: "live"; quizId: string };
@@ -17,7 +17,6 @@ interface QuizViewContextType {
   goToList: () => void;
   goToCreate: () => void;
   goToDetail: (quizId: string) => void;
-  goToEdit: (quizId: string) => void;
   goToSettings: (quizId: string) => void;
   goToResults: (quizId: string) => void;
   goToLive: (quizId: string) => void;
@@ -32,6 +31,7 @@ interface QuizViewProviderProps {
 
 export function QuizViewProvider({ children, initialView = { type: "list" } }: QuizViewProviderProps) {
   const [currentView, setCurrentView] = useState<QuizView>(initialView);
+  const router = useRouter();
 
   const setView = useCallback((view: QuizView) => {
     // Validate quizId if present to prevent injection
@@ -45,16 +45,34 @@ export function QuizViewProvider({ children, initialView = { type: "list" } }: Q
     setCurrentView(view);
   }, []);
 
-  const goToList = useCallback(() => setView({ type: "list" }), [setView]);
+  // Navigation functions - use URL-based routing for standalone pages
+  const goToList = useCallback(() => {
+    router.push("/teacher?tab=quizzes");
+  }, [router]);
+
   const goToCreate = useCallback(() => {
-    // Redirect to the new composer page
-    window.location.href = "/teacher/composer";
-  }, []);
-  const goToDetail = useCallback((quizId: string) => setView({ type: "detail", quizId }), [setView]);
-  const goToEdit = useCallback((quizId: string) => setView({ type: "edit", quizId }), [setView]);
-  const goToSettings = useCallback((quizId: string) => setView({ type: "settings", quizId }), [setView]);
-  const goToResults = useCallback((quizId: string) => setView({ type: "results", quizId }), [setView]);
-  const goToLive = useCallback((quizId: string) => setView({ type: "live", quizId }), [setView]);
+    router.push("/teacher/composer");
+  }, [router]);
+
+  const goToDetail = useCallback((quizId: string) => {
+    if (!/^[a-zA-Z0-9_-]+$/.test(quizId)) return;
+    router.push(`/teacher/quiz/${quizId}`);
+  }, [router]);
+
+  const goToSettings = useCallback((quizId: string) => {
+    if (!/^[a-zA-Z0-9_-]+$/.test(quizId)) return;
+    router.push(`/teacher/quiz/${quizId}?view=settings`);
+  }, [router]);
+
+  const goToResults = useCallback((quizId: string) => {
+    if (!/^[a-zA-Z0-9_-]+$/.test(quizId)) return;
+    router.push(`/teacher/quiz/${quizId}?view=results`);
+  }, [router]);
+
+  const goToLive = useCallback((quizId: string) => {
+    if (!/^[a-zA-Z0-9_-]+$/.test(quizId)) return;
+    router.push(`/teacher/quiz/${quizId}?view=live`);
+  }, [router]);
 
   return (
     <QuizViewContext.Provider value={{
@@ -63,7 +81,6 @@ export function QuizViewProvider({ children, initialView = { type: "list" } }: Q
       goToList,
       goToCreate,
       goToDetail,
-      goToEdit,
       goToSettings,
       goToResults,
       goToLive,

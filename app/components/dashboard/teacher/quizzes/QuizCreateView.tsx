@@ -31,6 +31,8 @@ export default function QuizCreateView() {
   const [initialQuizData, setInitialQuizData] = useState<GeneratedQuizData | undefined>(undefined);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showAIModal, setShowAIModal] = useState(false);
+  const [currentDraftId, setCurrentDraftId] = useState<string | undefined>(undefined);
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [settings, setSettings] = useState<QuizSettings>({
     title: "",
     description: "",
@@ -119,6 +121,20 @@ export default function QuizCreateView() {
     setSettings((prev) => ({ ...prev, [key]: value }));
   };
 
+  const handleDraftSaved = (draftId: string) => {
+    setCurrentDraftId(draftId);
+    setLastSaved(new Date());
+  };
+
+  const formatLastSaved = () => {
+    if (!lastSaved) return null;
+    const now = new Date();
+    const diff = Math.floor((now.getTime() - lastSaved.getTime()) / 1000);
+    if (diff < 60) return "Saved just now";
+    if (diff < 3600) return `Saved ${Math.floor(diff / 60)}m ago`;
+    return `Saved at ${lastSaved.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+  };
+
   return (
     <>
       {/* Full-page overlay that breaks out of parent container */}
@@ -142,8 +158,14 @@ export default function QuizCreateView() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            {currentDraftId && (
+              <span className="text-xs text-green-400 px-3 py-1 bg-green-900/30 rounded-full flex items-center gap-1">
+                <span className="material-icons-outlined text-xs">check_circle</span>
+                Draft saved
+              </span>
+            )}
             <span className="text-xs text-gray-500 px-3 py-1 bg-gray-800 rounded-full">
-              Auto-saved
+              {formatLastSaved() || "Not saved"}
             </span>
           </div>
         </div>
@@ -152,11 +174,13 @@ export default function QuizCreateView() {
         {idToken ? (
           <QuizForm
             idToken={idToken}
+            draftId={currentDraftId}
             initialData={initialQuizData}
             title={settings.title}
             description={settings.description}
             onOpenSettings={() => setShowSettingsModal(true)}
             onOpenAIGenerate={() => setShowAIModal(true)}
+            onDraftSaved={handleDraftSaved}
           />
         ) : (
           <div className="flex-1 flex items-center justify-center bg-gray-900">

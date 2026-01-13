@@ -5,7 +5,6 @@ import { QuizViewProvider, useQuizView, QuizView } from "./QuizViewContext";
 import QuizListView from "./QuizListView";
 import QuizCreateView from "./QuizCreateView";
 import QuizDetailView from "./QuizDetailView";
-import QuizEditView from "./QuizEditView";
 import QuizSettingsView from "./QuizSettingsView";
 import QuizResultsView from "./QuizResultsView";
 import QuizLiveView from "./QuizLiveView";
@@ -23,8 +22,6 @@ function TeacherQuizzesContentInner({}: TeacherQuizzesContentInnerProps) {
         return <QuizCreateView />;
       case "detail":
         return <QuizDetailView quizId={currentView.quizId} />;
-      case "edit":
-        return <QuizEditView quizId={currentView.quizId} />;
       case "settings":
         return <QuizSettingsView quizId={currentView.quizId} />;
       case "results":

@@ -36,17 +36,21 @@ export interface GeneratedQuizData {
 interface QuizFormProps {
   idToken: string;
   quizId?: string;
+  draftId?: string;
   initialData?: GeneratedQuizData;
   title?: string;
   description?: string;
   onOpenSettings?: () => void;
   onOpenAIGenerate?: () => void;
+  onDraftSaved?: (draftId: string) => void;
 }
 
-const QuizForm = ({ idToken, quizId, initialData, title: propTitle, description: propDescription, onOpenSettings, onOpenAIGenerate }: QuizFormProps) => {
+const QuizForm = ({ idToken, quizId, draftId: initialDraftId, initialData, title: propTitle, description: propDescription, onOpenSettings, onOpenAIGenerate, onDraftSaved }: QuizFormProps) => {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const [loadingQuiz, setLoadingQuiz] = useState(!!quizId);
+  const [savingDraft, setSavingDraft] = useState(false);
+  const [loadingQuiz, setLoadingQuiz] = useState(!!quizId || !!initialDraftId);
+  const [draftId, setDraftId] = useState<string | undefined>(initialDraftId);
   const [title, setTitle] = useState(initialData?.title || "");
   const [description, setDescription] = useState(initialData?.description || "");
   const [isActive, setIsActive] = useState(true);
@@ -83,37 +87,60 @@ const QuizForm = ({ idToken, quizId, initialData, title: propTitle, description:
       setCurrentQuestionIndex(0);
       return;
     }
-    const fetchQuiz = async () => {
-      if (!quizId || !idToken) return;
+    const fetchQuizOrDraft = async () => {
+      if ((!quizId && !initialDraftId) || !idToken) return;
       try {
         setLoadingQuiz(true);
         const { apiGet } = await import("../../lib/api");
-        const response = await apiGet(`/api/quizzes/${quizId}`, { idToken });
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error || "Failed to fetch quiz");
-        const quiz = data.quiz;
-        setTitle(quiz.title);
-        setDescription(quiz.description || "");
-        setIsActive(quiz.isActive !== undefined ? quiz.isActive : true);
-        const loadedQuestions = quiz.questions.map((q: any, index: number) => ({
-          id: `${Date.now()}-${index}`,
-          question: q.question,
-          type: q.type,
-          choices: q.choices || (q.type === "multiple_choice" ? ["", "", "", ""] : []),
-          answer: q.answer,
-          imageUrl: q.imageUrl,
-        }));
-        setQuestions(loadedQuestions.length > 0 ? loadedQuestions : [{ id: Date.now().toString(), question: "", type: "multiple_choice", choices: ["", "", "", ""], answer: "" }]);
-        setCurrentQuestionIndex(0);
+        
+        if (initialDraftId) {
+          // Load draft
+          const response = await apiGet(`/api/quizzes/drafts/${initialDraftId}`, { idToken });
+          const data = await response.json();
+          if (!response.ok) throw new Error(data.error || "Failed to fetch draft");
+          const draft = data.draft;
+          setTitle(draft.title || "");
+          setDescription(draft.description || "");
+          setDraftId(initialDraftId);
+          const loadedQuestions = (draft.questions || []).map((q: any, index: number) => ({
+            id: q.id || `${Date.now()}-${index}`,
+            question: q.question || "",
+            type: q.type || "multiple_choice",
+            choices: q.choices || (q.type === "multiple_choice" ? ["", "", "", ""] : []),
+            answer: q.answer || "",
+            imageUrl: q.imageUrl,
+          }));
+          setQuestions(loadedQuestions.length > 0 ? loadedQuestions : [{ id: Date.now().toString(), question: "", type: "multiple_choice", choices: ["", "", "", ""], answer: "" }]);
+          setCurrentQuestionIndex(0);
+        } else if (quizId) {
+          // Load existing quiz
+          const response = await apiGet(`/api/quizzes/${quizId}`, { idToken });
+          const data = await response.json();
+          if (!response.ok) throw new Error(data.error || "Failed to fetch quiz");
+          const quiz = data.quiz;
+          setTitle(quiz.title);
+          setDescription(quiz.description || "");
+          setIsActive(quiz.isActive !== undefined ? quiz.isActive : true);
+          const loadedQuestions = quiz.questions.map((q: any, index: number) => ({
+            id: `${Date.now()}-${index}`,
+            question: q.question,
+            type: q.type,
+            choices: q.choices || (q.type === "multiple_choice" ? ["", "", "", ""] : []),
+            answer: q.answer,
+            imageUrl: q.imageUrl,
+          }));
+          setQuestions(loadedQuestions.length > 0 ? loadedQuestions : [{ id: Date.now().toString(), question: "", type: "multiple_choice", choices: ["", "", "", ""], answer: "" }]);
+          setCurrentQuestionIndex(0);
+        }
       } catch (err) {
-        console.error("Error fetching quiz:", err);
-        alert(err instanceof Error ? err.message : "Failed to load quiz");
+        console.error("Error fetching quiz/draft:", err);
+        alert(err instanceof Error ? err.message : "Failed to load quiz/draft");
       } finally {
         setLoadingQuiz(false);
       }
     };
-    fetchQuiz();
-  }, [quizId, idToken, initialData]);
+    fetchQuizOrDraft();
+  }, [quizId, initialDraftId, idToken, initialData]);
 
   useEffect(() => {
     return () => { Object.values(imagePreviewUrls).forEach((url) => URL.revokeObjectURL(url)); };
@@ -227,6 +254,44 @@ const QuizForm = ({ idToken, quizId, initialData, title: propTitle, description:
     return true;
   };
 
+  const handleSaveAsDraft = async () => {
+    if (!idToken) { alert("Authentication required. Please refresh the page."); return; }
+    setSavingDraft(true);
+    try {
+      const displayTitle = propTitle || title;
+      const displayDescription = propDescription || description;
+      const draftData = {
+        draftId: draftId,
+        title: displayTitle.trim(),
+        description: displayDescription.trim(),
+        questions: questions.map((q) => ({
+          id: q.id,
+          question: q.question.trim(),
+          type: q.type,
+          choices: q.type === "multiple_choice" ? q.choices.filter((c) => c.trim().length > 0).map((c) => c.trim()) : [],
+          answer: q.answer.trim(),
+          imageUrl: q.imageUrl,
+        })),
+      };
+      const { apiPost } = await import("../../lib/api");
+      const response = await apiPost("/api/quizzes/drafts", {
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(draftData),
+        idToken,
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Failed to save draft");
+      if (!draftId && data.id) {
+        setDraftId(data.id);
+        onDraftSaved?.(data.id);
+      }
+      alert("Draft saved successfully!");
+    } catch (error) {
+      console.error("Error saving draft:", error);
+      alert(error instanceof Error ? error.message : "Failed to save draft. Please try again.");
+    } finally { setSavingDraft(false); }
+  };
+
   const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!validateForm()) return;
@@ -338,8 +403,12 @@ const QuizForm = ({ idToken, quizId, initialData, title: propTitle, description:
         </div>
 
         {/* Publish Button */}
-        <div className="mt-auto p-3">
-          <button onClick={() => handleSubmit()} disabled={loading} className={`w-full flex items-center justify-center gap-2 p-3 bg-amber-400 hover:bg-amber-300 text-gray-900 font-bold rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed`}>
+        <div className="mt-auto p-3 flex flex-col gap-2">
+          <button onClick={handleSaveAsDraft} disabled={savingDraft || loading} className={`w-full flex items-center justify-center gap-2 p-2.5 bg-gray-700 hover:bg-gray-600 text-white font-bold rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed border border-gray-600`}>
+            {savingDraft ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : <span className="material-icons-outlined text-sm">save_alt</span>}
+            {!sidebarCollapsed && <span className="text-xs">{savingDraft ? 'Saving...' : 'Save Draft'}</span>}
+          </button>
+          <button onClick={() => handleSubmit()} disabled={loading || savingDraft} className={`w-full flex items-center justify-center gap-2 p-3 bg-amber-400 hover:bg-amber-300 text-gray-900 font-bold rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed`}>
             {loading ? <div className="w-5 h-5 border-2 border-gray-900 border-t-transparent rounded-full animate-spin"></div> : <span className="material-icons-outlined">{quizId ? 'save' : 'publish'}</span>}
             {!sidebarCollapsed && <span className="text-sm">{loading ? 'Saving...' : (quizId ? 'Save' : 'Publish')}</span>}
           </button>

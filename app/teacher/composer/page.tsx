@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { uploadImageToImgbb } from "@/lib/imgbb";
@@ -90,8 +90,13 @@ const DEFAULT_SETTINGS: QuizSettings = {
 // ============================================================================
 export default function ComposerPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [idToken, setIdToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [loadingDraft, setLoadingDraft] = useState(false);
+  const [savingDraft, setSavingDraft] = useState(false);
+  const [draftId, setDraftId] = useState<string | undefined>(undefined);
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showAIModal, setShowAIModal] = useState(false);
   const [settings, setSettings] = useState<QuizSettings>(DEFAULT_SETTINGS);
@@ -101,9 +106,54 @@ export default function ComposerPage() {
     { id: Date.now().toString(), question: "", type: "multiple_choice", choices: ["", "", "", ""], answer: "" }
   ]);
   const [imagePreviewUrls, setImagePreviewUrls] = useState<Record<string, string>>({});
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [loadingProgress, setLoadingProgress] = useState(0);
+  const [loadingDone, setLoadingDone] = useState(false);
+  const [fadeOut, setFadeOut] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchFilter, setSearchFilter] = useState<"all" | "questions" | "answers">("all");
   const paginationRef = useRef<HTMLDivElement>(null);
 
   const currentQuestion = questions[currentQuestionIndex];
+  const urlDraftId = searchParams.get("draft");
+  const urlEditId = searchParams.get("edit");
+  const [editMode, setEditMode] = useState(false);
+  const [editQuizId, setEditQuizId] = useState<string | null>(null);
+
+  // Initial loading animation (2 seconds)
+  useEffect(() => {
+    const progressInterval = setInterval(() => {
+      setLoadingProgress((prev) => {
+        if (prev >= 100) {
+          clearInterval(progressInterval);
+          return 100;
+        }
+        return prev + 2;
+      });
+    }, 40); // 40ms * 50 steps = 2000ms
+
+    // Show "Done" message after 2 seconds
+    const doneTimer = setTimeout(() => {
+      setLoadingDone(true);
+    }, 2000);
+
+    // Start fade out after showing "Done" for 500ms
+    const fadeTimer = setTimeout(() => {
+      setFadeOut(true);
+    }, 2500);
+
+    // Remove overlay after fade animation completes
+    const removeTimer = setTimeout(() => {
+      setInitialLoading(false);
+    }, 3000);
+
+    return () => {
+      clearInterval(progressInterval);
+      clearTimeout(doneTimer);
+      clearTimeout(fadeTimer);
+      clearTimeout(removeTimer);
+    };
+  }, []);
 
   // Auth listener
   useEffect(() => {
@@ -117,6 +167,136 @@ export default function ComposerPage() {
     });
     return () => unsubscribe();
   }, [router]);
+
+  // Load draft from URL parameter
+  useEffect(() => {
+    const loadDraft = async () => {
+      if (!urlDraftId || !idToken) return;
+
+      setLoadingDraft(true);
+      try {
+        const response = await fetch(`/api/quizzes/drafts/${urlDraftId}`, {
+          headers: { Authorization: `Bearer ${idToken}` },
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || "Failed to load draft");
+        }
+
+        const draft = data.draft;
+        setDraftId(urlDraftId);
+        setSettings((prev) => ({
+          ...prev,
+          title: draft.title || "",
+          description: draft.description || "",
+          duration: draft.duration ?? prev.duration,
+          deadline: draft.deadline || "",
+          shuffleQuestions: draft.shuffleQuestions ?? prev.shuffleQuestions,
+          shuffleChoices: draft.shuffleChoices ?? prev.shuffleChoices,
+          showResults: draft.showResults ?? prev.showResults,
+          allowRetake: draft.allowRetake ?? prev.allowRetake,
+          maxAttempts: draft.maxAttempts ?? prev.maxAttempts,
+          preventTabSwitch: draft.preventTabSwitch ?? prev.preventTabSwitch,
+          maxTabSwitches: draft.maxTabSwitches ?? prev.maxTabSwitches,
+          preventCopyPaste: draft.preventCopyPaste ?? prev.preventCopyPaste,
+          fullscreenMode: draft.fullscreenMode ?? prev.fullscreenMode,
+          webcamProctoring: draft.webcamProctoring ?? prev.webcamProctoring,
+          disableRightClick: draft.disableRightClick ?? prev.disableRightClick,
+          lockdownBrowser: draft.lockdownBrowser ?? prev.lockdownBrowser,
+        }));
+
+        if (draft.questions && draft.questions.length > 0) {
+          setQuestions(
+            draft.questions.map((q: any, index: number) => ({
+              id: q.id || `${Date.now()}-${index}`,
+              question: q.question || "",
+              type: q.type || "multiple_choice",
+              choices: q.choices || (q.type === "multiple_choice" ? ["", "", "", ""] : []),
+              answer: q.answer || "",
+              imageUrl: q.imageUrl,
+            }))
+          );
+        }
+        setCurrentQuestionIndex(0);
+        setLastSaved(new Date(draft.updatedAt));
+      } catch (err) {
+        console.error("Error loading draft:", err);
+        alert(err instanceof Error ? err.message : "Failed to load draft");
+      } finally {
+        setLoadingDraft(false);
+      }
+    };
+
+    loadDraft();
+  }, [urlDraftId, idToken]);
+
+  // Load existing quiz for editing
+  useEffect(() => {
+    const loadQuizForEdit = async () => {
+      if (!urlEditId || !idToken || urlDraftId) return; // Don't load if draft is being loaded
+
+      setLoadingDraft(true);
+      try {
+        const response = await fetch(`/api/quizzes/${urlEditId}`, {
+          headers: { Authorization: `Bearer ${idToken}` },
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || "Failed to load quiz");
+        }
+
+        const quiz = data.quiz;
+        setEditMode(true);
+        setEditQuizId(urlEditId);
+        setSettings((prev) => ({
+          ...prev,
+          title: quiz.title || "",
+          description: quiz.description || "",
+          duration: quiz.duration ?? prev.duration,
+          deadline: quiz.dueDate || "",
+          shuffleQuestions: quiz.shuffleQuestions ?? prev.shuffleQuestions,
+          shuffleChoices: quiz.shuffleChoices ?? prev.shuffleChoices,
+          showResults: quiz.showResults ?? prev.showResults,
+          allowRetake: quiz.allowRetake ?? prev.allowRetake,
+          maxAttempts: quiz.maxAttempts ?? prev.maxAttempts,
+          preventTabSwitch: quiz.antiCheat?.enabled ?? prev.preventTabSwitch,
+          maxTabSwitches: quiz.antiCheat?.tabChangeLimit ?? prev.maxTabSwitches,
+          preventCopyPaste: quiz.preventCopyPaste ?? prev.preventCopyPaste,
+          fullscreenMode: quiz.fullscreenMode ?? prev.fullscreenMode,
+          webcamProctoring: quiz.webcamProctoring ?? prev.webcamProctoring,
+          disableRightClick: quiz.disableRightClick ?? prev.disableRightClick,
+          lockdownBrowser: quiz.lockdownBrowser ?? prev.lockdownBrowser,
+        }));
+
+        if (quiz.questions && quiz.questions.length > 0) {
+          setQuestions(
+            quiz.questions.map((q: any, index: number) => ({
+              id: q.id || `${Date.now()}-${index}`,
+              question: q.question || "",
+              type: q.type || "multiple_choice",
+              choices: q.choices || (q.type === "multiple_choice" ? ["", "", "", ""] : []),
+              answer: q.answer || "",
+              imageUrl: q.imageUrl,
+            }))
+          );
+        }
+        setCurrentQuestionIndex(0);
+        setLastSaved(quiz.updatedAt ? new Date(quiz.updatedAt) : null);
+      } catch (err) {
+        console.error("Error loading quiz for edit:", err);
+        alert(err instanceof Error ? err.message : "Failed to load quiz");
+        router.push("/teacher?tab=quizzes");
+      } finally {
+        setLoadingDraft(false);
+      }
+    };
+
+    loadQuizForEdit();
+  }, [urlEditId, idToken, urlDraftId, router]);
 
   // Cleanup image URLs
   useEffect(() => {
@@ -375,7 +555,7 @@ export default function ComposerPage() {
         title: settings.title.trim(),
         description: settings.description.trim(),
         isActive: true,
-        duration: settings.duration,
+        timeLimit: settings.duration,
         deadline: settings.deadline || undefined,
         shuffleQuestions: settings.shuffleQuestions,
         shuffleChoices: settings.shuffleChoices,
@@ -392,48 +572,142 @@ export default function ComposerPage() {
         questions: questionsWithImages,
       };
 
-      const { apiPost } = await import("@/app/lib/api");
-      const response = await apiPost("/api/quizzes", {
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(quizData),
-        idToken,
-      });
+      const { apiPost, apiPut } = await import("@/app/lib/api");
+      
+      let response;
+      if (editMode && editQuizId) {
+        // Update existing quiz
+        response = await apiPut(`/api/quizzes/${editQuizId}`, {
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(quizData),
+          idToken,
+        });
+      } else {
+        // Create new quiz
+        response = await apiPost("/api/quizzes", {
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(quizData),
+          idToken,
+        });
+      }
 
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "Failed to create quiz");
+      if (!response.ok) throw new Error(data.error || (editMode ? "Failed to update quiz" : "Failed to create quiz"));
 
-      alert("Quiz published successfully!");
+      alert(editMode ? "Quiz updated successfully!" : "Quiz published successfully!");
       router.push("/teacher?tab=quizzes");
     } catch (error) {
-      console.error("Error publishing quiz:", error);
-      alert(error instanceof Error ? error.message : "Failed to publish quiz");
+      console.error(editMode ? "Error updating quiz:" : "Error publishing quiz:", error);
+      alert(error instanceof Error ? error.message : (editMode ? "Failed to update quiz" : "Failed to publish quiz"));
     } finally {
       setLoading(false);
     }
   };
 
-  // ============================================================================
-  // LOADING STATE
-  // ============================================================================
-  if (!idToken) {
-    return (
-      <div className="fixed inset-0 bg-amber-50 flex items-center justify-center">
-        <div className="flex items-center gap-3">
-          <div className="w-6 h-6 border-3 border-gray-900 border-t-transparent rounded-full animate-spin" />
-          <span className="text-gray-900 font-bold">Loading...</span>
-        </div>
-      </div>
-    );
-  }
+  const handleSaveAsDraft = async () => {
+    if (!idToken) {
+      alert("Authentication required");
+      return;
+    }
 
-  // ============================================================================
-  // RENDER
-  // ============================================================================
+    setSavingDraft(true);
+    try {
+      const draftData = {
+        draftId: draftId,
+        title: settings.title.trim(),
+        description: settings.description.trim(),
+        questions: questions.map((q) => ({
+          id: q.id,
+          question: q.question.trim(),
+          type: q.type,
+          choices: q.type === "multiple_choice" ? q.choices.filter((c) => c.trim().length > 0).map((c) => c.trim()) : [],
+          answer: q.answer.trim(),
+          imageUrl: q.imageUrl,
+        })),
+        duration: settings.duration,
+        deadline: settings.deadline || undefined,
+        shuffleQuestions: settings.shuffleQuestions,
+        shuffleChoices: settings.shuffleChoices,
+        showResults: settings.showResults,
+        allowRetake: settings.allowRetake,
+        maxAttempts: settings.maxAttempts,
+        preventTabSwitch: settings.preventTabSwitch,
+        maxTabSwitches: settings.maxTabSwitches,
+        preventCopyPaste: settings.preventCopyPaste,
+        fullscreenMode: settings.fullscreenMode,
+        webcamProctoring: settings.webcamProctoring,
+        disableRightClick: settings.disableRightClick,
+        lockdownBrowser: settings.lockdownBrowser,
+      };
+
+      const { apiPost } = await import("@/app/lib/api");
+      const response = await apiPost("/api/quizzes/drafts", {
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(draftData),
+        idToken,
+      });
+
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Failed to save draft");
+
+      if (!draftId && data.id) {
+        setDraftId(data.id);
+      }
+      setLastSaved(new Date());
+      alert("Draft saved successfully!");
+    } catch (error) {
+      console.error("Error saving draft:", error);
+      alert(error instanceof Error ? error.message : "Failed to save draft");
+    } finally {
+      setSavingDraft(false);
+    }
+  };
+
+  const formatLastSaved = () => {
+    if (!lastSaved) return null;
+    const now = new Date();
+    const diff = Math.floor((now.getTime() - lastSaved.getTime()) / 1000);
+    if (diff < 60) return "Saved just now";
+    if (diff < 3600) return `Saved ${Math.floor(diff / 60)}m ago`;
+    return `Saved at ${lastSaved.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+  };
+
   const duplicateIndices = currentQuestion ? getDuplicateChoices(currentQuestion.id) : [];
   const typeInfo = currentQuestion ? getQuestionTypeInfo(currentQuestion.type) : QUESTION_TYPES[0];
 
   return (
-    <div className="fixed inset-0 flex flex-col bg-amber-50">
+    <div className="fixed inset-0 flex flex-col bg-amber-100">
+      {/* INITIAL LOADING OVERLAY */}
+      {initialLoading && (
+        <div className={`fixed inset-0 bg-amber-100 z-[100] flex items-center justify-center transition-opacity duration-500 ${fadeOut ? 'opacity-0' : 'opacity-100'}`}>
+          <div className="flex flex-col items-center gap-6 max-w-md w-full px-8">
+            
+            {/* Text */}
+            <div className="text-center">
+              <h2 className="text-2xl font-black text-gray-900 mb-2">
+                {loadingDone ? 'Done!' : 'Preparing things for you!'}
+              </h2>
+              <p className="text-gray-600 font-medium">
+                {loadingDone ? 'Your composer is ready' : 'Setting up your quiz composer...'}
+              </p>
+            </div>
+            
+            {/* Progress Bar */}
+            <div className="w-full">
+              <div className={`h-4 rounded-full border-2 border-gray-900 overflow-hidden shadow-[2px_2px_0px_0px_rgba(17,24,39,1)] transition-colors duration-300 ${loadingDone ? 'bg-green-200' : 'bg-amber-200'}`}>
+                <div 
+                  className={`h-full transition-all duration-100 ease-out ${loadingDone ? 'bg-green-500' : 'bg-amber-400'}`}
+                  style={{ width: `${loadingProgress}%` }}
+                />
+              </div>
+              <p className={`text-center text-sm font-bold mt-2 transition-colors duration-300 ${loadingDone ? 'text-green-700' : 'text-gray-700'}`}>
+                {loadingDone ? 'Complete!' : `${loadingProgress}%`}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* TOP HEADER */}
       <header className="flex items-center justify-between px-4 py-3 bg-amber-100 border-b-2 border-gray-900">
         <div className="flex items-center gap-4">
@@ -444,12 +718,33 @@ export default function ComposerPage() {
             <span className="material-icons-outlined">home</span>
           </button>
           <div>
-            <h1 className="text-lg font-black text-gray-900">{settings.title || "Untitled Quiz"}</h1>
+            <div className="flex items-center gap-2">
+              {editMode && (
+                <span className="text-xs font-bold px-2 py-0.5 bg-cyan-400 border-2 border-gray-900 rounded-full">
+                  EDITING
+                </span>
+              )}
+              <h1 className="text-lg font-black text-gray-900">{settings.title || "Untitled Quiz"}</h1>
+            </div>
             <p className="text-xs text-gray-600 font-medium">{settings.description || "Click settings to add details"}</p>
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <span className="text-xs text-gray-600 font-bold px-3 py-1.5 bg-amber-200 border-2 border-gray-900 rounded-full">Draft</span>
+          {editMode && (
+            <span className="text-xs text-cyan-700 font-bold px-3 py-1.5 bg-cyan-200 border-2 border-cyan-600 rounded-full flex items-center gap-1">
+              <span className="material-icons-outlined text-xs">edit</span>
+              Edit Mode
+            </span>
+          )}
+          {draftId && !editMode && (
+            <span className="text-xs text-green-700 font-bold px-3 py-1.5 bg-green-200 border-2 border-green-600 rounded-full flex items-center gap-1">
+              <span className="material-icons-outlined text-xs">check_circle</span>
+              Draft saved
+            </span>
+          )}
+          <span className="text-xs text-gray-600 font-bold px-3 py-1.5 bg-amber-200 border-2 border-gray-900 rounded-full">
+            {formatLastSaved() || "Not saved"}
+          </span>
         </div>
       </header>
 
@@ -538,11 +833,15 @@ export default function ComposerPage() {
             </div>
           </div>
 
-          {/* Publish Button */}
-          <div className="mt-auto p-3">
-            <button onClick={handlePublish} disabled={loading} className="w-full flex items-center justify-center gap-2 p-3 bg-amber-400 hover:bg-amber-500 text-gray-900 font-black rounded-xl border-2 border-gray-900 shadow-[3px_3px_0px_0px_rgba(17,24,39,1)] hover:shadow-[4px_4px_0px_0px_rgba(17,24,39,1)] hover:-translate-x-0.5 hover:-translate-y-0.5 active:shadow-[1px_1px_0px_0px_rgba(17,24,39,1)] active:translate-x-0.5 active:translate-y-0.5 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
-              {loading ? <div className="w-5 h-5 border-2 border-gray-900 border-t-transparent rounded-full animate-spin" /> : <span className="material-icons-outlined">publish</span>}
-              {!sidebarCollapsed && <span className="text-sm">{loading ? 'Publishing...' : 'Publish'}</span>}
+          {/* Save Draft & Publish Buttons */}
+          <div className="mt-auto p-3 flex flex-col gap-2">
+            <button onClick={handleSaveAsDraft} disabled={savingDraft || loading} className="w-full flex items-center justify-center gap-2 p-2.5 bg-amber-200 hover:bg-amber-300 text-gray-900 font-bold rounded-xl border-2 border-gray-900 shadow-[2px_2px_0px_0px_rgba(17,24,39,1)] hover:shadow-[3px_3px_0px_0px_rgba(17,24,39,1)] hover:-translate-x-0.5 hover:-translate-y-0.5 active:shadow-[1px_1px_0px_0px_rgba(17,24,39,1)] active:translate-x-0.5 active:translate-y-0.5 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+              {savingDraft ? <div className="w-4 h-4 border-2 border-gray-900 border-t-transparent rounded-full animate-spin" /> : <span className="material-icons-outlined text-sm">save_alt</span>}
+              {!sidebarCollapsed && <span className="text-xs">{savingDraft ? 'Saving...' : 'Save Draft'}</span>}
+            </button>
+            <button onClick={handlePublish} disabled={loading || savingDraft} className={`w-full flex items-center justify-center gap-2 p-3 ${editMode ? 'bg-cyan-400 hover:bg-cyan-500' : 'bg-amber-400 hover:bg-amber-500'} text-gray-900 font-black rounded-xl border-2 border-gray-900 shadow-[3px_3px_0px_0px_rgba(17,24,39,1)] hover:shadow-[4px_4px_0px_0px_rgba(17,24,39,1)] hover:-translate-x-0.5 hover:-translate-y-0.5 active:shadow-[1px_1px_0px_0px_rgba(17,24,39,1)] active:translate-x-0.5 active:translate-y-0.5 transition-all disabled:opacity-50 disabled:cursor-not-allowed`}>
+              {loading ? <div className="w-5 h-5 border-2 border-gray-900 border-t-transparent rounded-full animate-spin" /> : <span className="material-icons-outlined">{editMode ? 'save' : 'publish'}</span>}
+              {!sidebarCollapsed && <span className="text-sm">{loading ? (editMode ? 'Updating...' : 'Publishing...') : (editMode ? 'Update' : 'Publish')}</span>}
             </button>
           </div>
         </aside>
@@ -553,7 +852,7 @@ export default function ComposerPage() {
           <div className="flex-1 overflow-y-auto p-8 bg-amber-50">
             <div className="mx-auto">
               {currentQuestion && (
-                <div className="bg-white rounded-2xl border-3 border-gray-900 shadow-[6px_6px_0px_0px_rgba(17,24,39,1)] overflow-hidden">
+                <div className="bg-white rounded-2xl border-2 border-gray-900 shadow-[6px_6px_0px_0px_rgba(17,24,39,1)] overflow-hidden">
                   {/* Card Header */}
                   <div className="bg-amber-200 px-6 py-4 flex items-center justify-between border-b-2 border-gray-900">
                     <div className="flex items-center gap-4">
@@ -692,86 +991,208 @@ export default function ComposerPage() {
           </div>
 
           {/* BOTTOM PAGINATION */}
-          <nav className="flex items-center gap-3 px-4 py-4 bg-amber-100 border-t-2 border-gray-900">
-            <button onClick={() => setCurrentQuestionIndex(Math.max(0, currentQuestionIndex - 1))} disabled={currentQuestionIndex === 0} className="w-10 h-10 rounded-xl bg-amber-200 border-2 border-gray-900 hover:bg-amber-300 flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed transition-colors shadow-[2px_2px_0px_0px_rgba(17,24,39,1)] flex-shrink-0">
-              <span className="material-icons-outlined text-gray-900">chevron_left</span>
-            </button>
+          <nav className="flex flex-col gap-2 px-4 py-3 bg-amber-100 border-t-2 border-gray-900">
+            {/* Search Bar & Filters */}
+            <div className="flex items-center gap-2">
+              {/* Filter Buttons */}
+              <div className="flex items-center bg-white border-2 border-gray-900 rounded-xl overflow-hidden shadow-[2px_2px_0px_0px_rgba(17,24,39,1)] h-[42px]">
+                <button
+                  onClick={() => setSearchFilter("all")}
+                  className={`px-3 h-full text-xs font-bold transition-colors ${searchFilter === "all" ? "bg-amber-300 text-gray-900" : "bg-white text-gray-600 hover:bg-amber-100"}`}
+                >
+                  All
+                </button>
+                <button
+                  onClick={() => setSearchFilter("questions")}
+                  className={`px-3 h-full text-xs font-bold border-l-2 border-gray-900 transition-colors ${searchFilter === "questions" ? "bg-amber-300 text-gray-900" : "bg-white text-gray-600 hover:bg-amber-100"}`}
+                >
+                  Questions
+                </button>
+                <button
+                  onClick={() => setSearchFilter("answers")}
+                  className={`px-3 h-full text-xs font-bold border-l-2 border-gray-900 transition-colors ${searchFilter === "answers" ? "bg-amber-300 text-gray-900" : "bg-white text-gray-600 hover:bg-amber-100"}`}
+                >
+                  Answers
+                </button>
+              </div>
 
-            <div ref={paginationRef} className="flex-1 flex items-center gap-3 overflow-x-auto py-1 px-1">
-              {questions.map((q, index) => {
-                const qTypeInfo = getQuestionTypeInfo(q.type);
-                const isActive = currentQuestionIndex === index;
-                const hasContent = q.question.trim().length > 0;
-                const questionPreview = q.question.trim() || "Empty question...";
-                
-                return (
-                  <div 
-                    key={q.id} 
-                    onClick={() => setCurrentQuestionIndex(index)} 
-                    className={`flex-shrink-0 rounded-xl border-2 overflow-hidden transition-all flex flex-col cursor-pointer relative ${
-                      isActive 
-                        ? `border-gray-900 shadow-[3px_3px_0px_0px_rgba(17,24,39,1)] ring-2 ring-amber-400` 
-                        : hasContent 
-                          ? "border-gray-900 hover:shadow-[2px_2px_0px_0px_rgba(17,24,39,1)] hover:-translate-y-0.5" 
-                          : "border-gray-400 border-dashed hover:border-gray-900"
-                    }`}
-                    style={{ width: '240px', height: '152px' }}
+              {/* Search Input */}
+              <div className="relative flex-1 max-w-xs h-[42px]">
+                <span className="material-icons-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">search</span>
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder={`Search ${searchFilter === "all" ? "all" : searchFilter}...`}
+                  className="w-full h-full pl-9 pr-8 bg-white border-2 border-gray-900 rounded-xl text-sm font-medium placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-400 shadow-[2px_2px_0px_0px_rgba(17,24,39,1)]"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery("")}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 w-5 h-5 bg-gray-200 rounded-full flex items-center justify-center hover:bg-gray-300 transition-colors"
                   >
-                    {/* Card Header with Type Icon */}
-                    <div className={`${isActive ? 'bg-amber-300' : 'bg-amber-200'} px-2 py-1.5 flex items-center justify-between border-b-2 ${isActive ? 'border-gray-900' : 'border-gray-300'}`}>
-                      <div className="flex items-center gap-1.5">
-                        <span className="material-icons-outlined text-gray-900 text-xs">{qTypeInfo.icon}</span>
-                        <span className={`text-xs font-black ${isActive ? 'text-gray-900' : 'text-gray-700'} truncate`}>{index + 1}. {qTypeInfo.label.split(' ')[0]}</span>
-                      </div>
-                      {questions.length > 1 && (
-                        <button
-                          onClick={(e) => { e.stopPropagation(); handleRemoveQuestion(q.id); }}
-                          className="hover:opacity-70 transition-opacity"
-                          title="Delete question"
-                        >
-                          <span className="material-icons text-red-600 text-sm">delete</span>
-                        </button>
-                      )}
-                    </div>
-                    
-                    {/* Card Body with Question Preview */}
-                    <div className={`flex-1 p-2 ${isActive ? 'bg-white' : 'bg-amber-50'}`}>
-                      <p className={`text-[10px] leading-tight font-medium line-clamp-3 ${hasContent ? (isActive ? 'text-gray-900' : 'text-gray-700') : 'text-gray-400 italic'}`}>
-                        {questionPreview}
-                      </p>
-                    </div>
-                    
-                    {/* Card Footer with Answer Preview */}
-                    <div className={`px-2 py-1 ${isActive ? 'bg-amber-100' : 'bg-amber-100/50'} border-t ${isActive ? 'border-gray-300' : 'border-gray-200'}`}>
-                      <p className={`text-[9px] leading-tight font-medium line-clamp-2 ${q.answer.trim() ? (isActive ? 'text-gray-700' : 'text-gray-500') : 'text-gray-400 italic'}`}>
-                        {q.answer.trim() || "No answer yet"}
-                      </p>
-                    </div>
-                  </div>
-                );
-              })}
-              
-              {/* Add Question Button */}
-              <button 
-                onClick={() => handleAddQuestion()} 
-                className="flex-shrink-0 rounded-xl border-2 border-dashed border-gray-400 flex flex-col items-center justify-center hover:border-gray-900 hover:bg-amber-200 transition-all group"
-                style={{ width: '128px', height: '152px' }}
-              >
-                <div className="w-10 h-10 rounded-full bg-amber-100 border-2 border-gray-400 group-hover:border-gray-900 group-hover:bg-amber-300 flex items-center justify-center transition-all">
-                  <span className="material-icons-outlined text-gray-500 group-hover:text-gray-900 text-xl">add</span>
-                </div>
-                <span className="text-xs font-bold text-gray-500 group-hover:text-gray-900 mt-2">Add Question</span>
-              </button>
+                    <span className="material-icons-outlined text-gray-600 text-xs">close</span>
+                  </button>
+                )}
+              </div>
+
+              {/* Results Count */}
+              {searchQuery && (
+                <span className="text-xs font-bold text-gray-600 px-2 py-1.5 bg-amber-200 border-2 border-gray-900 rounded-lg">
+                  {questions.filter(q => {
+                    const query = searchQuery.toLowerCase();
+                    if (searchFilter === "questions") {
+                      return q.question.toLowerCase().includes(query);
+                    } else if (searchFilter === "answers") {
+                      return q.answer.toLowerCase().includes(query) ||
+                        (q.choices && q.choices.some(c => c.toLowerCase().includes(query)));
+                    } else {
+                      return q.question.toLowerCase().includes(query) ||
+                        q.answer.toLowerCase().includes(query) ||
+                        (q.choices && q.choices.some(c => c.toLowerCase().includes(query)));
+                    }
+                  }).length} found
+                </span>
+              )}
+
+              {/* Spacer */}
+              <div className="flex-1"></div>
+
+              {/* Page Indicator - Right Side */}
+              <div className="flex items-center gap-1 px-2 py-1 bg-white border-2 border-gray-900 rounded-lg shadow-[2px_2px_0px_0px_rgba(17,24,39,1)]">
+                <span className="text-gray-900 font-bold text-xs">{currentQuestionIndex + 1}</span>
+                <span className="text-gray-400 text-xs">/</span>
+                <span className="text-gray-600 font-medium text-xs">{questions.length}</span>
+              </div>
             </div>
 
-            <button onClick={() => setCurrentQuestionIndex(Math.min(questions.length - 1, currentQuestionIndex + 1))} disabled={currentQuestionIndex === questions.length - 1} className="w-10 h-10 rounded-xl bg-amber-200 border-2 border-gray-900 hover:bg-amber-300 flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed transition-colors shadow-[2px_2px_0px_0px_rgba(17,24,39,1)] flex-shrink-0">
-              <span className="material-icons-outlined text-gray-900">chevron_right</span>
-            </button>
+            {/* Pagination Row */}
+            <div className="flex items-center gap-3">
+              <button onClick={() => setCurrentQuestionIndex(Math.max(0, currentQuestionIndex - 1))} disabled={currentQuestionIndex === 0} className="w-10 h-full rounded-xl bg-amber-200 border-2 border-gray-900 hover:bg-amber-300 flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed transition-colors shadow-[2px_2px_0px_0px_rgba(17,24,39,1)] flex-shrink-0">
+                <span className="material-icons-outlined text-gray-900">chevron_left</span>
+              </button>
 
-            <div className="flex items-center gap-1 px-3 py-2 bg-white border-2 border-gray-900 rounded-xl shadow-[2px_2px_0px_0px_rgba(17,24,39,1)]">
-              <span className="text-gray-900 font-black">{currentQuestionIndex + 1}</span>
-              <span className="text-gray-400">/</span>
-              <span className="text-gray-600 font-bold">{questions.length}</span>
+              <div ref={paginationRef} className="flex-1 flex items-center gap-3 overflow-x-auto py-1 px-1">
+                {questions.map((q, index) => {
+                  const qTypeInfo = getQuestionTypeInfo(q.type);
+                  const isActive = currentQuestionIndex === index;
+                  const hasContent = q.question.trim().length > 0;
+                  const questionPreview = q.question.trim() || "Empty question...";
+                  
+                  // Check if question is incomplete
+                  const isIncomplete = (() => {
+                    if (!q.question.trim()) return true;
+                    if (!q.answer.trim()) return true;
+                    if (q.type === "multiple_choice") {
+                      const validChoices = q.choices.filter(c => c.trim().length > 0);
+                      if (validChoices.length < 2) return true;
+                      if (!validChoices.map(c => c.trim()).includes(q.answer.trim())) return true;
+                    }
+                    if (q.type === "true_or_false" && q.answer !== "true" && q.answer !== "false") return true;
+                    return false;
+                  })();
+
+                  // Check if question matches search based on filter
+                  const matchesSearch = searchQuery ? (() => {
+                    const query = searchQuery.toLowerCase();
+                    if (searchFilter === "questions") {
+                      return q.question.toLowerCase().includes(query);
+                    } else if (searchFilter === "answers") {
+                      return q.answer.toLowerCase().includes(query) ||
+                        (q.choices && q.choices.some(c => c.toLowerCase().includes(query)));
+                    } else {
+                      return q.question.toLowerCase().includes(query) ||
+                        q.answer.toLowerCase().includes(query) ||
+                        (q.choices && q.choices.some(c => c.toLowerCase().includes(query)));
+                    }
+                  })() : true;
+
+                  // Dim non-matching questions when searching
+                  const dimmed = searchQuery && !matchesSearch;
+                  
+                  return (
+                    <div 
+                      key={q.id} 
+                      onClick={() => setCurrentQuestionIndex(index)} 
+                      className={`flex-shrink-0 rounded-xl border-2 overflow-hidden transition-all flex flex-col cursor-pointer relative ${
+                        dimmed ? 'opacity-30' : ''
+                      } ${
+                        matchesSearch && searchQuery ? 'ring-2 ring-amber-500' : ''
+                      } ${
+                        isIncomplete
+                          ? "border-red-500 ring-2 ring-red-300"
+                          : isActive 
+                            ? `border-gray-900 shadow-[3px_3px_0px_0px_rgba(17,24,39,1)] ring-2 ring-amber-400` 
+                            : hasContent 
+                              ? "border-gray-900 hover:shadow-[2px_2px_0px_0px_rgba(17,24,39,1)] hover:-translate-y-0.5" 
+                              : "border-gray-400 border-dashed hover:border-gray-900"
+                      }`}
+                      style={{ width: '240px', height: '152px' }}
+                    >
+                      {/* Red overlay for incomplete questions */}
+                      {isIncomplete && (
+                        <div className="absolute inset-0 bg-red-500/10 pointer-events-none z-10">
+                          <div className="absolute top-1 right-8 bg-red-500 text-white text-[8px] font-bold px-1.5 py-0.5 rounded">
+                            Incomplete
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Card Header with Type Icon */}
+                      <div className={`${isIncomplete ? 'bg-red-100' : isActive ? 'bg-amber-300' : 'bg-amber-200'} px-2 py-1.5 flex items-center justify-between border-b-2 ${isIncomplete ? 'border-red-300' : isActive ? 'border-gray-900' : 'border-gray-300'}`}>
+                        <div className="flex items-center gap-1.5">
+                          <span className={`material-icons-outlined text-xs ${isIncomplete ? 'text-red-600' : 'text-gray-900'}`}>{qTypeInfo.icon}</span>
+                          <span className={`text-xs font-black truncate ${isIncomplete ? 'text-red-700' : isActive ? 'text-gray-900' : 'text-gray-700'}`}>{index + 1}. {qTypeInfo.label.split(' ')[0]}</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          {matchesSearch && searchQuery && (
+                            <span className="material-icons-outlined text-xs text-amber-600">search</span>
+                          )}
+                          {questions.length > 1 && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleRemoveQuestion(q.id); }}
+                              className="hover:opacity-70 transition-opacity z-20"
+                              title="Delete question"
+                            >
+                              <span className="material-icons text-red-600 text-sm">delete</span>
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      
+                      {/* Card Body with Question Preview */}
+                      <div className={`flex-1 p-2 ${isIncomplete ? 'bg-red-50' : isActive ? 'bg-white' : 'bg-amber-50'}`}>
+                        <p className={`text-[10px] leading-tight font-medium line-clamp-3 ${isIncomplete ? 'text-red-700' : hasContent ? (isActive ? 'text-gray-900' : 'text-gray-700') : 'text-gray-400 italic'}`}>
+                          {questionPreview}
+                        </p>
+                      </div>
+                      
+                      {/* Card Footer with Answer Preview */}
+                      <div className={`px-2 py-1 ${isIncomplete ? 'bg-red-100/50' : isActive ? 'bg-amber-100' : 'bg-amber-100/50'} border-t ${isIncomplete ? 'border-red-200' : isActive ? 'border-gray-300' : 'border-gray-200'}`}>
+                        <p className={`text-[9px] leading-tight font-medium line-clamp-2 ${isIncomplete ? 'text-red-600' : q.answer.trim() ? (isActive ? 'text-gray-700' : 'text-gray-500') : 'text-gray-400 italic'}`}>
+                          {q.answer.trim() || "No answer yet"}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+                
+                {/* Add Question Button */}
+                <button 
+                  onClick={() => handleAddQuestion()} 
+                  className="flex-shrink-0 rounded-xl border-2 border-dashed border-gray-400 flex flex-col items-center justify-center hover:border-gray-900 hover:bg-amber-200 transition-all group"
+                  style={{ width: '128px', height: '152px' }}
+                >
+                  <div className="w-10 h-10 rounded-full bg-amber-100 border-2 border-gray-400 group-hover:border-gray-900 group-hover:bg-amber-300 flex items-center justify-center transition-all">
+                    <span className="material-icons-outlined text-gray-500 group-hover:text-gray-900 text-xl">add</span>
+                  </div>
+                  <span className="text-xs font-bold text-gray-500 group-hover:text-gray-900 mt-2">Add Question</span>
+                </button>
+              </div>
+
+              <button onClick={() => setCurrentQuestionIndex(Math.min(questions.length - 1, currentQuestionIndex + 1))} disabled={currentQuestionIndex === questions.length - 1} className="w-10 h-full rounded-xl bg-amber-200 border-2 border-gray-900 hover:bg-amber-300 flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed transition-colors shadow-[2px_2px_0px_0px_rgba(17,24,39,1)] flex-shrink-0">
+                <span className="material-icons-outlined text-gray-900">chevron_right</span>
+              </button>
             </div>
           </nav>
         </main>
