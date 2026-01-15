@@ -139,7 +139,6 @@ const AuthGuard = ({
     return (
       <PageContainer>
         <MainLayout>
-          <PageTitle>QuizChe</PageTitle>
           <ProfileSetup idToken={idToken} />
         </MainLayout>
       </PageContainer>

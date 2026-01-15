@@ -2,6 +2,7 @@
 
 import { useState, useRef, useCallback } from "react";
 import { GeneratedQuizData } from "./QuizForm";
+import Modal from "@/components/Modal";
 
 type Difficulty = "easy" | "medium" | "hard";
 
@@ -13,7 +14,7 @@ interface PDFUploadModalProps {
   idToken: string;
 }
 
-const PDFUploadModal = ({ isOpen, onClose, onSave, onEdit, idToken }: PDFUploadModalProps) => {
+const PDFUploadModal = ({ isOpen, onClose, onSave, onEdit }: PDFUploadModalProps) => {
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [file, setFile] = useState<File | null>(null);
   const [difficulty, setDifficulty] = useState<Difficulty>("medium");
@@ -111,11 +112,13 @@ const PDFUploadModal = ({ isOpen, onClose, onSave, onEdit, idToken }: PDFUploadM
   };
   const handleBack = () => { if (step > 1 && step < 4) { setStep((prev) => (prev - 1) as 1 | 2 | 3 | 4); setError(null); } };
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-sm">
-      <div className="bg-amber-50 border-3 border-gray-900 rounded-2xl shadow-[8px_8px_0px_0px_rgba(17,24,39,1)] w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
+    <Modal 
+      isOpen={isOpen} 
+      onClose={handleClose}
+      className="w-full max-w-3xl max-h-[90vh]"
+    >
+      <div className="bg-amber-50 border-3 border-gray-900 rounded-2xl shadow-[8px_8px_0px_0px_rgba(17,24,39,1)] w-full max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
         <div className="bg-amber-200 px-6 py-4 flex items-center justify-between border-b-3 border-gray-900">
           <div className="flex items-center gap-3">
@@ -256,6 +259,35 @@ const PDFUploadModal = ({ isOpen, onClose, onSave, onEdit, idToken }: PDFUploadM
                   placeholder="e.g., Focus on Chapter 3, Include practical examples, Avoid theoretical questions..."
                   rows={3}
                 />
+                {/* Prompt Presets */}
+                <div className="flex flex-wrap gap-2 mt-3">
+                  {[
+                    { label: "Scenario-based", prompt: "Make the questions scenario-based with practical situations" },
+                    { label: "Real-life cases", prompt: "Use real-life cases and examples in the questions" },
+                    { label: "Philippine context", prompt: "Use examples and context relevant to the Philippines" },
+                    { label: "Critical thinking", prompt: "Focus on critical thinking and analysis questions" },
+                    { label: "Application-focused", prompt: "Emphasize application of concepts rather than memorization" },
+                    { label: "Case studies", prompt: "Include case study style questions" },
+                  ].map((preset) => {
+                    const isSelected = additionalInstructions.includes(preset.prompt);
+                    return (
+                      <button
+                        key={preset.label}
+                        type="button"
+                        onClick={() => {
+                          if (isSelected) {
+                            setAdditionalInstructions(additionalInstructions.replace(preset.prompt, "").replace(/,\s*,/g, ",").replace(/^,\s*|,\s*$/g, "").trim());
+                          } else {
+                            setAdditionalInstructions(additionalInstructions ? `${additionalInstructions}, ${preset.prompt}` : preset.prompt);
+                          }
+                        }}
+                        className={`px-3 py-1.5 rounded-full text-xs font-bold border-2 transition-all ${isSelected ? "bg-amber-400 border-gray-900 text-gray-900 shadow-[2px_2px_0px_0px_rgba(17,24,39,1)]" : "bg-white border-gray-300 text-gray-600 hover:border-gray-900 hover:bg-amber-50"}`}
+                      >
+                        {preset.label}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
 
               {/* Tips */}
@@ -378,7 +410,7 @@ const PDFUploadModal = ({ isOpen, onClose, onSave, onEdit, idToken }: PDFUploadM
           </div>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 };
 

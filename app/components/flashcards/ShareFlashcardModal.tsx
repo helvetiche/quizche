@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { getAuth } from "firebase/auth";
 import app from "@/lib/firebase";
+import Modal from "@/components/Modal";
 
 interface Connection {
   id: string;
@@ -124,62 +125,63 @@ const ShareFlashcardModal = ({
     }
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg max-w-md w-full max-h-[80vh] overflow-y-auto">
-        <div className="p-6 flex flex-col gap-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-xl font-light text-black">Share Flashcard</h3>
-            <button
-              onClick={onClose}
-              className="text-gray-600 hover:text-black transition-colors"
-            >
-              <svg
-                className="w-6 h-6"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M6 18L18 6M6 6l12 12"
-                />
-              </svg>
-            </button>
+    <Modal isOpen={isOpen} onClose={onClose} className="max-w-md w-full">
+      <div className="bg-amber-50 border-3 border-gray-900 rounded-2xl shadow-[8px_8px_0px_0px_rgba(17,24,39,1)] overflow-hidden">
+        {/* Header */}
+        <div className="bg-amber-200 border-b-3 border-gray-900 px-6 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-amber-400 rounded-xl flex items-center justify-center border-2 border-gray-900 shadow-[2px_2px_0px_0px_rgba(17,24,39,1)]">
+              <span className="material-icons text-gray-900">share</span>
+            </div>
+            <h3 className="text-xl font-black text-gray-900">Share Flashcard</h3>
           </div>
+          <button
+            onClick={onClose}
+            className="w-10 h-10 bg-red-400 rounded-xl flex items-center justify-center border-2 border-gray-900 hover:bg-red-500 transition-colors shadow-[2px_2px_0px_0px_rgba(17,24,39,1)]"
+          >
+            <span className="material-icons text-gray-900">close</span>
+          </button>
+        </div>
 
+        {/* Content */}
+        <div className="p-6">
           {connections.length === 0 ? (
-            <div className="p-8 text-center">
-              <p className="text-gray-600 font-light mb-4">
-                You don't have any connections yet.
-              </p>
-              <p className="text-sm text-gray-500 font-light">
+            <div className="py-8 text-center">
+              <div className="w-16 h-16 bg-amber-200 rounded-full border-3 border-gray-900 flex items-center justify-center mx-auto mb-4">
+                <span className="material-icons-outlined text-gray-700 text-2xl">group_off</span>
+              </div>
+              <p className="text-gray-900 font-bold mb-2">No connections yet</p>
+              <p className="text-sm text-gray-600">
                 Add connections to share flashcards with them.
               </p>
             </div>
           ) : (
             <>
-              <div className="flex flex-col gap-2 max-h-64 overflow-y-auto">
+              <div className="flex flex-col gap-2 max-h-64 overflow-y-auto mb-4">
                 {connections.map((conn) => (
                   <label
                     key={conn.id}
-                    className="flex items-center gap-3 p-3 hover:bg-gray-50 rounded-lg cursor-pointer"
+                    className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${
+                      selectedUserIds.includes(conn.otherUserId)
+                        ? "bg-amber-200 border-gray-900 shadow-[2px_2px_0px_0px_rgba(17,24,39,1)]"
+                        : "bg-white border-gray-300 hover:border-gray-900"
+                    }`}
                   >
-                    <input
-                      type="checkbox"
-                      checked={selectedUserIds.includes(conn.otherUserId)}
-                      onChange={() => handleToggleUser(conn.otherUserId)}
-                      className="w-4 h-4 border-gray-300 focus:ring-black"
-                    />
-                    <div className="flex flex-col gap-1 flex-1">
-                      <span className="text-sm font-light text-black">
+                    <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center ${
+                      selectedUserIds.includes(conn.otherUserId)
+                        ? "bg-amber-400 border-gray-900"
+                        : "bg-white border-gray-400"
+                    }`}>
+                      {selectedUserIds.includes(conn.otherUserId) && (
+                        <span className="material-icons text-gray-900 text-sm">check</span>
+                      )}
+                    </div>
+                    <div className="flex flex-col gap-0.5 flex-1">
+                      <span className="text-sm font-bold text-gray-900">
                         {conn.otherUser.displayName || "Unknown"}
                       </span>
-                      <span className="text-xs font-light text-gray-600">
+                      <span className="text-xs text-gray-600">
                         {conn.otherUser.email}
                       </span>
                     </div>
@@ -188,37 +190,47 @@ const ShareFlashcardModal = ({
               </div>
 
               {error && (
-                <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
-                  <p className="text-sm text-red-600 font-light">{error}</p>
+                <div className="p-3 bg-red-100 border-2 border-red-500 rounded-xl mb-4">
+                  <p className="text-sm text-red-700 font-medium">{error}</p>
                 </div>
               )}
 
               {success && (
-                <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
-                  <p className="text-sm text-green-600 font-light">{success}</p>
+                <div className="p-3 bg-green-100 border-2 border-green-500 rounded-xl mb-4">
+                  <p className="text-sm text-green-700 font-medium">{success}</p>
                 </div>
               )}
 
-              <div className="flex gap-2">
+              <div className="flex gap-3">
                 <button
                   onClick={onClose}
-                  className="flex-1 px-4 py-2 bg-gray-200 text-black font-light hover:bg-gray-300 transition-colors"
+                  className="flex-1 px-5 py-2.5 bg-white text-gray-900 font-bold rounded-xl border-2 border-gray-900 shadow-[2px_2px_0px_0px_rgba(17,24,39,1)] hover:shadow-[3px_3px_0px_0px_rgba(17,24,39,1)] transition-all"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleShare}
                   disabled={sharing || selectedUserIds.length === 0}
-                  className="flex-1 px-4 py-2 bg-black text-white font-light hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex-1 px-5 py-2.5 bg-amber-400 text-gray-900 font-bold rounded-xl border-2 border-gray-900 shadow-[3px_3px_0px_0px_rgba(17,24,39,1)] hover:shadow-[4px_4px_0px_0px_rgba(17,24,39,1)] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
-                  {sharing ? "Sharing..." : "Share"}
+                  {sharing ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-gray-900 border-t-transparent rounded-full animate-spin"></div>
+                      Sharing...
+                    </>
+                  ) : (
+                    <>
+                      <span className="material-icons text-sm">send</span>
+                      Share
+                    </>
+                  )}
                 </button>
               </div>
             </>
           )}
         </div>
       </div>
-    </div>
+    </Modal>
   );
 };
 

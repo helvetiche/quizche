@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminAuth, adminDb } from "@/lib/firebase-admin";
-import { verifyAuth } from "@/lib/auth";
-import { verifyCSRF } from "@/lib/csrf";
 import {
   getSecurityHeaders,
   getErrorSecurityHeaders,
@@ -11,17 +9,8 @@ import { handleApiError } from "@/lib/error-handler";
 
 export async function POST(request: NextRequest) {
   try {
-    // Optional CSRF protection: Only verify if user is already authenticated
-    const existingUser = await verifyAuth(request);
-    if (existingUser) {
-      const csrfError = await verifyCSRF(request, existingUser.uid);
-      if (csrfError) {
-        return NextResponse.json(
-          { error: csrfError.error },
-          { status: csrfError.status, headers: csrfError.headers }
-        );
-      }
-    }
+    // Register endpoint should NOT require CSRF - it's the initial registration point
+    // CSRF protection is meant for authenticated sessions, not for establishing them
 
     const body = await request.json();
 

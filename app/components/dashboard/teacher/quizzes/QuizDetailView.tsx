@@ -6,6 +6,7 @@ import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import Image from "next/image";
 import { useQuizView } from "./QuizViewContext";
+import Modal from "@/components/Modal";
 
 interface Question {
   question: string;
@@ -658,12 +659,12 @@ export default function QuizDetailView({ quizId }: QuizDetailViewProps) {
                         </div>
                         {/* Explanation for True/False */}
                         {currentQuestion.explanation && currentQuestion.explanation.trim() && (
-                          <div className="mt-4 p-4 bg-purple-50 border-2 border-purple-300 rounded-xl">
+                          <div className="mt-4 p-4 bg-green-50 border-2 border-green-300 rounded-xl">
                             <div className="flex items-start gap-2">
-                              <span className="material-icons-outlined text-purple-600 text-sm mt-0.5">lightbulb</span>
+                              <span className="material-icons-outlined text-green-600 text-sm mt-0.5">lightbulb</span>
                               <div>
-                                <p className="text-xs font-bold text-purple-700 mb-1">Explanation</p>
-                                <p className="text-sm text-purple-800">{currentQuestion.explanation}</p>
+                                <p className="text-xs font-bold text-green-700 mb-1">Explanation</p>
+                                <p className="text-sm text-green-800">{currentQuestion.explanation}</p>
                               </div>
                             </div>
                           </div>
@@ -682,12 +683,12 @@ export default function QuizDetailView({ quizId }: QuizDetailViewProps) {
                         </div>
                         {/* Explanation for Identification */}
                         {currentQuestion.type === "identification" && currentQuestion.explanation && currentQuestion.explanation.trim() && (
-                          <div className="mt-4 p-4 bg-purple-50 border-2 border-purple-300 rounded-xl">
+                          <div className="mt-4 p-4 bg-green-50 border-2 border-green-300 rounded-xl">
                             <div className="flex items-start gap-2">
-                              <span className="material-icons-outlined text-purple-600 text-sm mt-0.5">lightbulb</span>
+                              <span className="material-icons-outlined text-green-600 text-sm mt-0.5">lightbulb</span>
                               <div>
-                                <p className="text-xs font-bold text-purple-700 mb-1">Explanation</p>
-                                <p className="text-sm text-purple-800">{currentQuestion.explanation}</p>
+                                <p className="text-xs font-bold text-green-700 mb-1">Explanation</p>
+                                <p className="text-sm text-green-800">{currentQuestion.explanation}</p>
                               </div>
                             </div>
                           </div>
@@ -1317,8 +1318,8 @@ export default function QuizDetailView({ quizId }: QuizDetailViewProps) {
 
       {/* EDIT CONFIRMATION MODAL */}
       {showEditModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-amber-50 border-2 border-gray-900 rounded-2xl shadow-[8px_8px_0px_0px_rgba(17,24,39,1)] w-full max-w-md overflow-hidden">
+        <Modal isOpen={showEditModal} onClose={() => setShowEditModal(false)} className="w-full max-w-md">
+          <div className="bg-amber-50 border-2 border-gray-900 rounded-2xl shadow-[8px_8px_0px_0px_rgba(17,24,39,1)] overflow-hidden">
             {/* Modal Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b-2 border-gray-900 bg-amber-200">
               <div className="flex items-center gap-3">
@@ -1367,13 +1368,13 @@ export default function QuizDetailView({ quizId }: QuizDetailViewProps) {
               </div>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
 
       {/* SETTINGS MODAL */}
       {showSettingsModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-amber-50 border-2 border-gray-900 rounded-2xl shadow-[8px_8px_0px_0px_rgba(17,24,39,1)] w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
+        <Modal isOpen={showSettingsModal} onClose={() => setShowSettingsModal(false)} className="w-full max-w-3xl max-h-[90vh]">
+          <div className="bg-amber-50 border-2 border-gray-900 rounded-2xl shadow-[8px_8px_0px_0px_rgba(17,24,39,1)] w-full max-h-[90vh] overflow-hidden flex flex-col">
             {/* Modal Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b-2 border-gray-900 bg-amber-200">
               <div className="flex items-center gap-3">
@@ -1772,7 +1773,7 @@ export default function QuizDetailView({ quizId }: QuizDetailViewProps) {
               </button>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
     </div>
   );

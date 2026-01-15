@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback } from "react";
+import Modal from "@/components/Modal";
 
 type Difficulty = "easy" | "medium" | "hard";
 
@@ -184,19 +185,22 @@ const PDFUploadModalFlashcard = ({
     }
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-      <div className="bg-white border-2 border-black w-full max-w-4xl max-h-[90vh] overflow-y-auto flex flex-col">
-        <div className="sticky top-0 bg-white border-b-2 border-black p-6 flex items-center justify-between z-10">
-          <h2 className="text-2xl font-light text-black">Generate Flashcards from PDF</h2>
+    <Modal isOpen={isOpen} onClose={handleClose} className="w-full max-w-4xl max-h-[90vh]">
+      <div className="bg-amber-50 border-3 border-gray-900 rounded-2xl shadow-[8px_8px_0px_0px_rgba(17,24,39,1)] w-full max-h-[90vh] overflow-hidden flex flex-col">
+        <div className="bg-amber-200 border-b-3 border-gray-900 px-6 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-amber-400 rounded-xl flex items-center justify-center border-2 border-gray-900 shadow-[2px_2px_0px_0px_rgba(17,24,39,1)]">
+              <span className="material-icons text-gray-900">auto_awesome</span>
+            </div>
+            <h2 className="text-xl font-black text-gray-900">Generate Flashcards from PDF</h2>
+          </div>
           <button
             onClick={handleClose}
-            className="text-black hover:text-gray-600 font-light text-xl"
+            className="w-10 h-10 bg-red-400 rounded-xl flex items-center justify-center border-2 border-gray-900 hover:bg-red-500 transition-colors shadow-[2px_2px_0px_0px_rgba(17,24,39,1)]"
             aria-label="Close modal"
           >
-            ×
+            <span className="material-icons text-gray-900">close</span>
           </button>
         </div>
 
@@ -501,78 +505,60 @@ const PDFUploadModalFlashcard = ({
           )}
         </div>
 
-        <div className="sticky bottom-0 bg-white border-t-2 border-black p-6 flex items-center justify-between gap-4">
+        <div className="bg-amber-100 border-t-3 border-gray-900 px-6 py-4 flex items-center justify-between gap-4">
           <div className="flex gap-2">
             {step > 1 && step < 4 && (
               <button
                 onClick={handleBack}
                 disabled={loading}
-                className="px-6 py-3 bg-gray-200 text-black font-light hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="px-5 py-2.5 bg-white text-gray-900 font-bold rounded-xl border-2 border-gray-900 shadow-[2px_2px_0px_0px_rgba(17,24,39,1)] hover:shadow-[3px_3px_0px_0px_rgba(17,24,39,1)] disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2"
               >
-                Back
+                <span className="material-icons text-sm">arrow_back</span> Back
               </button>
             )}
           </div>
 
-          <div className="flex gap-4">
+          <div className="flex gap-3">
             {step === 4 && generatedFlashcardSet ? (
               <>
                 <button
                   onClick={handleContinueEditing}
-                  className="px-6 py-3 bg-gray-200 text-black font-light hover:bg-gray-300 transition-colors"
+                  className="px-5 py-2.5 bg-white text-gray-900 font-bold rounded-xl border-2 border-gray-900 shadow-[2px_2px_0px_0px_rgba(17,24,39,1)] hover:shadow-[3px_3px_0px_0px_rgba(17,24,39,1)] transition-all flex items-center gap-2"
                 >
-                  Continue Editing
+                  <span className="material-icons text-sm">edit</span> Edit
                 </button>
                 <button
                   onClick={handleSave}
-                  className="px-6 py-3 bg-black text-white font-light hover:bg-gray-800 transition-colors"
+                  className="px-5 py-2.5 bg-amber-400 text-gray-900 font-bold rounded-xl border-2 border-gray-900 shadow-[3px_3px_0px_0px_rgba(17,24,39,1)] hover:shadow-[4px_4px_0px_0px_rgba(17,24,39,1)] transition-all flex items-center gap-2"
                 >
-                  Save Flashcards
+                  <span className="material-icons text-sm">save</span> Save
                 </button>
               </>
             ) : (
               <>
                 <button
                   onClick={handleClose}
-                  className="px-6 py-3 bg-gray-200 text-black font-light hover:bg-gray-300 transition-colors"
+                  className="px-5 py-2.5 bg-white text-gray-900 font-bold rounded-xl border-2 border-gray-900 shadow-[2px_2px_0px_0px_rgba(17,24,39,1)] hover:shadow-[3px_3px_0px_0px_rgba(17,24,39,1)] transition-all"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleNext}
                   disabled={loading || (step === 1 && !file)}
-                  className="px-6 py-3 bg-black text-white font-light hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+                  className="px-5 py-2.5 bg-amber-400 text-gray-900 font-bold rounded-xl border-2 border-gray-900 shadow-[3px_3px_0px_0px_rgba(17,24,39,1)] hover:shadow-[4px_4px_0px_0px_rgba(17,24,39,1)] disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2"
                 >
                   {loading && (
-                    <svg
-                      className="animate-spin h-5 w-5 text-white"
-                      xmlns="http://www.w3.org/2000/svg"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                    >
-                      <circle
-                        className="opacity-25"
-                        cx="12"
-                        cy="12"
-                        r="10"
-                        stroke="currentColor"
-                        strokeWidth="4"
-                      ></circle>
-                      <path
-                        className="opacity-75"
-                        fill="currentColor"
-                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                      ></path>
-                    </svg>
+                    <div className="w-4 h-4 border-2 border-gray-900 border-t-transparent rounded-full animate-spin"></div>
                   )}
-                  {step === 1 ? "Next" : step === 2 ? "Generate Flashcards" : "Processing..."}
+                  {step === 1 ? "Continue" : step === 2 ? "Generate" : "Processing..."}
+                  <span className="material-icons text-sm">arrow_forward</span>
                 </button>
               </>
             )}
           </div>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 };
 

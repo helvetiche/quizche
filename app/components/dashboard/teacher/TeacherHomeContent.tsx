@@ -6,6 +6,7 @@ import { auth } from "@/lib/firebase";
 import { useTabContext } from "../TabContext";
 import TiltedCard from "@/components/TiltedCard";
 import Masonry, { MasonryItem } from "@/components/Masonry";
+import Modal from "@/components/Modal";
 
 interface DeleteModalProps {
   isOpen: boolean;
@@ -16,12 +17,9 @@ interface DeleteModalProps {
 }
 
 function DeleteConfirmModal({ isOpen, quizTitle, onConfirm, onCancel, isDeleting }: DeleteModalProps) {
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/50" onClick={onCancel} />
-      <div className="relative bg-amber-100 border-4 border-gray-900 rounded-2xl shadow-[8px_8px_0px_0px_rgba(31,41,55,1)] p-6 max-w-md w-full mx-4">
+    <Modal isOpen={isOpen} onClose={onCancel} className="max-w-md w-full mx-4">
+      <div className="bg-amber-100 border-4 border-gray-900 rounded-2xl shadow-[8px_8px_0px_0px_rgba(31,41,55,1)] p-6">
         <div className="flex items-center gap-3 mb-4">
           <div className="w-12 h-12 bg-red-500 rounded-full flex items-center justify-center border-3 border-gray-900">
             <span className="material-icons-outlined text-white text-2xl">delete</span>
@@ -58,7 +56,7 @@ function DeleteConfirmModal({ isOpen, quizTitle, onConfirm, onCancel, isDeleting
           </button>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 }
 

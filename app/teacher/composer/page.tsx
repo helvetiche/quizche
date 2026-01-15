@@ -7,6 +7,7 @@ import { auth } from "@/lib/firebase";
 import { uploadImageToImgbb } from "@/lib/imgbb";
 import Image from "next/image";
 import PDFUploadModal from "@/app/components/create/PDFUploadModal";
+import Modal from "@/components/Modal";
 
 // ============================================================================
 // TYPES
@@ -600,13 +601,24 @@ export default function ComposerPage() {
           if (q.imageFile) {
             imageUrl = await uploadImageToImgbb(q.imageFile, idToken);
           }
-          return {
+          const questionData: any = {
             question: q.question.trim(),
             type: q.type,
             choices: q.type === "multiple_choice" ? q.choices.filter((c) => c.trim()).map((c) => c.trim()) : undefined,
             answer: q.answer.trim(),
             imageUrl,
           };
+          // Add explanations for supported types
+          if (["multiple_choice", "identification", "true_or_false"].includes(q.type)) {
+            if (q.type === "multiple_choice") {
+              // Filter choice explanations to match filtered choices
+              const validChoiceIndices = q.choices.map((c, i) => c.trim().length > 0 ? i : -1).filter(i => i !== -1);
+              questionData.choiceExplanations = validChoiceIndices.map(i => (q.choiceExplanations?.[i] || "").trim());
+            } else {
+              questionData.explanation = (q.explanation || "").trim();
+            }
+          }
+          return questionData;
         })
       );
 
@@ -682,6 +694,8 @@ export default function ComposerPage() {
           choices: q.type === "multiple_choice" ? q.choices.filter((c) => c.trim().length > 0).map((c) => c.trim()) : [],
           answer: q.answer.trim(),
           imageUrl: q.imageUrl,
+          explanation: ["identification", "true_or_false"].includes(q.type) ? (q.explanation || "").trim() : undefined,
+          choiceExplanations: q.type === "multiple_choice" ? (q.choiceExplanations || []).map((e) => (e || "").trim()) : undefined,
         })),
         duration: settings.duration,
         deadline: settings.deadline || undefined,
@@ -977,32 +991,66 @@ export default function ComposerPage() {
                       <div>
                         <div className="flex items-center justify-between mb-3">
                           <label className="text-sm font-black text-gray-900">Choices <span className="text-red-500">*</span></label>
-                          {currentQuestion.choices.length < 6 && (
-                            <button onClick={() => handleAddChoice(currentQuestion.id)} className="px-3 py-1.5 bg-amber-200 text-gray-900 font-bold text-xs rounded-lg border-2 border-gray-900 hover:bg-amber-300 transition-colors flex items-center gap-1 shadow-[2px_2px_0px_0px_rgba(17,24,39,1)]">
-                              <span className="material-icons-outlined text-sm">add</span> Add
+                          <div className="flex items-center gap-2">
+                            <button 
+                              onClick={() => setShowExplanations(!showExplanations)} 
+                              className={`px-3 py-1.5 font-bold text-xs rounded-lg border-2 transition-colors flex items-center gap-1 ${showExplanations ? 'bg-green-400 border-gray-900 text-gray-900 shadow-[2px_2px_0px_0px_rgba(17,24,39,1)]' : 'bg-green-100 border-green-400 text-green-700 hover:bg-green-200'}`}
+                            >
+                              <span className="material-icons-outlined text-sm">lightbulb</span> 
+                              {showExplanations ? 'Hide' : 'Show'} Explanations
                             </button>
-                          )}
+                            {currentQuestion.choices.length < 6 && (
+                              <button onClick={() => handleAddChoice(currentQuestion.id)} className="px-3 py-1.5 bg-amber-200 text-gray-900 font-bold text-xs rounded-lg border-2 border-gray-900 hover:bg-amber-300 transition-colors flex items-center gap-1 shadow-[2px_2px_0px_0px_rgba(17,24,39,1)]">
+                                <span className="material-icons-outlined text-sm">add</span> Add
+                              </button>
+                            )}
+                          </div>
                         </div>
                         <div className="grid grid-cols-2 gap-3">
                           {currentQuestion.choices.map((choice, idx) => {
                             const isDuplicate = duplicateIndices.includes(idx);
                             const isCorrect = currentQuestion.answer.trim() === choice.trim() && choice.trim().length > 0;
+                            const choiceExplanation = currentQuestion.choiceExplanations?.[idx] || "";
                             return (
-                              <div key={idx} className="flex items-center gap-2">
-                                <button onClick={() => choice.trim() && handleQuestionChange(currentQuestion.id, "answer", choice.trim())} className={`w-9 h-9 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all ${isCorrect ? "bg-green-400 border-gray-900 shadow-[2px_2px_0px_0px_rgba(17,24,39,1)]" : "bg-white border-gray-400 hover:border-gray-900 hover:bg-green-100"}`}>
-                                  {isCorrect && <span className="material-icons-outlined text-gray-900 text-sm">check</span>}
-                                </button>
-                                <input
-                                  type="text"
-                                  value={choice}
-                                  onChange={(e) => handleChoiceChange(currentQuestion.id, idx, e.target.value)}
-                                  className={`flex-1 px-3 py-2.5 bg-white border-2 rounded-xl font-medium text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all ${isDuplicate ? "border-red-500" : isCorrect ? "border-green-500 bg-green-50" : "border-gray-300 focus:border-gray-900"}`}
-                                  placeholder={`Choice ${idx + 1}`}
-                                />
-                                {currentQuestion.choices.length > 2 && (
-                                  <button onClick={() => handleRemoveChoice(currentQuestion.id, idx)} className="w-8 h-8 bg-amber-100 rounded-lg flex items-center justify-center border-2 border-gray-300 hover:bg-red-100 hover:border-red-500 hover:text-red-600 transition-colors flex-shrink-0">
-                                    <span className="material-icons-outlined text-sm">close</span>
+                              <div key={idx} className="flex flex-col gap-2">
+                                <div className="flex items-center gap-2">
+                                  <button onClick={() => choice.trim() && handleQuestionChange(currentQuestion.id, "answer", choice.trim())} className={`w-8 h-8 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all ${isCorrect ? "bg-green-400 border-gray-900 shadow-[2px_2px_0px_0px_rgba(17,24,39,1)]" : "bg-white border-gray-400 hover:border-gray-900 hover:bg-green-100"}`}>
+                                    {isCorrect && <span className="material-icons-outlined text-gray-900 text-xs">check</span>}
                                   </button>
+                                  <input
+                                    type="text"
+                                    value={choice}
+                                    onChange={(e) => handleChoiceChange(currentQuestion.id, idx, e.target.value)}
+                                    className={`flex-1 min-w-0 px-3 py-2 bg-white border-2 rounded-xl font-medium text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all ${isDuplicate ? "border-red-500" : isCorrect ? "border-green-500 bg-green-50" : "border-gray-300 focus:border-gray-900"}`}
+                                    placeholder={`Choice ${idx + 1}`}
+                                  />
+                                  {currentQuestion.choices.length > 2 && (
+                                    <button onClick={() => handleRemoveChoice(currentQuestion.id, idx)} className="w-7 h-7 bg-amber-100 rounded-lg flex items-center justify-center border-2 border-gray-300 hover:bg-red-100 hover:border-red-500 hover:text-red-600 transition-colors flex-shrink-0">
+                                      <span className="material-icons-outlined text-xs">close</span>
+                                    </button>
+                                  )}
+                                </div>
+                                {/* Choice Explanation */}
+                                {showExplanations && (
+                                  <div className="ml-10">
+                                    <div className={`flex items-start gap-2 p-2 rounded-xl border-2 ${isCorrect ? 'bg-green-50 border-green-300' : 'bg-gray-50 border-gray-300'}`}>
+                                      <span className={`material-icons-outlined text-xs mt-0.5 ${isCorrect ? 'text-green-600' : 'text-gray-400'}`}>
+                                        {isCorrect ? 'check_circle' : 'cancel'}
+                                      </span>
+                                      <div className="flex-1">
+                                        <label className={`text-xs font-bold mb-1 block ${isCorrect ? 'text-green-700' : 'text-gray-500'}`}>
+                                          {isCorrect ? 'Why correct:' : 'Why wrong:'}
+                                        </label>
+                                        <textarea 
+                                          value={choiceExplanation} 
+                                          onChange={(e) => handleChoiceExplanationChange(currentQuestion.id, idx, e.target.value)} 
+                                          className={`w-full px-2 py-1.5 bg-white border-2 rounded-lg text-xs font-medium placeholder:text-gray-400 focus:outline-none resize-none transition-all ${isCorrect ? 'border-green-300 focus:border-green-500 focus:ring-2 focus:ring-green-200' : 'border-gray-300 focus:border-gray-500 focus:ring-2 focus:ring-gray-200'}`}
+                                          placeholder={isCorrect ? "Why this is correct..." : "Why this is incorrect..."}
+                                          rows={2}
+                                        />
+                                      </div>
+                                    </div>
+                                  </div>
                                 )}
                               </div>
                             );
@@ -1025,6 +1073,20 @@ export default function ComposerPage() {
                             <span className="flex items-center justify-center gap-2"><span className="material-icons-outlined">close</span> False</span>
                           </button>
                         </div>
+                        {/* Explanation for True/False */}
+                        <div className="mt-4">
+                          <label className="text-sm font-black text-gray-900 mb-2 flex items-center gap-2">
+                            <span className="material-icons-outlined text-green-500 text-sm">lightbulb</span>
+                            Explanation (Optional)
+                          </label>
+                          <textarea 
+                            value={currentQuestion.explanation || ""} 
+                            onChange={(e) => handleExplanationChange(currentQuestion.id, e.target.value)} 
+                            className="w-full px-4 py-3 bg-green-50 border-2 border-green-300 rounded-xl font-medium placeholder:text-gray-400 focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-200 resize-none transition-all shadow-[2px_2px_0px_0px_rgba(34,197,94,0.3)]"
+                            placeholder="Explain why this statement is true or false..."
+                            rows={3}
+                          />
+                        </div>
                       </div>
                     )}
 
@@ -1041,6 +1103,22 @@ export default function ComposerPage() {
                           placeholder={currentQuestion.type === "enumeration" ? "Answer 1, Answer 2, Answer 3..." : currentQuestion.type === "essay" || currentQuestion.type === "reflection" ? "Enter sample answer or rubric..." : "Enter the correct answer..."}
                           rows={currentQuestion.type === "essay" || currentQuestion.type === "reflection" ? 4 : 2}
                         />
+                        {/* Explanation for Identification */}
+                        {currentQuestion.type === "identification" && (
+                          <div className="mt-4">
+                            <label className="text-sm font-black text-gray-900 mb-2 flex items-center gap-2">
+                              <span className="material-icons-outlined text-green-500 text-sm">lightbulb</span>
+                              Explanation (Optional)
+                            </label>
+                            <textarea 
+                              value={currentQuestion.explanation || ""} 
+                              onChange={(e) => handleExplanationChange(currentQuestion.id, e.target.value)} 
+                              className="w-full px-4 py-3 bg-green-50 border-2 border-green-300 rounded-xl font-medium placeholder:text-gray-400 focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-200 resize-none transition-all shadow-[2px_2px_0px_0px_rgba(34,197,94,0.3)]"
+                              placeholder="Explain why this is the correct answer..."
+                              rows={3}
+                            />
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -1270,8 +1348,8 @@ export default function ComposerPage() {
 
       {/* SETTINGS MODAL */}
       {showSettingsModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-amber-50 border-3 border-gray-900 rounded-2xl shadow-[8px_8px_0px_0px_rgba(17,24,39,1)] w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+        <Modal isOpen={showSettingsModal} onClose={() => setShowSettingsModal(false)} className="w-full max-w-2xl max-h-[90vh]">
+          <div className="bg-amber-50 border-3 border-gray-900 rounded-2xl shadow-[8px_8px_0px_0px_rgba(17,24,39,1)] w-full max-h-[90vh] overflow-hidden flex flex-col">
             {/* Modal Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b-2 border-gray-900 bg-amber-200">
               <div className="flex items-center gap-3">
@@ -1433,7 +1511,7 @@ export default function ComposerPage() {
               </button>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
     </div>
   );

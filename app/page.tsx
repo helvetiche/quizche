@@ -28,7 +28,6 @@ export default function Home() {
     return (
       <PageContainer>
         <MainLayout>
-          <PageTitle>QuizChe</PageTitle>
           <RoleSelection idToken={idToken} />
         </MainLayout>
       </PageContainer>
@@ -39,7 +38,6 @@ export default function Home() {
     return (
       <PageContainer>
         <MainLayout>
-          <PageTitle>QuizChe</PageTitle>
           <ProfileSetup idToken={idToken} />
         </MainLayout>
       </PageContainer>

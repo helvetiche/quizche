@@ -6,6 +6,7 @@ import { auth } from "@/lib/firebase";
 import QuizForm, { GeneratedQuizData } from "../../../create/QuizForm";
 import PDFUploadModal from "../../../create/PDFUploadModal";
 import { useQuizView } from "./QuizViewContext";
+import Modal from "@/components/Modal";
 
 interface QuizSettings {
   title: string;
@@ -208,8 +209,8 @@ export default function QuizCreateView() {
 
       {/* Settings Modal */}
       {showSettingsModal && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-          <div className="bg-amber-50 border-3 border-gray-900 rounded-2xl shadow-[8px_8px_0px_0px_rgba(17,24,39,1)] w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+        <Modal isOpen={showSettingsModal} onClose={() => setShowSettingsModal(false)} className="w-full max-w-2xl max-h-[90vh]">
+          <div className="bg-amber-50 border-3 border-gray-900 rounded-2xl shadow-[8px_8px_0px_0px_rgba(17,24,39,1)] w-full max-h-[90vh] overflow-hidden flex flex-col">
             {/* Modal Header */}
             <div className="flex items-center justify-between px-5 py-4 border-b-2 border-gray-900 bg-amber-200">
               <div className="flex items-center gap-3">
@@ -334,7 +335,7 @@ export default function QuizCreateView() {
               </button>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
     </>
   );

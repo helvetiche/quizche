@@ -203,6 +203,8 @@ export const generateQuizFromContent = async (
     type: string;
     choices?: string[];
     answer: string;
+    explanation?: string;
+    choiceExplanations?: string[];
   }>;
 }> => {
   try {
@@ -221,6 +223,8 @@ export const generateQuizFromContent = async (
         type: string;
         choices?: string[];
         answer: string;
+        explanation?: string;
+        choiceExplanations?: string[];
       }>;
     }>(`quiz_gen:${cacheKey}`);
 
@@ -267,18 +271,24 @@ Output Format (JSON only, no markdown):
     {
       "question": "Question text",
       "type": "multiple_choice|identification|true_or_false",
-      "choices": ["Option A", "Option B", "Option C", "Option D"], // Only for multiple_choice
-      "answer": "Correct answer"
+      "choices": ["Option A", "Option B", "Option C", "Option D"],
+      "answer": "Correct answer",
+      "choiceExplanations": ["Explanation for Option A", "Explanation for Option B", "Explanation for Option C", "Explanation for Option D"],
+      "explanation": "Explanation for identification/true_or_false questions"
     }
   ]
 }
 
 Important:
 - For multiple_choice: Include exactly 4 choices, and the answer must match one of the choices exactly
+- For multiple_choice: Include "choiceExplanations" array with explanations for EACH choice (why it's correct or why it's wrong)
 - For true_or_false: Answer must be exactly "true" or "false"
+- For true_or_false: Include "explanation" field explaining why the statement is true or false
 - For identification: Answer should be concise and specific
+- For identification: Include "explanation" field explaining why this is the correct answer
 - Ensure questions cover different aspects of the content
 - Make sure all questions are answerable based on the provided content
+- Explanations should be educational and help students understand the concept
 - Return ONLY valid JSON, no additional text or markdown formatting`;
 
     // Try primary model first, then fallback
@@ -357,12 +367,23 @@ Important:
           }
         }
 
-        return {
+        const result: any = {
           question: q.question.trim(),
           type: q.type,
           choices: q.choices?.map((c: string) => c.trim()),
           answer: q.answer.trim(),
         };
+
+        // Add explanations based on question type
+        if (q.type === "multiple_choice" && q.choiceExplanations && Array.isArray(q.choiceExplanations)) {
+          result.choiceExplanations = q.choiceExplanations.map((e: string) => (e || "").trim());
+        }
+        
+        if ((q.type === "identification" || q.type === "true_or_false") && q.explanation) {
+          result.explanation = q.explanation.trim();
+        }
+
+        return result;
       }
     );
 
