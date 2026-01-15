@@ -2,8 +2,8 @@
 
 import { createContext, useContext, useState, useCallback, ReactNode } from "react";
 
-export type TeacherTab = "home" | "quizzes" | "sections" | "profile";
-export type StudentTab = "home" | "quizzes" | "flashcards" | "history" | "connections" | "profile";
+export type TeacherTab = "home" | "quizzes" | "sections";
+export type StudentTab = "home" | "quizzes" | "flashcards" | "history" | "connections";
 export type DashboardTab = TeacherTab | StudentTab;
 
 interface TabContextType {
@@ -28,13 +28,13 @@ export function TabProvider({ children, initialTab = "home", initialRole = null 
   const setActiveTab = useCallback((tab: DashboardTab) => {
     // Validate tab based on role to prevent unauthorized access
     if (userRole === "teacher") {
-      const validTeacherTabs: TeacherTab[] = ["home", "quizzes", "sections", "profile"];
+      const validTeacherTabs: TeacherTab[] = ["home", "quizzes", "sections"];
       if (!validTeacherTabs.includes(tab as TeacherTab)) {
         console.warn(`Invalid tab "${tab}" for teacher role`);
         return;
       }
     } else if (userRole === "student") {
-      const validStudentTabs: StudentTab[] = ["home", "quizzes", "flashcards", "history", "connections", "profile"];
+      const validStudentTabs: StudentTab[] = ["home", "quizzes", "flashcards", "history", "connections"];
       if (!validStudentTabs.includes(tab as StudentTab)) {
         console.warn(`Invalid tab "${tab}" for student role`);
         return;

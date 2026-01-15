@@ -27,7 +27,7 @@ function TeacherPageContent() {
   // Note: "create" view is now handled by /teacher/composer page
   
   // Determine initial tab - if quizView is set, default to quizzes tab
-  const initialTab = tab === "quizzes" || tab === "sections" || tab === "profile" 
+  const initialTab = tab === "quizzes" || tab === "sections" 
     ? tab 
     : (quizView ? "quizzes" : "home");
 

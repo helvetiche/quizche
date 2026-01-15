@@ -21,6 +21,9 @@ export const QuestionSchema = z.object({
   choices: z.array(z.string().min(1).max(500).trim()).optional(),
   answer: z.string().min(1).max(2000).trim(),
   imageUrl: z.string().url().optional().or(z.literal("")),
+  // Explanation fields for answer feedback
+  explanation: z.string().max(2000).trim().optional(), // For identification, true_or_false
+  choiceExplanations: z.array(z.string().max(1000).trim()).optional(), // For multiple choice
 });
 
 export const QuizDataSchema = z.object({
@@ -190,6 +193,9 @@ export const DraftQuestionSchema = z.object({
   choices: z.array(z.string().max(500).trim()).optional().default([]),
   answer: z.string().max(2000).trim().optional().default(""),
   imageUrl: z.string().url().optional().or(z.literal("")),
+  // Explanation fields for answer feedback
+  explanation: z.string().max(2000).trim().optional(), // For identification, true_or_false
+  choiceExplanations: z.array(z.string().max(1000).trim()).optional(), // For multiple choice
 });
 
 export const QuizDraftSchema = z.object({

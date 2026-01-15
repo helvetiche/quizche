@@ -16,7 +16,7 @@ function StudentPageContent() {
   const tab = searchParams.get("tab");
   
   // Validate and determine initial tab
-  const validTabs: StudentTab[] = ["home", "quizzes", "flashcards", "history", "connections", "profile"];
+  const validTabs: StudentTab[] = ["home", "quizzes", "flashcards", "history", "connections"];
   const initialTab = tab && validTabs.includes(tab as StudentTab) ? tab as StudentTab : "home";
 
   return (

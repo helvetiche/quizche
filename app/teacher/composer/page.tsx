@@ -22,6 +22,9 @@ interface Question {
   imageUrl?: string;
   imageFile?: File;
   imagePreview?: string;
+  // Explanation fields
+  explanation?: string;
+  choiceExplanations?: string[];
 }
 
 interface QuizSettings {
@@ -51,6 +54,8 @@ interface GeneratedQuizData {
     type: QuestionType;
     choices?: string[];
     answer: string;
+    explanation?: string;
+    choiceExplanations?: string[];
   }>;
 }
 
@@ -103,7 +108,7 @@ export default function ComposerPage() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [questions, setQuestions] = useState<Question[]>([
-    { id: Date.now().toString(), question: "", type: "multiple_choice", choices: ["", "", "", ""], answer: "" }
+    { id: Date.now().toString(), question: "", type: "multiple_choice", choices: ["", "", "", ""], answer: "", explanation: "", choiceExplanations: ["", "", "", ""] }
   ]);
   const [imagePreviewUrls, setImagePreviewUrls] = useState<Record<string, string>>({});
   const [initialLoading, setInitialLoading] = useState(true);
@@ -112,6 +117,7 @@ export default function ComposerPage() {
   const [fadeOut, setFadeOut] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchFilter, setSearchFilter] = useState<"all" | "questions" | "answers">("all");
+  const [showExplanations, setShowExplanations] = useState(false);
   const paginationRef = useRef<HTMLDivElement>(null);
 
   const currentQuestion = questions[currentQuestionIndex];
@@ -216,6 +222,10 @@ export default function ComposerPage() {
               choices: q.choices || (q.type === "multiple_choice" ? ["", "", "", ""] : []),
               answer: q.answer || "",
               imageUrl: q.imageUrl,
+              explanation: q.explanation || "",
+              choiceExplanations: q.type === "multiple_choice" 
+                ? (q.choiceExplanations || (q.choices || ["", "", "", ""]).map(() => ""))
+                : [],
             }))
           );
         }
@@ -281,6 +291,10 @@ export default function ComposerPage() {
               choices: q.choices || (q.type === "multiple_choice" ? ["", "", "", ""] : []),
               answer: q.answer || "",
               imageUrl: q.imageUrl,
+              explanation: q.explanation || "",
+              choiceExplanations: q.type === "multiple_choice" 
+                ? (q.choiceExplanations || (q.choices || ["", "", "", ""]).map(() => ""))
+                : [],
             }))
           );
         }
@@ -326,6 +340,10 @@ export default function ComposerPage() {
         type: q.type,
         choices: q.type === "multiple_choice" ? (q.choices && q.choices.length > 0 ? q.choices : ["", "", "", ""]) : [],
         answer: q.answer,
+        explanation: q.explanation || "",
+        choiceExplanations: q.type === "multiple_choice" 
+          ? (q.choiceExplanations || (q.choices || ["", "", "", ""]).map(() => ""))
+          : [],
       }))
     );
     setCurrentQuestionIndex(0);
@@ -339,6 +357,8 @@ export default function ComposerPage() {
       type,
       choices: type === "multiple_choice" ? ["", "", "", ""] : [],
       answer: "",
+      explanation: "",
+      choiceExplanations: type === "multiple_choice" ? ["", "", "", ""] : [],
     };
     setQuestions([...questions, newQuestion]);
     setCurrentQuestionIndex(questions.length);
@@ -352,7 +372,11 @@ export default function ComposerPage() {
 
   const handleDuplicateQuestion = () => {
     if (!currentQuestion) return;
-    const duplicated = { ...currentQuestion, id: Date.now().toString() };
+    const duplicated: Question = { 
+      ...currentQuestion, 
+      id: Date.now().toString(),
+      choiceExplanations: currentQuestion.choiceExplanations ? [...currentQuestion.choiceExplanations] : [],
+    };
     const newQuestions = [...questions];
     newQuestions.splice(currentQuestionIndex + 1, 0, duplicated);
     setQuestions(newQuestions);
@@ -380,8 +404,20 @@ export default function ComposerPage() {
         const updated = { ...q, [field]: value };
         if (field === "type") {
           const newType = value as QuestionType;
-          updated.choices = newType === "multiple_choice" ? (updated.choices.length > 0 ? updated.choices : ["", "", "", ""]) : [];
+          if (newType === "multiple_choice") {
+            updated.choices = updated.choices.length > 0 ? updated.choices : ["", "", "", ""];
+            updated.choiceExplanations = updated.choiceExplanations && updated.choiceExplanations.length > 0 
+              ? updated.choiceExplanations 
+              : updated.choices.map(() => "");
+          } else {
+            updated.choices = [];
+            updated.choiceExplanations = [];
+          }
           if (newType === "true_or_false") updated.answer = "";
+          // Clear explanation for types that don't support it
+          if (!["multiple_choice", "identification", "true_or_false"].includes(newType)) {
+            updated.explanation = "";
+          }
         }
         return updated;
       }
@@ -406,7 +442,11 @@ export default function ComposerPage() {
         if (q.choices.length >= 6) {
           return q; // Max 6 choices
         }
-        return { ...q, choices: [...q.choices, ""] };
+        return { 
+          ...q, 
+          choices: [...q.choices, ""],
+          choiceExplanations: [...(q.choiceExplanations || []), ""],
+        };
       }
       return q;
     }));
@@ -419,7 +459,11 @@ export default function ComposerPage() {
           alert("Multiple choice questions must have at least 2 choices");
           return q;
         }
-        return { ...q, choices: q.choices.filter((_, i) => i !== choiceIndex) };
+        return { 
+          ...q, 
+          choices: q.choices.filter((_, i) => i !== choiceIndex),
+          choiceExplanations: (q.choiceExplanations || []).filter((_, i) => i !== choiceIndex),
+        };
       }
       return q;
     }));
@@ -437,6 +481,21 @@ export default function ComposerPage() {
     const previewUrl = URL.createObjectURL(file);
     setImagePreviewUrls((prev) => ({ ...prev, [questionId]: previewUrl }));
     setQuestions(questions.map((q) => (q.id === questionId ? { ...q, imageFile: file, imagePreview: previewUrl } : q)));
+  };
+
+  const handleChoiceExplanationChange = (questionId: string, choiceIndex: number, value: string) => {
+    setQuestions(questions.map((q) => {
+      if (q.id === questionId) {
+        const newExplanations = [...(q.choiceExplanations || q.choices.map(() => ""))];
+        newExplanations[choiceIndex] = value;
+        return { ...q, choiceExplanations: newExplanations };
+      }
+      return q;
+    }));
+  };
+
+  const handleExplanationChange = (questionId: string, value: string) => {
+    setQuestions(questions.map((q) => (q.id === questionId ? { ...q, explanation: value } : q)));
   };
 
   const handleRemoveImage = (questionId: string) => {

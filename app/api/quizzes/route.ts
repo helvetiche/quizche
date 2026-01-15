@@ -33,6 +33,8 @@ interface Question {
   choices?: string[];
   answer: string;
   imageUrl?: string;
+  explanation?: string;
+  choiceExplanations?: string[];
 }
 
 interface QuizData {
@@ -125,10 +127,20 @@ export async function POST(request: NextRequest) {
         if (filteredChoices.length > 0) {
           questionData.choices = filteredChoices;
         }
+        
+        // Handle choice explanations for multiple choice
+        if (q.choiceExplanations && Array.isArray(q.choiceExplanations)) {
+          questionData.choiceExplanations = sanitizeStringArray(q.choiceExplanations);
+        }
       }
 
       if (q.imageUrl && typeof q.imageUrl === "string" && q.imageUrl.length > 0) {
         questionData.imageUrl = sanitizeString(q.imageUrl);
+      }
+
+      // Handle explanation for identification and true_or_false
+      if ((q.type === "identification" || q.type === "true_or_false") && q.explanation && typeof q.explanation === "string") {
+        questionData.explanation = sanitizeString(q.explanation);
       }
 
       return questionData;

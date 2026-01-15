@@ -13,6 +13,8 @@ interface Question {
   choices?: string[];
   answer: string;
   imageUrl?: string;
+  explanation?: string;
+  choiceExplanations?: string[];
 }
 
 interface Quiz {
@@ -601,17 +603,36 @@ export default function QuizDetailView({ quizId }: QuizDetailViewProps) {
                     {currentQuestion.type === "multiple_choice" && currentQuestion.choices && (
                       <div>
                         <label className="text-sm font-black text-gray-900 mb-3 block">Choices</label>
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="flex flex-col gap-3">
                           {currentQuestion.choices.map((choice, idx) => {
                             const isCorrect = currentQuestion.answer.trim() === choice.trim();
+                            const explanation = currentQuestion.choiceExplanations?.[idx];
                             return (
-                              <div key={idx} className="flex items-center gap-2">
-                                <div className={`w-9 h-9 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${isCorrect ? "bg-amber-400 border-gray-900 shadow-[2px_2px_0px_0px_rgba(17,24,39,1)]" : "bg-white border-gray-400"}`}>
-                                  {isCorrect && <span className="material-icons-outlined text-gray-900 text-sm">check</span>}
+                              <div key={idx} className="flex flex-col gap-2">
+                                <div className="flex items-center gap-2">
+                                  <div className={`w-9 h-9 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${isCorrect ? "bg-amber-400 border-gray-900 shadow-[2px_2px_0px_0px_rgba(17,24,39,1)]" : "bg-white border-gray-400"}`}>
+                                    {isCorrect && <span className="material-icons-outlined text-gray-900 text-sm">check</span>}
+                                  </div>
+                                  <div className={`flex-1 px-3 py-2.5 bg-white border-2 rounded-xl font-medium text-sm ${isCorrect ? "border-amber-500 bg-amber-50" : "border-gray-300"}`}>
+                                    {choice || <span className="text-gray-400 italic">Empty choice</span>}
+                                  </div>
                                 </div>
-                                <div className={`flex-1 px-3 py-2.5 bg-white border-2 rounded-xl font-medium text-sm ${isCorrect ? "border-amber-500 bg-amber-50" : "border-gray-300"}`}>
-                                  {choice || <span className="text-gray-400 italic">Empty choice</span>}
-                                </div>
+                                {/* Choice Explanation */}
+                                {explanation && explanation.trim() && (
+                                  <div className={`ml-11 p-3 rounded-xl border-2 ${isCorrect ? 'bg-green-50 border-green-300' : 'bg-red-50 border-red-300'}`}>
+                                    <div className="flex items-start gap-2">
+                                      <span className={`material-icons-outlined text-sm mt-0.5 ${isCorrect ? 'text-green-600' : 'text-red-600'}`}>
+                                        {isCorrect ? 'check_circle' : 'cancel'}
+                                      </span>
+                                      <div>
+                                        <p className={`text-xs font-bold mb-1 ${isCorrect ? 'text-green-700' : 'text-red-700'}`}>
+                                          {isCorrect ? 'Why this is correct:' : 'Why this is wrong:'}
+                                        </p>
+                                        <p className={`text-sm ${isCorrect ? 'text-green-800' : 'text-red-800'}`}>{explanation}</p>
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
                               </div>
                             );
                           })}
@@ -635,6 +656,18 @@ export default function QuizDetailView({ quizId }: QuizDetailViewProps) {
                             </span>
                           </div>
                         </div>
+                        {/* Explanation for True/False */}
+                        {currentQuestion.explanation && currentQuestion.explanation.trim() && (
+                          <div className="mt-4 p-4 bg-purple-50 border-2 border-purple-300 rounded-xl">
+                            <div className="flex items-start gap-2">
+                              <span className="material-icons-outlined text-purple-600 text-sm mt-0.5">lightbulb</span>
+                              <div>
+                                <p className="text-xs font-bold text-purple-700 mb-1">Explanation</p>
+                                <p className="text-sm text-purple-800">{currentQuestion.explanation}</p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )}
 
@@ -647,6 +680,18 @@ export default function QuizDetailView({ quizId }: QuizDetailViewProps) {
                         <div className="w-full px-4 py-3 bg-white border-2 border-gray-900 rounded-xl font-medium shadow-[2px_2px_0px_0px_rgba(17,24,39,1)] min-h-[60px]">
                           {currentQuestion.answer || <span className="text-gray-400 italic">No answer provided</span>}
                         </div>
+                        {/* Explanation for Identification */}
+                        {currentQuestion.type === "identification" && currentQuestion.explanation && currentQuestion.explanation.trim() && (
+                          <div className="mt-4 p-4 bg-purple-50 border-2 border-purple-300 rounded-xl">
+                            <div className="flex items-start gap-2">
+                              <span className="material-icons-outlined text-purple-600 text-sm mt-0.5">lightbulb</span>
+                              <div>
+                                <p className="text-xs font-bold text-purple-700 mb-1">Explanation</p>
+                                <p className="text-sm text-purple-800">{currentQuestion.explanation}</p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>

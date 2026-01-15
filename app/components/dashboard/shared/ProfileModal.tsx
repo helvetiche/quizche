@@ -1,0 +1,524 @@
+"use client";
+
+import { useState, useEffect, useRef } from "react";
+import { onAuthStateChanged } from "firebase/auth";
+import { auth } from "@/lib/firebase";
+import { uploadImageToImgbb } from "@/lib/imgbb";
+import { gsap } from "gsap";
+import Image from "next/image";
+
+interface ProfileData {
+  firstName: string;
+  lastName: string;
+  age: number | null;
+  school: string;
+  profilePhotoUrl: string | null;
+  profileCompleted: boolean;
+}
+
+interface ProfileModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onProfileUpdate?: (profileData: { fullName: string; photoUrl: string | null }) => void;
+}
+
+// Reusable animated modal hook (same pattern as sections)
+function useAnimatedModal(isOpen: boolean, onClose: () => void) {
+  const modalRef = useRef<HTMLDivElement>(null);
+  const backdropRef = useRef<HTMLDivElement>(null);
+  const [isVisible, setIsVisible] = useState(false);
+  const [isClosing, setIsClosing] = useState(false);
+  const prevIsOpen = useRef(isOpen);
+
+  // Handle opening
+  useEffect(() => {
+    if (isOpen && !isVisible && !isClosing) {
+      setIsVisible(true);
+    }
+  }, [isOpen, isVisible, isClosing]);
+
+  // Handle external close (when parent sets isOpen to false)
+  useEffect(() => {
+    if (prevIsOpen.current && !isOpen && isVisible && !isClosing) {
+      setIsClosing(true);
+      if (modalRef.current && backdropRef.current) {
+        gsap.to(modalRef.current, { opacity: 0, y: 50, scale: 0.95, filter: "blur(8px)", duration: 0.3, ease: "power2.in" });
+        gsap.to(backdropRef.current, {
+          opacity: 0, duration: 0.3, ease: "power2.in",
+          onComplete: () => { setIsVisible(false); setIsClosing(false); }
+        });
+      } else {
+        setIsVisible(false); setIsClosing(false);
+      }
+    }
+    prevIsOpen.current = isOpen;
+  }, [isOpen, isVisible, isClosing]);
+
+  // Run entrance animation
+  useEffect(() => {
+    if (isVisible && !isClosing && modalRef.current && backdropRef.current) {
+      gsap.fromTo(backdropRef.current, { opacity: 0 }, { opacity: 1, duration: 0.3, ease: "power2.out" });
+      gsap.fromTo(modalRef.current,
+        { opacity: 0, y: 100, scale: 0.9, filter: "blur(10px)" },
+        { opacity: 1, y: 0, scale: 1, filter: "blur(0px)", duration: 0.5, ease: "power3.out", delay: 0.1 }
+      );
+    }
+  }, [isVisible, isClosing]);
+
+  const handleClose = () => {
+    if (isClosing) return;
+    setIsClosing(true);
+    if (modalRef.current && backdropRef.current) {
+      gsap.to(modalRef.current, { opacity: 0, y: 50, scale: 0.95, filter: "blur(8px)", duration: 0.3, ease: "power2.in" });
+      gsap.to(backdropRef.current, {
+        opacity: 0, duration: 0.3, ease: "power2.in",
+        onComplete: () => { setIsVisible(false); setIsClosing(false); onClose(); }
+      });
+    } else {
+      setIsVisible(false); setIsClosing(false); onClose();
+    }
+  };
+
+  return { modalRef, backdropRef, isVisible, isClosing, handleClose };
+}
+
+
+export default function ProfileModal({ isOpen, onClose, onProfileUpdate }: ProfileModalProps) {
+  const { modalRef, backdropRef, isVisible, isClosing, handleClose } = useAnimatedModal(isOpen, onClose);
+  const [idToken, setIdToken] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+  const [profileData, setProfileData] = useState<ProfileData>({
+    firstName: "",
+    lastName: "",
+    age: null,
+    school: "",
+    profilePhotoUrl: null,
+    profileCompleted: false,
+  });
+  const [profilePhotoFile, setProfilePhotoFile] = useState<File | null>(null);
+  const [profilePhotoPreview, setProfilePhotoPreview] = useState<string | null>(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      if (currentUser) {
+        try {
+          const token = await currentUser.getIdToken();
+          setIdToken(token);
+        } catch (error) {
+          console.error("Error getting token:", error);
+        }
+      } else {
+        setIdToken(null);
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      if (!idToken || !isOpen) return;
+      try {
+        setLoading(true);
+        setError(null);
+        setSuccess(null);
+        const response = await fetch("/api/users/profile", {
+          headers: { Authorization: `Bearer ${idToken}` },
+        });
+        if (!response.ok) throw new Error("Failed to fetch profile");
+        const data = await response.json();
+        const profile = data.profile;
+        setProfileData({
+          firstName: profile.firstName || "",
+          lastName: profile.lastName || "",
+          age: profile.age || null,
+          school: profile.school || "",
+          profilePhotoUrl: profile.profilePhotoUrl || null,
+          profileCompleted: profile.profileCompleted || false,
+        });
+      } catch (err) {
+        console.error("Error fetching profile:", err);
+        setError("Failed to load profile");
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchProfile();
+  }, [idToken, isOpen]);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setProfileData((prev) => ({
+      ...prev,
+      [name]: name === "age" ? (value ? parseInt(value) : null) : value,
+    }));
+  };
+
+  const handlePhotoSelect = (file: File) => {
+    if (!file.type.startsWith("image/")) {
+      setError("Please select an image file");
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      setError("Image size must be less than 10MB");
+      return;
+    }
+    const previewUrl = URL.createObjectURL(file);
+    setProfilePhotoPreview(previewUrl);
+    setProfilePhotoFile(file);
+  };
+
+  const handleRemovePhoto = () => {
+    if (profilePhotoPreview) URL.revokeObjectURL(profilePhotoPreview);
+    setProfilePhotoPreview(null);
+    setProfilePhotoFile(null);
+    setProfileData((prev) => ({ ...prev, profilePhotoUrl: null }));
+  };
+
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setSuccess(null);
+
+    if (!profileData.firstName.trim() || !profileData.lastName.trim()) {
+      setError("Name is required");
+      return;
+    }
+    if (!profileData.age || profileData.age <= 0) {
+      setError("Please enter a valid age");
+      return;
+    }
+    if (!idToken) {
+      setError("Authentication required. Please refresh the page.");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      let profilePhotoUrl = profileData.profilePhotoUrl;
+
+      if (profilePhotoFile) {
+        setUploadingPhoto(true);
+        try {
+          profilePhotoUrl = await uploadImageToImgbb(profilePhotoFile, idToken);
+          if (profilePhotoPreview) URL.revokeObjectURL(profilePhotoPreview);
+        } catch (error) {
+          console.error("Error uploading photo:", error);
+          throw new Error(`Failed to upload profile photo. ${error instanceof Error ? error.message : "Please try again."}`);
+        } finally {
+          setUploadingPhoto(false);
+        }
+      }
+
+      const { apiPut } = await import("../../../lib/api");
+      const response = await apiPut("/api/users/profile", {
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          firstName: profileData.firstName.trim(),
+          middleName: "",
+          lastName: profileData.lastName.trim(),
+          nameExtension: "",
+          age: profileData.age,
+          school: profileData.school.trim() || "Not specified",
+          profilePhotoUrl: profilePhotoUrl || null,
+        }),
+        idToken,
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Failed to update profile");
+      }
+
+      const currentUser = auth.currentUser;
+      if (currentUser) await currentUser.getIdToken(true);
+
+      setSuccess("Profile updated successfully!");
+      setProfilePhotoFile(null);
+      setProfilePhotoPreview(null);
+
+      // Notify parent of profile update
+      if (onProfileUpdate) {
+        onProfileUpdate({
+          fullName: `${profileData.firstName.trim()} ${profileData.lastName.trim()}`,
+          photoUrl: profilePhotoUrl,
+        });
+      }
+
+      // Close modal after short delay - no page refresh needed
+      setTimeout(() => {
+        handleClose();
+      }, 1200);
+    } catch (err) {
+      console.error("Error updating profile:", err);
+      setError(err instanceof Error ? err.message : "Failed to update profile");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (profilePhotoPreview) URL.revokeObjectURL(profilePhotoPreview);
+    };
+  }, [profilePhotoPreview]);
+
+  if (!isVisible) return null;
+
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+      <div ref={backdropRef} className="absolute inset-0 bg-black/50" onClick={() => !saving && !uploadingPhoto && handleClose()} />
+      <div ref={modalRef} className="relative bg-amber-100 border-4 border-gray-900 rounded-2xl shadow-[8px_8px_0px_0px_rgba(31,41,55,1)] w-full max-w-lg max-h-[90vh] overflow-hidden flex flex-col">
+        {/* Header - Amber themed */}
+        <div className="bg-amber-200 border-b-4 border-gray-900 px-6 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="flex gap-1.5">
+              <div className="w-4 h-4 bg-red-500 rounded-full border-2 border-gray-900"></div>
+              <div className="w-4 h-4 bg-yellow-500 rounded-full border-2 border-gray-900"></div>
+              <div className="w-4 h-4 bg-green-500 rounded-full border-2 border-gray-900"></div>
+            </div>
+            <h3 className="text-xl font-black text-gray-900 ml-2">Edit Profile</h3>
+          </div>
+          <button
+            onClick={handleClose}
+            disabled={saving || uploadingPhoto}
+            className="w-8 h-8 bg-amber-100 border-2 border-gray-900 rounded-full flex items-center justify-center hover:bg-amber-300 transition-colors disabled:opacity-50"
+          >
+            <span className="material-icons-outlined text-gray-900 text-lg">close</span>
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="p-6 flex flex-col gap-5 overflow-y-auto">
+          {/* Error Message */}
+          {error && (
+            <div className="bg-red-400 border-3 border-gray-900 rounded-xl p-3 flex items-center gap-2">
+              <span className="material-icons-outlined text-gray-900">error</span>
+              <p className="font-bold text-gray-900 text-sm">{error}</p>
+            </div>
+          )}
+
+          {/* Success Message */}
+          {success && (
+            <div className="bg-lime-400 border-3 border-gray-900 rounded-xl p-3 flex items-center gap-2">
+              <span className="material-icons-outlined text-gray-900">check_circle</span>
+              <p className="font-bold text-gray-900 text-sm">{success}</p>
+            </div>
+          )}
+
+          {loading ? (
+            <div className="flex flex-col gap-5">
+              {/* Profile Photo Skeleton */}
+              <div className="bg-white border-3 border-gray-900 rounded-xl p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-5 h-5 bg-amber-200 rounded animate-pulse"></div>
+                  <div className="h-5 w-28 bg-amber-200 rounded animate-pulse"></div>
+                </div>
+                <div className="flex items-center gap-4">
+                  <div className="w-20 h-20 rounded-full bg-amber-200 animate-pulse border-3 border-gray-900"></div>
+                  <div className="flex flex-col gap-2 flex-1">
+                    <div className="h-9 w-20 bg-amber-200 rounded-lg animate-pulse border-2 border-gray-900"></div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Personal Info Skeleton */}
+              <div className="bg-white border-3 border-gray-900 rounded-xl p-4">
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="w-5 h-5 bg-amber-200 rounded animate-pulse"></div>
+                  <div className="h-5 w-40 bg-amber-200 rounded animate-pulse"></div>
+                </div>
+                <div className="flex flex-col gap-4">
+                  {[1, 2, 3, 4].map((i) => (
+                    <div key={i} className="flex flex-col gap-1.5">
+                      <div className="h-4 w-24 bg-amber-200 rounded animate-pulse"></div>
+                      <div className="h-12 w-full bg-amber-100 rounded-xl animate-pulse border-3 border-gray-900"></div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+              {/* Profile Photo Section */}
+              <div className="bg-white border-3 border-gray-900 rounded-xl p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="material-icons-outlined text-gray-900 text-lg">photo_camera</span>
+                  <h4 className="font-black text-gray-900">Profile Picture</h4>
+                </div>
+                
+                <div className="flex items-center gap-4">
+                  <div className="relative w-20 h-20 rounded-full border-3 border-gray-900 overflow-hidden bg-amber-100 shadow-[3px_3px_0px_0px_rgba(31,41,55,1)] flex-shrink-0">
+                    {profilePhotoPreview || profileData.profilePhotoUrl ? (
+                      <Image
+                        src={profilePhotoPreview || profileData.profilePhotoUrl || ""}
+                        alt="Profile photo"
+                        fill
+                        className="object-cover"
+                        unoptimized={!!profilePhotoPreview}
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center bg-amber-200">
+                        <span className="material-icons-outlined text-gray-900 text-3xl">person</span>
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div className="flex flex-col gap-2 flex-1">
+                    <label className="px-3 py-2 bg-amber-200 text-gray-900 font-bold text-sm border-2 border-gray-900 rounded-lg shadow-[2px_2px_0px_0px_rgba(31,41,55,1)] hover:shadow-[3px_3px_0px_0px_rgba(31,41,55,1)] active:shadow-[1px_1px_0px_0px_rgba(31,41,55,1)] transition-all cursor-pointer text-center">
+                      {profilePhotoPreview || profileData.profilePhotoUrl ? "Change" : "Upload"}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) handlePhotoSelect(file);
+                          e.target.value = "";
+                        }}
+                        disabled={saving || uploadingPhoto}
+                        className="hidden"
+                      />
+                    </label>
+                    {(profilePhotoPreview || profileData.profilePhotoUrl) && (
+                      <button
+                        type="button"
+                        onClick={handleRemovePhoto}
+                        className="px-3 py-2 bg-red-400 text-gray-900 font-bold text-sm border-2 border-gray-900 rounded-lg shadow-[2px_2px_0px_0px_rgba(31,41,55,1)] hover:shadow-[3px_3px_0px_0px_rgba(31,41,55,1)] active:shadow-[1px_1px_0px_0px_rgba(31,41,55,1)] transition-all disabled:opacity-50"
+                        disabled={saving || uploadingPhoto}
+                      >
+                        Remove
+                      </button>
+                    )}
+                    {uploadingPhoto && (
+                      <div className="flex items-center gap-2">
+                        <div className="w-4 h-4 border-2 border-gray-900 border-t-transparent rounded-full animate-spin"></div>
+                        <span className="text-xs font-bold text-gray-600">Uploading...</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+
+              {/* Personal Info Section */}
+              <div className="bg-white border-3 border-gray-900 rounded-xl p-4">
+                <div className="flex items-center gap-2 mb-4">
+                  <span className="material-icons-outlined text-gray-900 text-lg">badge</span>
+                  <h4 className="font-black text-gray-900">Personal Information</h4>
+                </div>
+
+                <div className="flex flex-col gap-4">
+                  <div className="flex flex-col gap-1.5">
+                    <label htmlFor="firstName" className="text-sm font-black text-gray-900">
+                      First Name <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      id="firstName"
+                      name="firstName"
+                      type="text"
+                      value={profileData.firstName}
+                      onChange={handleInputChange}
+                      required
+                      placeholder="Enter your first name"
+                      className="w-full px-4 py-3 border-3 border-gray-900 rounded-xl bg-amber-50 font-medium placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                      disabled={saving || uploadingPhoto}
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-1.5">
+                    <label htmlFor="lastName" className="text-sm font-black text-gray-900">
+                      Last Name <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      id="lastName"
+                      name="lastName"
+                      type="text"
+                      value={profileData.lastName}
+                      onChange={handleInputChange}
+                      required
+                      placeholder="Enter your last name"
+                      className="w-full px-4 py-3 border-3 border-gray-900 rounded-xl bg-amber-50 font-medium placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                      disabled={saving || uploadingPhoto}
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-1.5">
+                    <label htmlFor="age" className="text-sm font-black text-gray-900">
+                      Age <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      id="age"
+                      name="age"
+                      type="number"
+                      value={profileData.age || ""}
+                      onChange={handleInputChange}
+                      required
+                      min="1"
+                      max="150"
+                      placeholder="Enter your age"
+                      className="w-full px-4 py-3 border-3 border-gray-900 rounded-xl bg-amber-50 font-medium placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                      disabled={saving || uploadingPhoto}
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-1.5">
+                    <label htmlFor="school" className="text-sm font-black text-gray-900">
+                      School <span className="text-gray-400 font-medium">(optional)</span>
+                    </label>
+                    <input
+                      id="school"
+                      name="school"
+                      type="text"
+                      value={profileData.school}
+                      onChange={handleInputChange}
+                      placeholder="Enter your school"
+                      className="w-full px-4 py-3 border-3 border-gray-900 rounded-xl bg-amber-50 font-medium placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                      disabled={saving || uploadingPhoto}
+                    />
+                  </div>
+                </div>
+              </div>
+            </form>
+          )}
+        </div>
+
+        {/* Footer */}
+        {!loading && (
+          <div className="border-t-4 border-gray-900 px-6 py-4 bg-amber-50 flex gap-3 justify-end">
+            <button
+              type="button"
+              onClick={handleClose}
+              disabled={saving || uploadingPhoto}
+              className="px-5 py-2.5 bg-amber-200 text-gray-900 font-bold border-3 border-gray-900 rounded-full shadow-[3px_3px_0px_0px_rgba(31,41,55,1)] hover:shadow-[4px_4px_0px_0px_rgba(31,41,55,1)] active:shadow-[1px_1px_0px_0px_rgba(31,41,55,1)] transition-all disabled:opacity-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              onClick={handleSubmit}
+              disabled={saving || uploadingPhoto}
+              className="px-5 py-2.5 bg-amber-200 text-gray-900 font-bold border-3 border-gray-900 rounded-full shadow-[3px_3px_0px_0px_rgba(31,41,55,1)] hover:shadow-[4px_4px_0px_0px_rgba(31,41,55,1)] active:shadow-[1px_1px_0px_0px_rgba(31,41,55,1)] transition-all disabled:opacity-50 flex items-center gap-2"
+            >
+              {saving ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-gray-900 border-t-transparent rounded-full animate-spin"></div>
+                  <span>Saving...</span>
+                </>
+              ) : (
+                <>
+                  <span className="material-icons-outlined text-lg">save</span>
+                  <span>Save Changes</span>
+                </>
+              )}
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

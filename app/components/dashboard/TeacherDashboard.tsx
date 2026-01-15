@@ -5,7 +5,6 @@ import { useTabContext, TeacherTab } from "./TabContext";
 import TeacherHomeContent from "./teacher/TeacherHomeContent";
 import TeacherQuizzesContent from "./teacher/quizzes/TeacherQuizzesContent";
 import TeacherSectionsContent from "./teacher/TeacherSectionsContent";
-import ProfileContent from "./shared/ProfileContent";
 
 interface TeacherDashboardProps {
   user: any;
@@ -26,8 +25,6 @@ export default function TeacherDashboard({ user, initialQuizView }: TeacherDashb
         return <TeacherQuizzesContent initialView={initialQuizView} />;
       case "sections":
         return <TeacherSectionsContent />;
-      case "profile":
-        return <ProfileContent />;
       default:
         return <TeacherHomeContent userEmail={user?.email} />;
     }

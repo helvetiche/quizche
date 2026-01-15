@@ -284,6 +284,8 @@ interface Question {
   choices?: string[];
   answer: string;
   imageUrl?: string;
+  explanation?: string;
+  choiceExplanations?: string[];
 }
 
 interface QuizData {
@@ -468,10 +470,20 @@ export async function PUT(
       // Only include choices for multiple_choice questions
       if (q.type === "multiple_choice" && q.choices) {
         questionData.choices = sanitizeStringArray(q.choices);
+        
+        // Handle choice explanations for multiple choice
+        if (q.choiceExplanations && Array.isArray(q.choiceExplanations)) {
+          questionData.choiceExplanations = sanitizeStringArray(q.choiceExplanations);
+        }
       }
 
       if (q.imageUrl) {
         questionData.imageUrl = sanitizeString(q.imageUrl);
+      }
+
+      // Handle explanation for identification and true_or_false
+      if ((q.type === "identification" || q.type === "true_or_false") && q.explanation && typeof q.explanation === "string") {
+        questionData.explanation = sanitizeString(q.explanation);
       }
 
       return questionData;

@@ -6,7 +6,7 @@ import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import Loading from "../components/ui/Loading";
 
-// This page redirects to the appropriate dashboard with profile tab
+// This page redirects to the appropriate dashboard
 export default function ProfileRedirectPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
@@ -27,9 +27,9 @@ export default function ProfileRedirectPage() {
             const role = data.profile?.role;
             
             if (role === "teacher") {
-              router.replace("/teacher?tab=profile");
+              router.replace("/teacher");
             } else if (role === "student") {
-              router.replace("/student?tab=profile");
+              router.replace("/student");
             } else {
               // Fallback to home if role unknown
               router.replace("/");

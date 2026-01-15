@@ -7,7 +7,6 @@ import StudentQuizzesContent from "./student/StudentQuizzesContent";
 import StudentFlashcardsContent from "./student/StudentFlashcardsContent";
 import StudentHistoryContent from "./student/StudentHistoryContent";
 import StudentConnectionsContent from "./student/StudentConnectionsContent";
-import ProfileContent from "./shared/ProfileContent";
 
 interface StudentDashboardProps {
   user: any;
@@ -31,8 +30,6 @@ export default function StudentDashboard({ user }: StudentDashboardProps) {
         return <StudentHistoryContent user={user} />;
       case "connections":
         return <StudentConnectionsContent user={user} />;
-      case "profile":
-        return <ProfileContent />;
       default:
         return <StudentHomeContent user={user} />;
     }

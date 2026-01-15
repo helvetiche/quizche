@@ -96,6 +96,16 @@ export async function POST(request: NextRequest) {
         questionData.imageUrl = sanitizeString(q.imageUrl);
       }
 
+      // Handle explanation for identification and true_or_false
+      if (q.explanation && typeof q.explanation === "string") {
+        questionData.explanation = sanitizeString(q.explanation);
+      }
+
+      // Handle choice explanations for multiple choice
+      if (q.choiceExplanations && Array.isArray(q.choiceExplanations)) {
+        questionData.choiceExplanations = sanitizeStringArray(q.choiceExplanations);
+      }
+
       return questionData;
     });
 

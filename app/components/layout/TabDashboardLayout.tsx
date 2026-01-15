@@ -7,6 +7,7 @@ import { auth } from "@/lib/firebase";
 import { useEffect } from "react";
 import TabNavigation from "../navigation/TabNavigation";
 import PDFUploadModal from "../create/PDFUploadModal";
+import ProfileModal from "../dashboard/shared/ProfileModal";
 import { useNavigationBadges } from "@/app/hooks/useNavigationBadges";
 import { TabProvider, DashboardTab, TeacherTab, StudentTab } from "../dashboard/TabContext";
 
@@ -27,6 +28,7 @@ function TabDashboardLayoutInner({
   const { badges } = useNavigationBadges(userRole);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [isAIModalOpen, setIsAIModalOpen] = useState(false);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [idToken, setIdToken] = useState<string | null>(null);
   const [userInfo, setUserInfo] = useState<{ displayName: string | null; photoURL: string | null; fullName: string | null; tier: string | null }>({
     displayName: null,
@@ -97,6 +99,14 @@ function TabDashboardLayoutInner({
 
   const handleAIClick = () => {
     setIsAIModalOpen(true);
+  };
+
+  const handleProfileUpdate = (profileData: { fullName: string; photoUrl: string | null }) => {
+    setUserInfo(prev => ({
+      ...prev,
+      fullName: profileData.fullName,
+      photoURL: profileData.photoUrl,
+    }));
   };
 
   const handleAISave = async (quiz: any) => {
@@ -275,7 +285,7 @@ function TabDashboardLayoutInner({
           </div>
           {/* Edit Profile Button */}
           <button
-            onClick={() => window.location.href = `/${userRole}?tab=profile`}
+            onClick={() => setIsProfileModalOpen(true)}
             className="w-full px-3 py-1.5 bg-amber-200 text-gray-900 font-bold text-xs border-2 border-gray-900 rounded-full shadow-[2px_2px_0px_0px_rgba(31,41,55,1)] hover:shadow-[3px_3px_0px_0px_rgba(31,41,55,1)] hover:-translate-y-0.5 active:shadow-[1px_1px_0px_0px_rgba(31,41,55,1)] active:translate-y-0.5 transition-all flex items-center justify-center gap-1"
           >
             <span className="material-icons-outlined text-sm">edit</span>
@@ -307,6 +317,13 @@ function TabDashboardLayoutInner({
           idToken={idToken}
         />
       )}
+
+      {/* Profile Modal */}
+      <ProfileModal
+        isOpen={isProfileModalOpen}
+        onClose={() => setIsProfileModalOpen(false)}
+        onProfileUpdate={handleProfileUpdate}
+      />
     </div>
   );
 }
@@ -325,8 +342,8 @@ export default function TabDashboardLayout({
   let effectiveInitialTab: DashboardTab = initialTab;
   
   if (tabFromUrl) {
-    const validTeacherTabs: TeacherTab[] = ["home", "quizzes", "sections", "profile"];
-    const validStudentTabs: StudentTab[] = ["home", "quizzes", "flashcards", "history", "connections", "profile"];
+    const validTeacherTabs: TeacherTab[] = ["home", "quizzes", "sections"];
+    const validStudentTabs: StudentTab[] = ["home", "quizzes", "flashcards", "history", "connections"];
     
     if (userRole === "teacher" && validTeacherTabs.includes(tabFromUrl as TeacherTab)) {
       effectiveInitialTab = tabFromUrl as TeacherTab;

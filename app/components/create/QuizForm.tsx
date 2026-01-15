@@ -7,6 +7,9 @@ import Image from "next/image";
 
 type QuestionType = "multiple_choice" | "identification" | "true_or_false" | "essay" | "enumeration" | "reflection";
 
+// Question types that support explanations (not essay/reflection/enumeration which are written responses)
+const EXPLANATION_SUPPORTED_TYPES: QuestionType[] = ["multiple_choice", "identification", "true_or_false"];
+
 interface Question {
   id: string;
   question: string;
@@ -16,6 +19,10 @@ interface Question {
   imageUrl?: string;
   imageFile?: File;
   imagePreview?: string;
+  // Explanation for the correct answer (used for identification, true_or_false)
+  explanation?: string;
+  // Explanations for each choice in multiple choice (why each is right/wrong)
+  choiceExplanations?: string[];
 }
 
 const QUESTION_TYPES: { value: QuestionType; label: string; icon: string; color: string }[] = [
@@ -30,7 +37,15 @@ const QUESTION_TYPES: { value: QuestionType; label: string; icon: string; color:
 export interface GeneratedQuizData {
   title: string;
   description: string;
-  questions: Array<{ question: string; type: QuestionType; choices?: string[]; answer: string; imageUrl?: string; }>;
+  questions: Array<{ 
+    question: string; 
+    type: QuestionType; 
+    choices?: string[]; 
+    answer: string; 
+    imageUrl?: string;
+    explanation?: string;
+    choiceExplanations?: string[];
+  }>;
 }
 
 interface QuizFormProps {
@@ -65,10 +80,17 @@ const QuizForm = ({ idToken, quizId, draftId: initialDraftId, initialData, title
           choices: q.type === "multiple_choice" ? (q.choices && q.choices.length > 0 ? q.choices : ["", "", "", ""]) : [],
           answer: q.answer,
           imageUrl: q.imageUrl,
+          explanation: q.explanation || "",
+          choiceExplanations: q.type === "multiple_choice" 
+            ? (q.choiceExplanations && q.choiceExplanations.length > 0 
+                ? q.choiceExplanations 
+                : (q.choices || ["", "", "", ""]).map(() => ""))
+            : [],
         }))
-      : [{ id: Date.now().toString(), question: "", type: "multiple_choice", choices: ["", "", "", ""], answer: "" }]
+      : [{ id: Date.now().toString(), question: "", type: "multiple_choice", choices: ["", "", "", ""], answer: "", explanation: "", choiceExplanations: ["", "", "", ""] }]
   );
   const [imagePreviewUrls, setImagePreviewUrls] = useState<Record<string, string>>({});
+  const [showExplanations, setShowExplanations] = useState(false);
 
   const currentQuestion = questions[currentQuestionIndex];
 
@@ -83,6 +105,12 @@ const QuizForm = ({ idToken, quizId, draftId: initialDraftId, initialData, title
         choices: q.type === "multiple_choice" ? (q.choices && q.choices.length > 0 ? q.choices : ["", "", "", ""]) : [],
         answer: q.answer,
         imageUrl: q.imageUrl,
+        explanation: q.explanation || "",
+        choiceExplanations: q.type === "multiple_choice" 
+          ? (q.choiceExplanations && q.choiceExplanations.length > 0 
+              ? q.choiceExplanations 
+              : (q.choices || ["", "", "", ""]).map(() => ""))
+          : [],
       })));
       setCurrentQuestionIndex(0);
       return;
@@ -109,8 +137,12 @@ const QuizForm = ({ idToken, quizId, draftId: initialDraftId, initialData, title
             choices: q.choices || (q.type === "multiple_choice" ? ["", "", "", ""] : []),
             answer: q.answer || "",
             imageUrl: q.imageUrl,
+            explanation: q.explanation || "",
+            choiceExplanations: q.type === "multiple_choice" 
+              ? (q.choiceExplanations || (q.choices || ["", "", "", ""]).map(() => ""))
+              : [],
           }));
-          setQuestions(loadedQuestions.length > 0 ? loadedQuestions : [{ id: Date.now().toString(), question: "", type: "multiple_choice", choices: ["", "", "", ""], answer: "" }]);
+          setQuestions(loadedQuestions.length > 0 ? loadedQuestions : [{ id: Date.now().toString(), question: "", type: "multiple_choice", choices: ["", "", "", ""], answer: "", explanation: "", choiceExplanations: ["", "", "", ""] }]);
           setCurrentQuestionIndex(0);
         } else if (quizId) {
           // Load existing quiz
@@ -128,8 +160,12 @@ const QuizForm = ({ idToken, quizId, draftId: initialDraftId, initialData, title
             choices: q.choices || (q.type === "multiple_choice" ? ["", "", "", ""] : []),
             answer: q.answer,
             imageUrl: q.imageUrl,
+            explanation: q.explanation || "",
+            choiceExplanations: q.type === "multiple_choice" 
+              ? (q.choiceExplanations || (q.choices || ["", "", "", ""]).map(() => ""))
+              : [],
           }));
-          setQuestions(loadedQuestions.length > 0 ? loadedQuestions : [{ id: Date.now().toString(), question: "", type: "multiple_choice", choices: ["", "", "", ""], answer: "" }]);
+          setQuestions(loadedQuestions.length > 0 ? loadedQuestions : [{ id: Date.now().toString(), question: "", type: "multiple_choice", choices: ["", "", "", ""], answer: "", explanation: "", choiceExplanations: ["", "", "", ""] }]);
           setCurrentQuestionIndex(0);
         }
       } catch (err) {
@@ -147,14 +183,26 @@ const QuizForm = ({ idToken, quizId, draftId: initialDraftId, initialData, title
   }, [imagePreviewUrls]);
 
   const handleAddQuestion = (type: QuestionType = "multiple_choice") => {
-    const newQuestion = { id: Date.now().toString(), question: "", type, choices: type === "multiple_choice" ? ["", "", "", ""] : [], answer: "" };
+    const newQuestion: Question = { 
+      id: Date.now().toString(), 
+      question: "", 
+      type, 
+      choices: type === "multiple_choice" ? ["", "", "", ""] : [], 
+      answer: "",
+      explanation: "",
+      choiceExplanations: type === "multiple_choice" ? ["", "", "", ""] : [],
+    };
     setQuestions([...questions, newQuestion]);
     setCurrentQuestionIndex(questions.length);
   };
 
   const handleDuplicateQuestion = () => {
     if (!currentQuestion) return;
-    const duplicated = { ...currentQuestion, id: Date.now().toString() };
+    const duplicated: Question = { 
+      ...currentQuestion, 
+      id: Date.now().toString(),
+      choiceExplanations: currentQuestion.choiceExplanations ? [...currentQuestion.choiceExplanations] : [],
+    };
     const newQuestions = [...questions];
     newQuestions.splice(currentQuestionIndex + 1, 0, duplicated);
     setQuestions(newQuestions);
@@ -190,8 +238,20 @@ const QuizForm = ({ idToken, quizId, draftId: initialDraftId, initialData, title
         const updated = { ...q, [field]: value };
         if (field === "type") {
           const newType = value as QuestionType;
-          updated.choices = newType === "multiple_choice" ? (updated.choices.length > 0 ? updated.choices : ["", "", "", ""]) : [];
+          if (newType === "multiple_choice") {
+            updated.choices = updated.choices.length > 0 ? updated.choices : ["", "", "", ""];
+            updated.choiceExplanations = updated.choiceExplanations && updated.choiceExplanations.length > 0 
+              ? updated.choiceExplanations 
+              : updated.choices.map(() => "");
+          } else {
+            updated.choices = [];
+            updated.choiceExplanations = [];
+          }
           if (newType === "true_or_false") updated.answer = "";
+          // Clear explanation for types that don't support it
+          if (!EXPLANATION_SUPPORTED_TYPES.includes(newType)) {
+            updated.explanation = "";
+          }
         }
         return updated;
       }
@@ -206,16 +266,41 @@ const QuizForm = ({ idToken, quizId, draftId: initialDraftId, initialData, title
     }));
   };
 
-  const handleAddChoice = (questionId: string) => { setQuestions(questions.map((q) => (q.id === questionId ? { ...q, choices: [...q.choices, ""] } : q))); };
+  const handleAddChoice = (questionId: string) => { 
+    setQuestions(questions.map((q) => (q.id === questionId ? { 
+      ...q, 
+      choices: [...q.choices, ""],
+      choiceExplanations: [...(q.choiceExplanations || []), ""],
+    } : q))); 
+  };
 
   const handleRemoveChoice = (questionId: string, choiceIndex: number) => {
     setQuestions(questions.map((q) => {
       if (q.id === questionId) {
         if (q.choices.length <= 2) { alert("Multiple choice questions must have at least 2 choices"); return q; }
-        return { ...q, choices: q.choices.filter((_, i) => i !== choiceIndex) };
+        return { 
+          ...q, 
+          choices: q.choices.filter((_, i) => i !== choiceIndex),
+          choiceExplanations: (q.choiceExplanations || []).filter((_, i) => i !== choiceIndex),
+        };
       }
       return q;
     }));
+  };
+
+  const handleChoiceExplanationChange = (questionId: string, choiceIndex: number, value: string) => {
+    setQuestions(questions.map((q) => {
+      if (q.id === questionId) {
+        const newExplanations = [...(q.choiceExplanations || q.choices.map(() => ""))];
+        newExplanations[choiceIndex] = value;
+        return { ...q, choiceExplanations: newExplanations };
+      }
+      return q;
+    }));
+  };
+
+  const handleExplanationChange = (questionId: string, value: string) => {
+    setQuestions(questions.map((q) => (q.id === questionId ? { ...q, explanation: value } : q)));
   };
 
   const getDuplicateChoices = (questionId: string): number[] => {
@@ -271,6 +356,8 @@ const QuizForm = ({ idToken, quizId, draftId: initialDraftId, initialData, title
           choices: q.type === "multiple_choice" ? q.choices.filter((c) => c.trim().length > 0).map((c) => c.trim()) : [],
           answer: q.answer.trim(),
           imageUrl: q.imageUrl,
+          explanation: EXPLANATION_SUPPORTED_TYPES.includes(q.type) ? (q.explanation || "").trim() : undefined,
+          choiceExplanations: q.type === "multiple_choice" ? (q.choiceExplanations || []).map((e) => (e || "").trim()) : undefined,
         })),
       };
       const { apiPost } = await import("../../lib/api");
@@ -306,7 +393,24 @@ const QuizForm = ({ idToken, quizId, draftId: initialDraftId, initialData, title
             if (q.imagePreview) { URL.revokeObjectURL(q.imagePreview); setImagePreviewUrls((prev) => { const newUrls = { ...prev }; delete newUrls[q.id]; return newUrls; }); }
           } catch (error) { throw new Error(`Failed to upload image for question. ${error instanceof Error ? error.message : "Please try again."}`); }
         }
-        return { question: q.question.trim(), type: q.type, choices: q.type === "multiple_choice" ? q.choices.filter((c) => c.trim().length > 0).map((c) => c.trim()) : undefined, answer: q.answer.trim(), imageUrl };
+        const questionData: any = { 
+          question: q.question.trim(), 
+          type: q.type, 
+          choices: q.type === "multiple_choice" ? q.choices.filter((c) => c.trim().length > 0).map((c) => c.trim()) : undefined, 
+          answer: q.answer.trim(), 
+          imageUrl 
+        };
+        // Add explanations for supported types
+        if (EXPLANATION_SUPPORTED_TYPES.includes(q.type)) {
+          if (q.type === "multiple_choice") {
+            // Filter choice explanations to match filtered choices
+            const validChoiceIndices = q.choices.map((c, i) => c.trim().length > 0 ? i : -1).filter(i => i !== -1);
+            questionData.choiceExplanations = validChoiceIndices.map(i => (q.choiceExplanations?.[i] || "").trim());
+          } else {
+            questionData.explanation = (q.explanation || "").trim();
+          }
+        }
+        return questionData;
       }));
       const displayTitle = propTitle || title;
       const displayDescription = propDescription || description;
@@ -482,24 +586,59 @@ const QuizForm = ({ idToken, quizId, draftId: initialDraftId, initialData, title
                   <div>
                     <div className="flex items-center justify-between mb-3">
                       <label className="text-sm font-bold text-gray-600">Choices <span className="text-red-500">*</span></label>
-                      <button type="button" onClick={() => handleAddChoice(currentQuestion.id)} className="px-3 py-1.5 bg-blue-100 text-blue-600 font-bold text-xs rounded-lg hover:bg-blue-200 transition-colors flex items-center gap-1">
-                        <span className="material-icons-outlined text-sm">add</span> Add
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button 
+                          type="button" 
+                          onClick={() => setShowExplanations(!showExplanations)} 
+                          className={`px-3 py-1.5 font-bold text-xs rounded-lg transition-colors flex items-center gap-1 ${showExplanations ? 'bg-purple-500 text-white' : 'bg-purple-100 text-purple-600 hover:bg-purple-200'}`}
+                        >
+                          <span className="material-icons-outlined text-sm">lightbulb</span> 
+                          {showExplanations ? 'Hide' : 'Show'} Explanations
+                        </button>
+                        <button type="button" onClick={() => handleAddChoice(currentQuestion.id)} className="px-3 py-1.5 bg-blue-100 text-blue-600 font-bold text-xs rounded-lg hover:bg-blue-200 transition-colors flex items-center gap-1">
+                          <span className="material-icons-outlined text-sm">add</span> Add
+                        </button>
+                      </div>
                     </div>
                     <div className="flex flex-col gap-3">
                       {currentQuestion.choices.map((choice, choiceIndex) => {
                         const isDuplicate = duplicateIndices.includes(choiceIndex);
                         const isCorrect = currentQuestion.answer.trim() === choice.trim() && choice.trim().length > 0;
+                        const choiceExplanation = currentQuestion.choiceExplanations?.[choiceIndex] || "";
                         return (
-                          <div key={choiceIndex} className="flex items-center gap-3">
-                            <button type="button" onClick={() => choice.trim() && handleQuestionChange(currentQuestion.id, "answer", choice.trim())} className={`w-10 h-10 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all ${isCorrect ? "bg-green-500 border-green-600 text-white" : "bg-gray-100 border-gray-300 hover:border-green-500 hover:bg-green-50"}`}>
-                              {isCorrect && <span className="material-icons-outlined">check</span>}
-                            </button>
-                            <input type="text" value={choice} onChange={(e) => handleChoiceChange(currentQuestion.id, choiceIndex, e.target.value)} className={`flex-1 px-4 py-3 bg-gray-50 border-2 rounded-xl font-medium placeholder:text-gray-400 focus:outline-none focus:bg-white transition-all ${isDuplicate ? "border-red-500" : isCorrect ? "border-green-500 bg-green-50" : "border-gray-200 focus:border-gray-900"}`} placeholder={`Choice ${choiceIndex + 1}`} />
-                            {currentQuestion.choices.length > 2 && (
-                              <button type="button" onClick={() => handleRemoveChoice(currentQuestion.id, choiceIndex)} className="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center hover:bg-red-100 hover:text-red-600 transition-colors">
-                                <span className="material-icons-outlined">close</span>
+                          <div key={choiceIndex} className="flex flex-col gap-2">
+                            <div className="flex items-center gap-3">
+                              <button type="button" onClick={() => choice.trim() && handleQuestionChange(currentQuestion.id, "answer", choice.trim())} className={`w-10 h-10 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all ${isCorrect ? "bg-green-500 border-green-600 text-white" : "bg-gray-100 border-gray-300 hover:border-green-500 hover:bg-green-50"}`}>
+                                {isCorrect && <span className="material-icons-outlined">check</span>}
                               </button>
+                              <input type="text" value={choice} onChange={(e) => handleChoiceChange(currentQuestion.id, choiceIndex, e.target.value)} className={`flex-1 px-4 py-3 bg-gray-50 border-2 rounded-xl font-medium placeholder:text-gray-400 focus:outline-none focus:bg-white transition-all ${isDuplicate ? "border-red-500" : isCorrect ? "border-green-500 bg-green-50" : "border-gray-200 focus:border-gray-900"}`} placeholder={`Choice ${choiceIndex + 1}`} />
+                              {currentQuestion.choices.length > 2 && (
+                                <button type="button" onClick={() => handleRemoveChoice(currentQuestion.id, choiceIndex)} className="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center hover:bg-red-100 hover:text-red-600 transition-colors">
+                                  <span className="material-icons-outlined">close</span>
+                                </button>
+                              )}
+                            </div>
+                            {/* Choice Explanation */}
+                            {showExplanations && (
+                              <div className="ml-13 pl-10">
+                                <div className={`flex items-start gap-2 p-3 rounded-xl border-2 ${isCorrect ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-200'}`}>
+                                  <span className={`material-icons-outlined text-sm mt-0.5 ${isCorrect ? 'text-green-500' : 'text-gray-400'}`}>
+                                    {isCorrect ? 'check_circle' : 'cancel'}
+                                  </span>
+                                  <div className="flex-1">
+                                    <label className={`text-xs font-bold mb-1 block ${isCorrect ? 'text-green-700' : 'text-gray-500'}`}>
+                                      {isCorrect ? 'Why this is correct:' : 'Why this is wrong:'}
+                                    </label>
+                                    <textarea 
+                                      value={choiceExplanation} 
+                                      onChange={(e) => handleChoiceExplanationChange(currentQuestion.id, choiceIndex, e.target.value)} 
+                                      className={`w-full px-3 py-2 bg-white border rounded-lg text-sm font-medium placeholder:text-gray-400 focus:outline-none resize-none transition-all ${isCorrect ? 'border-green-300 focus:border-green-500' : 'border-gray-300 focus:border-gray-500'}`}
+                                      placeholder={isCorrect ? "Explain why this answer is correct..." : "Explain why this answer is incorrect..."}
+                                      rows={2}
+                                    />
+                                  </div>
+                                </div>
+                              </div>
                             )}
                           </div>
                         );
@@ -521,6 +660,20 @@ const QuizForm = ({ idToken, quizId, draftId: initialDraftId, initialData, title
                         <span className="flex items-center justify-center gap-2"><span className="material-icons-outlined">close</span> False</span>
                       </button>
                     </div>
+                    {/* Explanation for True/False */}
+                    <div className="mt-4">
+                      <label className="text-sm font-bold text-gray-600 mb-2 flex items-center gap-2">
+                        <span className="material-icons-outlined text-purple-500 text-sm">lightbulb</span>
+                        Explanation (Optional)
+                      </label>
+                      <textarea 
+                        value={currentQuestion.explanation || ""} 
+                        onChange={(e) => handleExplanationChange(currentQuestion.id, e.target.value)} 
+                        className="w-full px-4 py-3 bg-purple-50 border-2 border-purple-200 rounded-xl font-medium placeholder:text-gray-400 focus:outline-none focus:border-purple-500 focus:bg-white resize-none transition-all"
+                        placeholder="Explain why this statement is true or false..."
+                        rows={3}
+                      />
+                    </div>
                   </div>
                 )}
 
@@ -530,6 +683,23 @@ const QuizForm = ({ idToken, quizId, draftId: initialDraftId, initialData, title
                       {currentQuestion.type === "enumeration" ? "Answers (comma-separated)" : currentQuestion.type === "essay" || currentQuestion.type === "reflection" ? "Sample Answer / Rubric" : "Correct Answer"} <span className="text-red-500">*</span>
                     </label>
                     <textarea value={currentQuestion.answer} onChange={(e) => handleQuestionChange(currentQuestion.id, "answer", e.target.value)} className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-xl font-medium placeholder:text-gray-400 focus:outline-none focus:border-gray-900 focus:bg-white resize-none transition-all" placeholder={currentQuestion.type === "enumeration" ? "Answer 1, Answer 2, Answer 3..." : currentQuestion.type === "essay" || currentQuestion.type === "reflection" ? "Enter sample answer or grading rubric..." : "Enter the correct answer..."} rows={currentQuestion.type === "essay" || currentQuestion.type === "reflection" ? 4 : 2} />
+                    
+                    {/* Explanation for Identification only (not for essay/reflection/enumeration) */}
+                    {currentQuestion.type === "identification" && (
+                      <div className="mt-4">
+                        <label className="text-sm font-bold text-gray-600 mb-2 flex items-center gap-2">
+                          <span className="material-icons-outlined text-purple-500 text-sm">lightbulb</span>
+                          Explanation (Optional)
+                        </label>
+                        <textarea 
+                          value={currentQuestion.explanation || ""} 
+                          onChange={(e) => handleExplanationChange(currentQuestion.id, e.target.value)} 
+                          className="w-full px-4 py-3 bg-purple-50 border-2 border-purple-200 rounded-xl font-medium placeholder:text-gray-400 focus:outline-none focus:border-purple-500 focus:bg-white resize-none transition-all"
+                          placeholder="Explain why this is the correct answer..."
+                          rows={3}
+                        />
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

@@ -69,7 +69,6 @@ export default function TabNavigation({ userRole, badges = {}, onAIClick }: TabN
     { tab: "home", label: "Home", icon: "cottage" },
     { tab: "quizzes", label: "Quizzes", icon: "assignment", badgeKey: "quizzes", badgeColor: "bg-cyan-400" },
     { tab: "sections", label: "Sections", icon: "school", badgeKey: "sections", badgeColor: "bg-purple-400" },
-    { tab: "profile", label: "Profile", icon: "account_circle" },
   ];
 
   const studentTabs: { tab: StudentTab; label: string; icon: string; badgeKey?: keyof BadgeCounts; badgeColor?: string }[] = [
@@ -78,7 +77,6 @@ export default function TabNavigation({ userRole, badges = {}, onAIClick }: TabN
     { tab: "flashcards", label: "Cards", icon: "layers", badgeKey: "flashcards", badgeColor: "bg-lime-400" },
     { tab: "history", label: "History", icon: "insights", badgeKey: "history", badgeColor: "bg-orange-400" },
     { tab: "connections", label: "Connect", icon: "group_add", badgeKey: "connections", badgeColor: "bg-pink-400" },
-    { tab: "profile", label: "Profile", icon: "account_circle" },
   ];
 
   const tabs = userRole === "teacher" ? teacherTabs : studentTabs;
