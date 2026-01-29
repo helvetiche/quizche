@@ -1,11 +1,16 @@
+/* eslint-disable @typescript-eslint/explicit-function-return-type */
 "use client";
 
 import { useState } from "react";
 import AuthGuard from "../../components/auth/AuthGuard";
 import DashboardLayout from "../../components/layout/DashboardLayout";
 
+type User = {
+  email?: string;
+};
+
 export default function CreateFlashcardPage() {
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<User | null>(null);
 
   return (
     <AuthGuard requiredRole="teacher" onAuthSuccess={setUser}>

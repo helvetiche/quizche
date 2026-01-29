@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import type { ReactElement } from "react";
 
 type CreateCardProps = {
   title: string;
@@ -9,7 +10,12 @@ type CreateCardProps = {
   icon: React.ReactNode;
 };
 
-const CreateCard = ({ title, description, href, icon }: CreateCardProps) => {
+const CreateCard = ({
+  title,
+  description,
+  href,
+  icon,
+}: CreateCardProps): ReactElement => {
   return (
     <Link
       href={href}

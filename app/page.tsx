@@ -1,16 +1,17 @@
+/* eslint-disable @typescript-eslint/strict-boolean-expressions, @typescript-eslint/no-unnecessary-condition */
 "use client";
 
+import type { ReactElement } from "react";
 import GoogleAuthButton from "./components/GoogleAuthButton";
 import RoleSelection from "./components/RoleSelection";
 import ProfileSetup from "./components/auth/ProfileSetup";
 import PageContainer from "./components/layout/PageContainer";
 import MainLayout from "./components/layout/MainLayout";
-import PageTitle from "./components/layout/PageTitle";
 import Loading from "./components/ui/Loading";
 import CardSwap, { Card } from "../components/CardSwap";
 import { useAuth } from "./components/auth/useAuth";
 
-export default function Home() {
+export default function Home(): ReactElement {
   const {
     user,
     userRole,
@@ -34,7 +35,13 @@ export default function Home() {
     );
   }
 
-  if (user && userRole && idToken && profileCompleted === false) {
+  if (
+    user &&
+    userRole !== undefined &&
+    userRole !== null &&
+    idToken &&
+    profileCompleted === false
+  ) {
     return (
       <PageContainer>
         <MainLayout>
@@ -88,7 +95,7 @@ export default function Home() {
         {/* Left Side - Title */}
         <div className="flex-1 max-w-xl text-center lg:text-left">
           <h1 className="text-7xl font-bold border-l-12 pl-4 border-black font-black text-black mb-6 leading-none tracking-tight">
-            21ST CENTURY LEARNING!
+            21ST CENTURY LEARNING
           </h1>
           <p className="text-2xl font-medium text-black mb-8 leading-tight">
             [ Developed by students, made for students ]
@@ -98,7 +105,7 @@ export default function Home() {
               Quizche transforms PDFs into interactive flashcards and quizzes.
               Students collaborate, review, and master lessons together, while
               teachers instantly create assessments from learning materials,
-              making studying faster, smarter, and more engaging for everyone!
+              making studying faster, smarter, and more engaging for everyone
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
               <GoogleAuthButton onLoginSuccess={handleLoginSuccess} />
@@ -140,7 +147,7 @@ export default function Home() {
                     Quiz Magic
                   </h3>
                   <h4 className="text-xl font-semibold mb-3 text-left text-gray-900">
-                    [ turn any content into quizzes! ]
+                    [ turn any content into quizzes ]
                   </h4>
                   {/* Chat Bubbles */}
                   <div className="flex flex-col gap-4 mt-6 w-full">
@@ -151,8 +158,7 @@ export default function Home() {
                       </div>
                       <div className="bg-cyan-400 border-2 border-black rounded-2xl rounded-tl-md px-6 py-3 w-1/2">
                         <p className="text-base text-black font-bold">
-                          This quiz is amazing! Generated from my PDF in
-                          seconds.
+                          This quiz is amazing Generated from my PDF in seconds.
                         </p>
                       </div>
                     </div>
@@ -163,7 +169,7 @@ export default function Home() {
                       </div>
                       <div className="bg-magenta-400 border-2 border-black rounded-2xl rounded-tr-md px-6 py-3 w-full">
                         <p className="text-base text-black font-bold">
-                          Thanks! Created in seconds with AI-powered analysis.
+                          Thanks Created in seconds with AI-powered analysis.
                         </p>
                       </div>
                     </div>
@@ -174,7 +180,7 @@ export default function Home() {
                       </div>
                       <div className="bg-cyan-400 border-2 border-black rounded-2xl rounded-tl-md px-6 py-3 w-1/2">
                         <p className="text-base text-black font-bold">
-                          My students are loving the instant feedback too!
+                          My students are loving the instant feedback too
                         </p>
                       </div>
                     </div>
@@ -203,7 +209,7 @@ export default function Home() {
                     Road To Succession
                   </h3>
                   <h4 className="text-xl font-semibold mb-3 text-left text-gray-900">
-                    [ pen and paper is not enough! ]
+                    [ pen and paper is not enough ]
                   </h4>
                   {/* Chat Bubbles */}
                   <div className="flex flex-col gap-4 mt-6 w-full">
@@ -214,7 +220,7 @@ export default function Home() {
                       </div>
                       <div className="bg-lime-400 border-2 border-black rounded-2xl rounded-tl-md px-6 py-3 w-1/2">
                         <p className="text-base text-black font-bold">
-                          Finally acing my exams! These flashcards are
+                          Finally acing my exams These flashcards are
                           revolutionary.
                         </p>
                       </div>
@@ -227,7 +233,7 @@ export default function Home() {
                       <div className="bg-pink-400 border-2 border-black rounded-2xl rounded-tr-md px-6 py-3 w-full">
                         <p className="text-base text-black font-bold">
                           Smart repetition algorithm adapts to your learning
-                          pace!
+                          pace
                         </p>
                       </div>
                     </div>
@@ -238,7 +244,7 @@ export default function Home() {
                       </div>
                       <div className="bg-lime-400 border-2 border-black rounded-2xl rounded-tl-md px-6 py-3 w-1/2">
                         <p className="text-base text-black font-bold">
-                          No more wasting time on ineffective study methods!
+                          No more wasting time on ineffective study methods
                         </p>
                       </div>
                     </div>
@@ -267,7 +273,7 @@ export default function Home() {
                     Your Learning Journey
                   </h3>
                   <h4 className="text-xl font-semibold mb-3 text-left text-gray-900">
-                    [ watch yourself grow! ]
+                    [ watch yourself grow ]
                   </h4>
                   {/* Chat Bubbles */}
                   <div className="flex flex-col gap-4 mt-6 w-full">
@@ -278,7 +284,7 @@ export default function Home() {
                       </div>
                       <div className="bg-orange-400 border-2 border-black rounded-2xl rounded-tl-md px-6 py-3 w-1/2">
                         <p className="text-base text-black font-bold">
-                          Top of the leaderboard! This dashboard is so
+                          Top of the leaderboard This dashboard is so
                           motivating.
                         </p>
                       </div>
@@ -290,8 +296,8 @@ export default function Home() {
                       </div>
                       <div className="bg-green-400 border-2 border-black rounded-2xl rounded-tr-md px-6 py-3 w-full">
                         <p className="text-base text-black font-bold">
-                          Keep climbing! Your progress analytics show great
-                          improvement!
+                          Keep climbing Your progress analytics show great
+                          improvement
                         </p>
                       </div>
                     </div>
@@ -302,7 +308,7 @@ export default function Home() {
                       </div>
                       <div className="bg-orange-400 border-2 border-black rounded-2xl rounded-tl-md px-6 py-3 w-1/2">
                         <p className="text-base text-black font-bold">
-                          Love seeing my weak areas highlighted for improvement!
+                          Love seeing my weak areas highlighted for improvement
                         </p>
                       </div>
                     </div>
@@ -331,7 +337,7 @@ export default function Home() {
                     Teaching Superpowers
                   </h3>
                   <h4 className="text-xl font-semibold mb-3 text-left text-gray-900">
-                    [ understand your students better! ]
+                    [ understand your students better ]
                   </h4>
                   {/* Chat Bubbles */}
                   <div className="flex flex-col gap-4 mt-6 w-full">
@@ -343,7 +349,7 @@ export default function Home() {
                       <div className="bg-purple-400 border-2 border-black rounded-2xl rounded-tl-md px-6 py-3 w-1/2">
                         <p className="text-base text-black font-bold">
                           My students are improving dramatically with these
-                          insights!
+                          insights
                         </p>
                       </div>
                     </div>
@@ -355,7 +361,7 @@ export default function Home() {
                       <div className="bg-red-400 border-2 border-black rounded-2xl rounded-tr-md px-6 py-3 w-full">
                         <p className="text-base text-black font-bold">
                           Detailed performance analytics help you personalize
-                          teaching!
+                          teaching
                         </p>
                       </div>
                     </div>
@@ -367,7 +373,7 @@ export default function Home() {
                       <div className="bg-purple-400 border-2 border-black rounded-2xl rounded-tl-md px-6 py-3 w-1/2">
                         <p className="text-base text-black font-bold">
                           Finally understanding which concepts need more
-                          attention!
+                          attention
                         </p>
                       </div>
                     </div>

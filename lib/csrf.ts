@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unnecessary-condition */
 import { getRedis } from "./redis";
 import * as crypto from "crypto";
 
@@ -56,11 +57,8 @@ export const revokeCSRFToken = async (
 /**
  * Revoke all CSRF tokens for a user (useful for logout)
  */
-export const revokeAllCSRFTokens = async (_userId: string): Promise<void> => {
+export const revokeAllCSRFTokens = (_userId: string): void => {
   try {
-    // Note: Upstash REST API doesn't support pattern deletion
-    // In production, consider tracking tokens separately or using SCAN if available
-    // For now, tokens will expire naturally after CSRF_TOKEN_EXPIRY
     console.warn(
       "Bulk CSRF token revocation not fully supported with REST API"
     );
@@ -71,8 +69,12 @@ export const revokeAllCSRFTokens = async (_userId: string): Promise<void> => {
 
 export const getCSRFTokenFromRequest = (request: Request): string | null => {
   const token =
-    request.headers.get("X-CSRF-Token") ?? request.headers.get("x-csrf-token");
-  return token ? token.trim() : null;
+    request.headers.get("X-CSRF-Token") !== null
+      ? request.headers.get("X-CSRF-Token")
+      : request.headers.get("x-csrf-token");
+  return token !== null && token !== undefined && token.length > 0
+    ? token.trim()
+    : null;
 };
 
 /**

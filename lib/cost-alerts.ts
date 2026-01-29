@@ -1,3 +1,4 @@
+/* eslint-disable no-await-in-loop, @typescript-eslint/no-unnecessary-condition, @typescript-eslint/no-non-null-assertion */
 import { adminDb } from "./firebase-admin";
 
 /**
@@ -44,7 +45,9 @@ export const checkDailyCosts = async (): Promise<CostAlert[]> => {
 
       const dailyCostDoc = await dailyCostRef.get();
       const cost = dailyCostDoc.exists
-        ? ((dailyCostDoc.data()?.totalAmount as number) ?? 0)
+        ? dailyCostDoc.data()?.totalAmount !== undefined
+          ? (dailyCostDoc.data()!.totalAmount as number)
+          : 0
         : 0;
 
       totalDailyCost += cost;
@@ -137,7 +140,10 @@ export const checkMonthlyCosts = async (): Promise<CostAlert[]> => {
 
       let monthlyCost = 0;
       monthlyCostDocs.forEach((doc) => {
-        monthlyCost += (doc.data()?.totalAmount as number) ?? 0;
+        monthlyCost +=
+          doc.data()?.totalAmount !== undefined
+            ? (doc.data().totalAmount as number)
+            : 0;
       });
 
       totalMonthlyCost += monthlyCost;

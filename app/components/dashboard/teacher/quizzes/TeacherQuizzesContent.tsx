@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/explicit-function-return-type */
+
 "use client";
 
 import { useMemo } from "react";
@@ -13,9 +15,9 @@ import QuizSettingsView from "./QuizSettingsView";
 import QuizResultsView from "./QuizResultsView";
 import QuizLiveView from "./QuizLiveView";
 
-type TeacherQuizzesContentInnerProps = {};
+type TeacherQuizzesContentInnerProps = Record<string, never>;
 
-function TeacherQuizzesContentInner({}: TeacherQuizzesContentInnerProps) {
+function TeacherQuizzesContentInner(_props: TeacherQuizzesContentInnerProps) {
   const { currentView } = useQuizView();
 
   const content = useMemo(() => {

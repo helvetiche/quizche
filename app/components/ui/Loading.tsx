@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-const Loading = () => {
+const Loading = (): React.JSX.Element => {
   const [activeLight, setActiveLight] = useState(0); // 0 = red, 1 = orange, 2 = green
 
   useEffect(() => {

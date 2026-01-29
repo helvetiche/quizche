@@ -402,7 +402,7 @@ export default function ProfileContent() {
                   name="firstName"
                   type="text"
                   value={profileData.firstName}
-                  onChange={(e) => void handleInputChange(e)}
+                  onChange={() => void handleInputChange()}
                   required
                   placeholder="Enter your first name"
                   className="w-full px-4 py-3 border-3 border-gray-900 bg-amber-50 font-medium placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-cyan-400"
@@ -423,7 +423,7 @@ export default function ProfileContent() {
                   name="lastName"
                   type="text"
                   value={profileData.lastName}
-                  onChange={(e) => void handleInputChange(e)}
+                  onChange={() => void handleInputChange()}
                   required
                   placeholder="Enter your last name"
                   className="w-full px-4 py-3 border-3 border-gray-900 bg-amber-50 font-medium placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-cyan-400"
@@ -444,7 +444,7 @@ export default function ProfileContent() {
                   name="age"
                   type="number"
                   value={profileData.age ?? ""}
-                  onChange={(e) => void handleInputChange(e)}
+                  onChange={() => void handleInputChange()}
                   required
                   min="1"
                   max="150"

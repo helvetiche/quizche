@@ -1,3 +1,4 @@
+/* eslint-disable no-await-in-loop, @typescript-eslint/no-unnecessary-condition, @typescript-eslint/prefer-nullish-coalescing */
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { adminDb } from "./firebase-admin";
 import cache from "./cache";
@@ -28,7 +29,7 @@ const getCachedPDFExtraction = async (
   try {
     const cacheKey = `pdf_extraction:${pdfHash}`;
     const cached = await cache.get<string>(cacheKey);
-    if (cached !== null && cached !== undefined) {
+    if (cached !== null) {
       return cached;
     }
 
@@ -82,7 +83,7 @@ export const extractTextFromPDF = async (
   try {
     const pdfHash = hashPDF(pdfBuffer);
     const cached = await getCachedPDFExtraction(pdfHash);
-    if (cached !== null && cached !== undefined) {
+    if (cached !== null) {
       return cached;
     }
 
@@ -113,7 +114,7 @@ export const extractTextFromPDF = async (
         const response = result.response;
         extractedText = response.text();
 
-        if (extractedText !== null && extractedText !== undefined && extractedText.trim().length > 0) {
+        if (extractedText.trim().length > 0) {
           break;
         }
       } catch (error) {
@@ -122,8 +123,10 @@ export const extractTextFromPDF = async (
       }
     }
 
-    if (extractedText === null || extractedText === undefined || extractedText.trim().length === 0) {
-      throw lastError ?? new Error("Failed to extract text from PDF");
+    if (extractedText === null || extractedText.trim().length === 0) {
+      throw lastError !== null
+        ? lastError
+        : new Error("Failed to extract text from PDF");
     }
 
     await cachePDFExtraction(pdfHash, extractedText);
@@ -150,7 +153,7 @@ const hashContent = (
     .update(content.substring(0, 1000))
     .digest("hex");
   return `quiz:${contentHash}:${difficulty}:${numQuestions}:${
-    additionalInstructions ?? ""
+    additionalInstructions !== undefined ? additionalInstructions : ""
   }`;
 };
 
@@ -180,6 +183,22 @@ type RawQuizData = {
     explanation?: string;
     choiceExplanations?: string[];
   }[];
+};
+
+const createTimeoutPromise = <T>(
+  promise: Promise<T>,
+  timeoutMs: number
+): Promise<T> => {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) =>
+      setTimeout(
+        () =>
+          reject(new Error("AI generation took too long, please try again")),
+        timeoutMs
+      )
+    ),
+  ]);
 };
 
 export const generateQuizFromContent = async (
@@ -220,7 +239,10 @@ Requirements:
 - Difficulty level: ${difficulty}
 - ${difficultyInstructions[difficulty]}`;
 
-    if (additionalInstructions !== null && additionalInstructions !== undefined && additionalInstructions.trim().length > 0) {
+    if (
+      additionalInstructions !== undefined &&
+      additionalInstructions.trim().length > 0
+    ) {
       prompt += `\n\nAdditional Instructions:
 ${additionalInstructions.trim()}`;
     }
@@ -267,18 +289,21 @@ Important:
       try {
         const model = genAIInstance.getGenerativeModel({ model: modelName });
 
-        const aiResult = await model.generateContent(prompt);
+        const aiResult = await createTimeoutPromise(
+          model.generateContent(prompt),
+          120000
+        );
         const response = aiResult.response;
         const text = response.text();
 
         try {
           const jsonMatch = /\{[\s\S]*\}/.exec(text);
-          const jsonStr = jsonMatch?.[0] ?? text;
+          const jsonStr = jsonMatch !== null ? jsonMatch[0] : text;
           quizData = JSON.parse(jsonStr) as RawQuizData;
 
           if (
-            quizData?.title !== null && quizData?.title !== undefined &&
-            quizData?.questions !== null && quizData?.questions !== undefined &&
+            quizData.title !== undefined &&
+            quizData.questions !== undefined &&
             Array.isArray(quizData.questions)
           ) {
             break;
@@ -288,7 +313,7 @@ Important:
             `Failed to parse response from ${modelName}:`,
             text.substring(0, 200)
           );
-          lastError = new Error("Failed to parse quiz generation response");
+          lastError = new Error("AI response was invalid, please try again");
         }
       } catch (error) {
         console.warn(`Model ${modelName} failed:`, error);
@@ -296,11 +321,10 @@ Important:
       }
     }
 
-    if (quizData?.title === null || quizData?.title === undefined || quizData?.questions === null || quizData?.questions === undefined) {
-      throw (
-        lastError ??
-        new Error("Something went wrong generating the quiz")
-      );
+    if (quizData?.title === undefined || quizData.questions === undefined) {
+      throw lastError !== null
+        ? lastError
+        : new Error("AI couldn't generate the quiz, please try again");
     }
 
     if (quizData.questions.length !== numQuestions) {
@@ -312,16 +336,16 @@ Important:
     const validatedQuestions = quizData.questions.map((q, index: number) => {
       const questionObj = q;
       if (
-        questionObj?.question === null || questionObj?.question === undefined ||
-        questionObj?.type === null || questionObj?.type === undefined ||
-        questionObj?.answer === null || questionObj?.answer === undefined
+        questionObj.question === undefined ||
+        questionObj.type === undefined ||
+        questionObj.answer === undefined
       ) {
         throw new Error(`Question ${index + 1} is missing required fields`);
       }
 
       if (questionObj.type === "multiple_choice") {
         if (
-          questionObj.choices === null || questionObj.choices === undefined ||
+          questionObj.choices === undefined ||
           !Array.isArray(questionObj.choices) ||
           questionObj.choices.length < 2
         ) {
@@ -355,28 +379,28 @@ Important:
       };
 
       if (
-        questionObj.choices !== null && questionObj.choices !== undefined &&
+        questionObj.choices !== undefined &&
         Array.isArray(questionObj.choices)
       ) {
-        result.choices = (questionObj.choices).map((c: string) =>
+        result.choices = questionObj.choices.map((c: string) =>
           String(c).trim()
         );
       }
 
       if (
         questionObj.type === "multiple_choice" &&
-        questionObj.choiceExplanations !== null && questionObj.choiceExplanations !== undefined &&
+        questionObj.choiceExplanations !== undefined &&
         Array.isArray(questionObj.choiceExplanations)
       ) {
-        result.choiceExplanations = (
-          questionObj.choiceExplanations
-        ).map((e: string) => (e ?? "").trim());
+        result.choiceExplanations = questionObj.choiceExplanations.map(
+          (e: string) => (e !== undefined ? e : "").trim()
+        );
       }
 
       if (
         (questionObj.type === "identification" ||
           questionObj.type === "true_or_false") &&
-        questionObj.explanation !== null && questionObj.explanation !== undefined
+        questionObj.explanation !== undefined
       ) {
         result.explanation = String(questionObj.explanation).trim();
       }
@@ -386,7 +410,10 @@ Important:
 
     const result: QuizResponse = {
       title: quizData.title.trim(),
-      description: (quizData.description ?? "").trim(),
+      description: (quizData.description !== undefined
+        ? quizData.description
+        : ""
+      ).trim(),
       questions: validatedQuestions,
     };
 
@@ -397,8 +424,8 @@ Important:
     console.error("Error generating quiz:", error);
     throw new Error(
       error instanceof Error
-        ? `Quiz generation failed: ${error.message}`
-        : "Something went wrong creating the quiz"
+        ? error.message
+        : "AI couldn't generate the quiz, please try again"
     );
   }
 };
@@ -414,7 +441,7 @@ const hashFlashcardContent = (
     .update(content.substring(0, 1000))
     .digest("hex");
   return `flashcard:${contentHash}:${difficulty}:${numCards}:${
-    additionalInstructions ?? ""
+    additionalInstructions !== undefined ? additionalInstructions : ""
   }`;
 };
 
@@ -475,7 +502,11 @@ Requirements:
 - Difficulty level: ${difficulty}
 - ${difficultyInstructions[difficulty]}`;
 
-    if (additionalInstructions !== null && additionalInstructions !== undefined && additionalInstructions.trim().length > 0) {
+    if (
+      additionalInstructions !== null &&
+      additionalInstructions !== undefined &&
+      additionalInstructions.trim().length > 0
+    ) {
       prompt += `\n\nAdditional Instructions:
 ${additionalInstructions.trim()}`;
     }
@@ -519,12 +550,12 @@ Important:
 
         try {
           const jsonMatch = /\{[\s\S]*\}/.exec(text);
-          const jsonStr = jsonMatch?.[0] ?? text;
+          const jsonStr = jsonMatch !== null ? jsonMatch[0] : text;
           flashcardData = JSON.parse(jsonStr) as RawFlashcardData;
 
           if (
-            flashcardData?.title !== null && flashcardData?.title !== undefined &&
-            flashcardData?.cards !== null && flashcardData?.cards !== undefined &&
+            flashcardData.title !== undefined &&
+            flashcardData.cards !== undefined &&
             Array.isArray(flashcardData.cards)
           ) {
             break;
@@ -544,11 +575,13 @@ Important:
       }
     }
 
-    if (flashcardData?.title === null || flashcardData?.title === undefined || flashcardData?.cards === null || flashcardData?.cards === undefined) {
-      throw (
-        lastError ??
-        new Error("Something went wrong generating flashcards")
-      );
+    if (
+      flashcardData?.title === undefined ||
+      flashcardData.cards === undefined
+    ) {
+      throw lastError !== null
+        ? lastError
+        : new Error("Something went wrong generating flashcards");
     }
 
     if (flashcardData.cards.length !== numCards) {
@@ -559,7 +592,7 @@ Important:
 
     const validatedCards = flashcardData.cards.map(
       (card: { front?: string; back?: string }, index: number) => {
-        if (card?.front === null || card?.front === undefined || card?.back === null || card?.back === undefined) {
+        if (card.front === undefined || card.back === undefined) {
           throw new Error(`Card ${index + 1} is missing required fields`);
         }
 
@@ -580,7 +613,10 @@ Important:
 
     const result: FlashcardResponse = {
       title: flashcardData.title.trim(),
-      description: (flashcardData.description ?? "").trim(),
+      description: (flashcardData.description !== undefined
+        ? flashcardData.description
+        : ""
+      ).trim(),
       cards: validatedCards,
     };
 

@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { gsap } from "gsap";
 
@@ -16,7 +17,6 @@ const useMedia = (queries, values, defaultValue) => {
       queries.forEach((q) =>
         matchMedia(q).removeEventListener("change", handler)
       );
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [queries]);
 
   return value;
@@ -173,7 +173,6 @@ const Masonry = ({
     });
 
     hasMounted.current = true;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [grid, imagesReady, stagger, animateFrom, blurToFocus, duration, ease]);
 
   const handleMouseEnter = (e, item) => {

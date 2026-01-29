@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unnecessary-condition, @typescript-eslint/prefer-nullish-coalescing */
+
 import { type NextRequest, NextResponse } from "next/server";
 import { verifyAuth } from "@/lib/auth";
 import { adminDb } from "@/lib/firebase-admin";
@@ -218,7 +220,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const limitedUsers = matchingUsers.slice(0, validatedLimit);
 
     // Debug logging (remove in production if needed)
-    console.log("User search debug:", {
+    console.warn("User search debug:", {
       searchTerm,
       totalUsersFetched: usersSnapshot.size,
       matchingUsersCount: matchingUsers.length,

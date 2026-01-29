@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/strict-boolean-expressions, @typescript-eslint/explicit-function-return-type */
 "use client";
 
 import { useState, Suspense } from "react";
@@ -7,8 +8,13 @@ import TabDashboardLayout from "../components/layout/TabDashboardLayout";
 import TeacherDashboard from "../components/dashboard/TeacherDashboard";
 import Loading from "../components/ui/Loading";
 
+type User = {
+  uid: string;
+  email: string;
+};
+
 function TeacherPageContent() {
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<User | null>(null);
   const searchParams = useSearchParams();
 
   // Parse tab and quiz view from URL params

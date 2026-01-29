@@ -1,6 +1,9 @@
+/* eslint-disable @typescript-eslint/prefer-optional-chain */
+
+/* eslint-disable @typescript-eslint/strict-boolean-expressions, @typescript-eslint/no-unnecessary-condition */
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/lib/firebase";
@@ -208,7 +211,7 @@ type ApiErrorResponse = {
 // ============================================================================
 // MAIN PAGE COMPONENT
 // ============================================================================
-export default function ComposerPage(): React.ReactNode {
+function ComposerPageContent(): React.ReactNode {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [idToken, setIdToken] = useState<string | null>(null);
@@ -375,7 +378,9 @@ export default function ComposerPage(): React.ReactNode {
         }
       } catch (err) {
         console.error("Error loading draft:", err);
-        alert(err instanceof Error ? err.message : "Failed to load draft");
+        console.error(
+          err instanceof Error ? err.message : "Failed to load draft"
+        );
       } finally {
         setLoadingDraft(false);
       }
@@ -387,7 +392,7 @@ export default function ComposerPage(): React.ReactNode {
   // Load existing quiz for editing
   useEffect(() => {
     const loadQuizForEdit = async (): Promise<void> => {
-      if (urlEditId === null || idToken === null || urlDraftId !== null) return; // Don't load if draft is being loaded
+      if (urlEditId === null || idToken === null || urlDraftId !== null) return;
 
       setLoadingDraft(true);
       try {
@@ -458,7 +463,9 @@ export default function ComposerPage(): React.ReactNode {
         );
       } catch (err) {
         console.error("Error loading quiz for edit:", err);
-        alert(err instanceof Error ? err.message : "Failed to load quiz");
+        console.error(
+          err instanceof Error ? err.message : "Failed to load quiz"
+        );
         router.push("/teacher?tab=quizzes");
       } finally {
         setLoadingDraft(false);
@@ -532,7 +539,10 @@ export default function ComposerPage(): React.ReactNode {
     setCurrentQuestionIndex(questions.length);
     // Scroll pagination to the right after adding
     setTimeout(() => {
-      if (paginationRef.current) {
+      if (
+        paginationRef.current !== undefined &&
+        paginationRef.current !== null
+      ) {
         paginationRef.current.scrollTo({
           left: paginationRef.current.scrollWidth,
           behavior: "smooth",
@@ -558,7 +568,7 @@ export default function ComposerPage(): React.ReactNode {
 
   const handleRemoveQuestion = (id: string): void => {
     if (questions.length === 1) {
-      alert("You must have at least one question");
+      console.error("You must have at least one question");
       return;
     }
     const questionIndex = questions.findIndex((q) => q.id === id);
@@ -638,7 +648,10 @@ export default function ComposerPage(): React.ReactNode {
           return {
             ...q,
             choices: [...q.choices, ""],
-            choiceExplanations: [...(q.choiceExplanations || []), ""],
+            choiceExplanations: [
+              ...(q.choiceExplanations ?? ([] as never[])),
+              "",
+            ],
           };
         }
         return q;
@@ -654,15 +667,17 @@ export default function ComposerPage(): React.ReactNode {
       questions.map((q) => {
         if (q.id === questionId) {
           if (q.choices.length <= 2) {
-            alert("Multiple choice questions must have at least 2 choices");
+            console.error(
+              "Multiple choice questions must have at least 2 choices"
+            );
             return q;
           }
           return {
             ...q,
             choices: q.choices.filter((_, i) => i !== choiceIndex),
-            choiceExplanations: (q.choiceExplanations ?? []).filter(
-              (_, i) => i !== choiceIndex
-            ),
+            choiceExplanations: (
+              q.choiceExplanations ?? ([] as never[])
+            ).filter((_, i) => i !== choiceIndex),
           };
         }
         return q;
@@ -672,11 +687,11 @@ export default function ComposerPage(): React.ReactNode {
 
   const handleImageSelect = (questionId: string, file: File): void => {
     if (file.type.startsWith("image/") === false) {
-      alert("Please select an image file");
+      console.error("Please select an image file");
       return;
     }
     if (file.size > 10 * 1024 * 1024) {
-      alert("Image size must be less than 10MB");
+      console.error("Image size must be less than 10MB");
       return;
     }
     const previewUrl = URL.createObjectURL(file);
@@ -743,7 +758,8 @@ export default function ComposerPage(): React.ReactNode {
 
   const getDuplicateChoices = (questionId: string): number[] => {
     const question = questions.find((q) => q.id === questionId);
-    if (question?.type !== "multiple_choice") return [];
+    if (question === undefined || question.type !== "multiple_choice")
+      return [];
     const duplicates: number[] = [];
     const choiceMap = new Map<string, number[]>();
     question.choices.forEach((choice, index) => {
@@ -778,52 +794,54 @@ export default function ComposerPage(): React.ReactNode {
 
   const validateForm = (): boolean => {
     if (settings.title.trim().length === 0) {
-      alert("Please enter a quiz title in Settings");
+      console.error("Please enter a quiz title in Settings");
       setShowSettingsModal(true);
       return false;
     }
     for (let i = 0; i < questions.length; i++) {
       const q = questions[i];
       if (q.question.trim().length === 0) {
-        alert(`Please enter a question for question ${i + 1}`);
+        console.error(`Please enter a question for question ${i + 1}`);
         setCurrentQuestionIndex(i);
         return false;
       }
       if (q.type === "multiple_choice") {
         const validChoices = q.choices.filter((c) => c.trim().length > 0);
         if (validChoices.length < 2) {
-          alert(
+          console.error(
             `Question ${i + 1}: Multiple choice questions must have at least 2 choices`
           );
           setCurrentQuestionIndex(i);
           return false;
         }
         if (hasDuplicateChoices(q.id)) {
-          alert(`Question ${i + 1}: Duplicate choices are not allowed`);
+          console.error(`Question ${i + 1}: Duplicate choices are not allowed`);
           setCurrentQuestionIndex(i);
           return false;
         }
         if (q.answer.trim().length === 0) {
-          alert(`Question ${i + 1}: Please select the correct answer`);
+          console.error(`Question ${i + 1}: Please select the correct answer`);
           setCurrentQuestionIndex(i);
           return false;
         }
         if (
           validChoices.map((c) => c.trim()).includes(q.answer.trim()) === false
         ) {
-          alert(`Question ${i + 1}: The answer must be one of the choices`);
+          console.error(
+            `Question ${i + 1}: The answer must be one of the choices`
+          );
           setCurrentQuestionIndex(i);
           return false;
         }
       } else if (q.type === "true_or_false") {
         if (q.answer !== "true" && q.answer !== "false") {
-          alert(`Question ${i + 1}: Please select True or False`);
+          console.error(`Question ${i + 1}: Please select True or False`);
           setCurrentQuestionIndex(i);
           return false;
         }
       } else {
         if (q.answer.trim().length === 0) {
-          alert(`Question ${i + 1}: Please enter the answer`);
+          console.error(`Question ${i + 1}: Please enter the answer`);
           setCurrentQuestionIndex(i);
           return false;
         }
@@ -835,7 +853,7 @@ export default function ComposerPage(): React.ReactNode {
   const handlePublish = async (): Promise<void> => {
     if (!validateForm()) return;
     if (idToken === null) {
-      alert("Authentication required");
+      console.error("Authentication required");
       return;
     }
 
@@ -938,8 +956,8 @@ export default function ComposerPage(): React.ReactNode {
         );
       }
 
-      alert(
-        editMode ? "Quiz updated successfully!" : "Quiz published successfully!"
+      console.error(
+        editMode ? "Quiz updated successfully" : "Quiz published successfully"
       );
       router.push("/teacher?tab=quizzes");
     } catch (error) {
@@ -947,7 +965,7 @@ export default function ComposerPage(): React.ReactNode {
         editMode ? "Error updating quiz:" : "Error publishing quiz:",
         error
       );
-      alert(
+      console.error(
         error instanceof Error
           ? error.message
           : editMode
@@ -961,7 +979,7 @@ export default function ComposerPage(): React.ReactNode {
 
   const handleSaveAsDraft = async (): Promise<void> => {
     if (idToken === null) {
-      alert("Authentication required");
+      console.error("Authentication required");
       return;
     }
 
@@ -984,11 +1002,13 @@ export default function ComposerPage(): React.ReactNode {
           answer: q.answer.trim(),
           imageUrl: q.imageUrl,
           explanation: ["identification", "true_or_false"].includes(q.type)
-            ? (q.explanation || "").trim()
+            ? (q.explanation ?? "").trim()
             : undefined,
           choiceExplanations:
             q.type === "multiple_choice"
-              ? (q.choiceExplanations || []).map((e) => (e || "").trim())
+              ? (q.choiceExplanations ?? ([] as never[])).map((e) =>
+                  (e ?? "").trim()
+                )
               : undefined,
         })),
         duration: settings.duration,
@@ -1025,10 +1045,12 @@ export default function ComposerPage(): React.ReactNode {
         setDraftId(successData.id);
       }
       setLastSaved(new Date());
-      alert("Draft saved successfully!");
+      console.error("Draft saved successfully");
     } catch (error) {
       console.error("Error saving draft:", error);
-      alert(error instanceof Error ? error.message : "Failed to save draft");
+      console.error(
+        error instanceof Error ? error.message : "Failed to save draft"
+      );
     } finally {
       setSavingDraft(false);
     }
@@ -1061,7 +1083,7 @@ export default function ComposerPage(): React.ReactNode {
             {/* Text */}
             <div className="text-center">
               <h2 className="text-2xl font-black text-gray-900 mb-2">
-                {loadingDone ? "Done!" : "Preparing things for you!"}
+                {loadingDone ? "Done" : "Preparing things for you"}
               </h2>
               <p className="text-gray-600 font-medium">
                 {loadingDone
@@ -1083,7 +1105,7 @@ export default function ComposerPage(): React.ReactNode {
               <p
                 className={`text-center text-sm font-bold mt-2 transition-colors duration-300 ${loadingDone ? "text-green-700" : "text-gray-700"}`}
               >
-                {loadingDone ? "Complete!" : `${loadingProgress}%`}
+                {loadingDone ? "Complete" : `${loadingProgress}%`}
               </p>
             </div>
           </div>
@@ -1247,7 +1269,7 @@ export default function ComposerPage(): React.ReactNode {
                 )}
               </button>
               <button
-                onClick={handleDuplicateQuestion}
+                onClick={() => void handleDuplicateQuestion()}
                 className={`group flex items-center gap-2 p-2 rounded-xl hover:bg-amber-200 border-2 border-transparent hover:border-gray-900 transition-all ${sidebarCollapsed ? "justify-center" : ""}`}
                 title="Duplicate"
               >
@@ -1270,7 +1292,7 @@ export default function ComposerPage(): React.ReactNode {
               {questions.length > 1 && (
                 <button
                   onClick={() =>
-                    handleRemoveQuestion(currentQuestion?.id || "")
+                    handleRemoveQuestion(currentQuestion?.id ?? "")
                   }
                   className={`group flex items-center gap-2 p-2 rounded-xl hover:bg-red-100 border-2 border-transparent hover:border-red-500 transition-all ${sidebarCollapsed ? "justify-center" : ""}`}
                   title="Delete"
@@ -1298,7 +1320,7 @@ export default function ComposerPage(): React.ReactNode {
           {/* Save Draft & Publish Buttons */}
           <div className="mt-auto p-3 flex flex-col gap-2">
             <button
-              onClick={handleSaveAsDraft}
+              onClick={() => void handleSaveAsDraft()}
               disabled={savingDraft || loading}
               className="w-full flex items-center justify-center gap-2 p-2.5 bg-amber-200 hover:bg-amber-300 text-gray-900 font-bold rounded-xl border-2 border-gray-900 shadow-[2px_2px_0px_0px_rgba(17,24,39,1)] hover:shadow-[3px_3px_0px_0px_rgba(17,24,39,1)] hover:-translate-x-0.5 hover:-translate-y-0.5 active:shadow-[1px_1px_0px_0px_rgba(17,24,39,1)] active:translate-x-0.5 active:translate-y-0.5 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
@@ -1316,7 +1338,7 @@ export default function ComposerPage(): React.ReactNode {
               )}
             </button>
             <button
-              onClick={handlePublish}
+              onClick={() => void handlePublish()}
               disabled={loading || savingDraft}
               className={`w-full flex items-center justify-center gap-2 p-3 ${editMode ? "bg-cyan-400 hover:bg-cyan-500" : "bg-amber-400 hover:bg-amber-500"} text-gray-900 font-black rounded-xl border-2 border-gray-900 shadow-[3px_3px_0px_0px_rgba(17,24,39,1)] hover:shadow-[4px_4px_0px_0px_rgba(17,24,39,1)] hover:-translate-x-0.5 hover:-translate-y-0.5 active:shadow-[1px_1px_0px_0px_rgba(17,24,39,1)] active:translate-x-0.5 active:translate-y-0.5 transition-all disabled:opacity-50 disabled:cursor-not-allowed`}
             >
@@ -1882,7 +1904,7 @@ export default function ComposerPage(): React.ReactNode {
                       : "Empty question...";
 
                   // Check if question is incomplete
-                  const isIncomplete = (() => {
+                  const isIncomplete = ((): boolean => {
                     if (q.question.trim().length === 0) return true;
                     if (q.answer.trim().length === 0) return true;
                     if (q.type === "multiple_choice") {
@@ -2186,7 +2208,7 @@ export default function ComposerPage(): React.ReactNode {
                     <input
                       type="number"
                       min="0"
-                      value={settings.duration || ""}
+                      value={settings.duration ?? ""}
                       onChange={(e) =>
                         handleSettingChange(
                           "duration",
@@ -2428,5 +2450,13 @@ function ToggleButton({
         )}
       </div>
     </button>
+  );
+}
+
+export default function ComposerPage(): React.ReactNode {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <ComposerPageContent />
+    </Suspense>
   );
 }

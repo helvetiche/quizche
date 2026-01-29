@@ -1,3 +1,4 @@
+/* eslint-disable no-await-in-loop, @typescript-eslint/no-unnecessary-condition, @typescript-eslint/prefer-nullish-coalescing */
 import { getRedis } from "./redis";
 
 /**
@@ -51,7 +52,11 @@ const getPriorityScore = (priority: string, timestamp: number): number => {
     normal: 1000000000,
     low: 1000000,
   };
-  return (priorityMultiplier[priority] ?? 1000000) + timestamp;
+  return (
+    (priorityMultiplier[priority] !== undefined
+      ? priorityMultiplier[priority]
+      : 1000000) + timestamp
+  );
 };
 
 export const dequeueAIRequest = async (): Promise<QueuedAIRequest | null> => {

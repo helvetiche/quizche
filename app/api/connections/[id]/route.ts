@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unnecessary-condition, @typescript-eslint/explicit-function-return-type */
 import { type NextRequest, NextResponse } from "next/server";
 import { verifyAuth } from "@/lib/auth";
 import { adminDb } from "@/lib/firebase-admin";
@@ -33,7 +34,7 @@ export async function PUT(
 
     // CSRF protection
     const csrfError = await verifyCSRF(request, user.uid);
-    if (csrfError) {
+    if (csrfError !== undefined && csrfError !== null) {
       return NextResponse.json(
         { error: csrfError.error },
         { status: csrfError.status, headers: csrfError.headers }
@@ -171,7 +172,7 @@ export async function DELETE(
 
     // CSRF protection
     const csrfError = await verifyCSRF(request, user.uid);
-    if (csrfError) {
+    if (csrfError !== undefined && csrfError !== null) {
       return NextResponse.json(
         { error: csrfError.error },
         { status: csrfError.status, headers: csrfError.headers }

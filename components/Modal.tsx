@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 "use client";
 
 import {
@@ -25,7 +26,7 @@ const Modal = ({
   className = "",
   backdropClassName = "",
   closeOnBackdropClick = true,
-}: ModalProps) => {
+}: ModalProps): React.JSX.Element => {
   const [isVisible, setIsVisible] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
   const modalRef = useRef<HTMLDivElement>(null);
@@ -35,7 +36,7 @@ const Modal = ({
     if (isClosing) return;
     setIsClosing(true);
 
-    if (modalRef.current && backdropRef.current) {
+    if (modalRef.current !== null && backdropRef.current !== null) {
       gsap.to(modalRef.current, {
         opacity: 0,
         y: 50,
@@ -63,16 +64,21 @@ const Modal = ({
   }, [isClosing, onClose]);
 
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && !isVisible) {
       setIsVisible(true);
       setIsClosing(false);
-    } else if (isVisible) {
+    } else if (!isOpen && isVisible && !isClosing) {
       handleClose();
     }
-  }, [isOpen, isVisible, handleClose]);
+  }, [isOpen, isVisible, isClosing, handleClose]);
 
   useEffect(() => {
-    if (isVisible && !isClosing && modalRef.current && backdropRef.current) {
+    if (
+      isVisible &&
+      !isClosing &&
+      modalRef.current !== null &&
+      backdropRef.current !== null
+    ) {
       gsap.fromTo(
         backdropRef.current,
         { opacity: 0 },
@@ -100,13 +106,13 @@ const Modal = ({
     }
   }, [isVisible, isClosing]);
 
-  const handleBackdropClick = (): void => {
+  const handleBackdropClick = useCallback((): void => {
     if (closeOnBackdropClick) {
       handleClose();
     }
-  };
+  }, [closeOnBackdropClick, handleClose]);
 
-  if (!isVisible) return null;
+  if (!isVisible) return <></>;
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">

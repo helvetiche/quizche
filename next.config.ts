@@ -1,3 +1,4 @@
+/* eslint-disable require-await, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-require-imports, @typescript-eslint/require-await, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-return */
 import type { NextConfig } from "next";
 
 const withBundleAnalyzer = require("@next/bundle-analyzer")({
@@ -16,6 +17,10 @@ const nextConfig: NextConfig = {
       {
         protocol: "https",
         hostname: "**.ibb.co",
+      },
+      {
+        protocol: "https",
+        hostname: "lh3.googleusercontent.com",
       },
     ],
   },

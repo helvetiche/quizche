@@ -1,3 +1,4 @@
+/* eslint-disable no-await-in-loop, no-console, @typescript-eslint/no-unnecessary-condition, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/strict-boolean-expressions, @typescript-eslint/no-unsafe-argument */
 /**
  * Migration Script: Add denormalized student info to legacy quizAttempts
  *

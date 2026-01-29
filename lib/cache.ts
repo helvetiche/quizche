@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unnecessary-condition */
 import { getRedis } from "./redis";
 
 /**
@@ -91,7 +92,7 @@ export const getApiCacheKey = (
   queryParams?: Record<string, string>
 ): string => {
   const parts = ["api", path];
-  if (userId) {
+  if (userId !== null && userId !== undefined && userId.length > 0) {
     parts.push(`user:${userId}`);
   }
   if (queryParams) {

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unnecessary-condition */
 /**
  * Centralized error handling to prevent information leakage
  * Categorizes errors and returns safe error messages to clients
@@ -206,18 +207,10 @@ export const createValidationError = (
 };
 
 export const createAuthError = (message?: string): NextResponse => {
-  const errorMsg = message ?? "Unauthorized: Invalid or missing authentication token";
-  if (errorMsg.length === 0) {
-    return NextResponse.json(
-      {
-        error: "Unauthorized: Invalid or missing authentication token",
-      },
-      {
-        status: 401,
-        headers: getErrorSecurityHeaders(),
-      }
-    );
-  }
+  const errorMsg =
+    message !== undefined && message !== null && message.length > 0
+      ? message
+      : "Unauthorized: Invalid or missing authentication token";
   return NextResponse.json(
     {
       error: errorMsg,
@@ -230,7 +223,10 @@ export const createAuthError = (message?: string): NextResponse => {
 };
 
 export const createForbiddenError = (message?: string): NextResponse => {
-  const errorMsg = message ?? "Forbidden: You do not have permission to perform this action";
+  const errorMsg =
+    message !== undefined && message !== null && message.length > 0
+      ? message
+      : "Forbidden: You do not have permission to perform this action";
   return NextResponse.json(
     {
       error: errorMsg,
@@ -243,7 +239,10 @@ export const createForbiddenError = (message?: string): NextResponse => {
 };
 
 export const createNotFoundError = (resource?: string): NextResponse => {
-  const errorMsg = (resource !== null && resource !== undefined) ? `${resource} not found` : "Resource not found";
+  const errorMsg =
+    resource !== null && resource !== undefined
+      ? `${resource} not found`
+      : "Resource not found";
   return NextResponse.json(
     {
       error: errorMsg,

@@ -1,6 +1,8 @@
+/* eslint-disable react-hooks/set-state-in-effect, react-hooks/exhaustive-deps */
 "use client";
 
 import {
+  useCallback,
   useEffect,
   useLayoutEffect,
   useMemo,
@@ -16,24 +18,27 @@ const useMedia = (
   values: number[],
   defaultValue: number
 ): number => {
-  const get = (): number =>
-    values[queries.findIndex((q) => matchMedia(q).matches)] ?? defaultValue;
+  const get = (): number => {
+    const index = queries.findIndex((q) => matchMedia(q).matches);
+    return index !== -1 ? values[index] : defaultValue;
+  };
   const [value, setValue] = useState(get);
 
   useEffect(() => {
-    const handler = (): void => setValue(get);
+    const handler = (): void => setValue(get());
     queries.forEach((q) => matchMedia(q).addEventListener("change", handler));
-    return () =>
+    return (): void => {
       queries.forEach((q) =>
         matchMedia(q).removeEventListener("change", handler)
       );
-  }, [queries, get]);
+    };
+  }, [queries, values, defaultValue]);
 
   return value;
 };
 
 const useMeasure = (): readonly [
-  React.RefObject<HTMLDivElement>,
+  React.RefObject<HTMLDivElement | null>,
   { width: number; height: number },
 ] => {
   const ref = useRef<HTMLDivElement>(null);
@@ -87,7 +92,7 @@ const Masonry = ({
   columnBreakpoints,
   gap: gapProp = 20,
   animationKey,
-}: MasonryProps) => {
+}: MasonryProps): React.JSX.Element => {
   const defaultQueries = [
     "(min-width:1500px)",
     "(min-width:1000px)",
@@ -95,39 +100,52 @@ const Masonry = ({
   ];
   const defaultValues = [3, 2, 1];
 
-  const queries = columnBreakpoints?.map((b) => b.query) ?? defaultQueries;
-  const values = columnBreakpoints?.map((b) => b.columns) ?? defaultValues;
+  const queries =
+    columnBreakpoints !== undefined
+      ? columnBreakpoints.map((b) => b.query)
+      : defaultQueries;
+  const values =
+    columnBreakpoints !== undefined
+      ? columnBreakpoints.map((b) => b.columns)
+      : defaultValues;
 
   const columns = useMedia(queries, values, 1);
   const [containerRef, { width }] = useMeasure();
   const [ready, setReady] = useState(false);
 
-  const getInitialPosition = (item: GridItem): { x: number; y: number } => {
-    const containerRect = containerRef.current?.getBoundingClientRect();
-    if (containerRect === null || containerRect === undefined) return { x: item.x, y: item.y };
+  const getInitialPosition = useCallback(
+    (item: GridItem): { x: number; y: number } => {
+      const containerRect =
+        containerRef.current?.getBoundingClientRect() ?? null;
+      if (containerRect === null) return { x: item.x, y: item.y };
 
-    const direction: "top" | "bottom" | "left" | "right" | "center" = animateFrom === "random" 
-      ? (["top", "bottom", "left", "right"] as const)[Math.floor(Math.random() * 4)]
-      : animateFrom === "random" ? "bottom" : animateFrom;
+      const direction: "top" | "bottom" | "left" | "right" | "center" =
+        animateFrom === "random"
+          ? (["top", "bottom", "left", "right"] as const)[
+              Math.floor(Math.random() * 4)
+            ]
+          : animateFrom;
 
-    switch (direction) {
-      case "top":
-        return { x: item.x, y: -200 };
-      case "bottom":
-        return { x: item.x, y: window.innerHeight + 200 };
-      case "left":
-        return { x: -200, y: item.y };
-      case "right":
-        return { x: window.innerWidth + 200, y: item.y };
-      case "center":
-        return {
-          x: containerRect.width / 2 - item.w / 2,
-          y: containerRect.height / 2 - item.h / 2,
-        };
-      default:
-        return { x: item.x, y: item.y + 100 };
-    }
-  };
+      switch (direction) {
+        case "top":
+          return { x: item.x, y: -200 };
+        case "bottom":
+          return { x: item.x, y: window.innerHeight + 200 };
+        case "left":
+          return { x: -200, y: item.y };
+        case "right":
+          return { x: window.innerWidth + 200, y: item.y };
+        case "center":
+          return {
+            x: containerRect.width / 2 - item.w / 2,
+            y: containerRect.height / 2 - item.h / 2,
+          };
+        default:
+          return { x: item.x, y: item.y + 100 };
+      }
+    },
+    [animateFrom, containerRef]
+  );
 
   useEffect(() => {
     setReady(true);

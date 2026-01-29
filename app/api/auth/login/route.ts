@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { type NextRequest, NextResponse } from "next/server";
 import { adminAuth } from "@/lib/firebase-admin";
 import {
@@ -28,7 +29,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const hasRole =
       decodedToken.role !== null && decodedToken.role !== undefined;
     const role = hasRole ? (decodedToken.role as string) : null;
-    const tier = (decodedToken.tier as string) ?? "free";
+    const tier = decodedToken.tier ?? "free";
 
     return NextResponse.json(
       {

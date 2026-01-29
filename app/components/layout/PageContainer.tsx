@@ -2,7 +2,7 @@ type PageContainerProps = {
   children: React.ReactNode;
 };
 
-const PageContainer = ({ children }: PageContainerProps) => {
+const PageContainer = ({ children }: PageContainerProps): React.JSX.Element => {
   return (
     <div
       className="flex min-h-screen items-center justify-center py-12 px-4"

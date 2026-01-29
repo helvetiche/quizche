@@ -1,5 +1,7 @@
+/* eslint-disable @typescript-eslint/strict-boolean-expressions */
 "use client";
 
+import type { ReactElement } from "react";
 import SignOutButton from "../ui/SignOutButton";
 import BottomNavigation from "../navigation/BottomNavigation";
 import { useNavigationBadges } from "@/app/hooks/useNavigationBadges";
@@ -16,7 +18,7 @@ const DashboardLayout = ({
   userEmail,
   userRole,
   children,
-}: DashboardLayoutProps) => {
+}: DashboardLayoutProps): ReactElement => {
   const { badges } = useNavigationBadges(userRole);
 
   return (

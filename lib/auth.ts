@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/strict-boolean-expressions */
 import { type NextRequest } from "next/server";
 import { adminAuth } from "./firebase-admin";
 
@@ -13,7 +14,7 @@ export const verifyAuth = async (
 ): Promise<AuthUser | null> => {
   const authHeader = request.headers.get("Authorization");
 
-  if (authHeader === null || authHeader === undefined || !authHeader.startsWith("Bearer ")) {
+  if (!authHeader?.startsWith("Bearer ")) {
     return null;
   }
 
@@ -26,7 +27,10 @@ export const verifyAuth = async (
     return {
       uid: decodedToken.uid,
       role: hasRole ? (decodedToken.role as string) : null,
-      tier: (decodedToken.tier as string) ?? "free",
+      tier:
+        (decodedToken.tier as string | undefined) !== undefined
+          ? (decodedToken.tier as string)
+          : "free",
       email: decodedToken.email,
     };
   } catch (error) {

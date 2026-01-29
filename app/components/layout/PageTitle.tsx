@@ -3,7 +3,10 @@ type PageTitleProps = {
   className?: string;
 };
 
-const PageTitle = ({ children, className = "" }: PageTitleProps) => {
+const PageTitle = ({
+  children,
+  className = "",
+}: PageTitleProps): React.JSX.Element => {
   return (
     <h1
       className={`text-5xl md:text-6xl font-black text-gray-900 tracking-tight ${className}`}

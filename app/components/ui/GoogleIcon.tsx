@@ -1,4 +1,6 @@
-const GoogleIcon = () => {
+import type { ReactElement } from "react";
+
+const GoogleIcon = (): ReactElement => {
   return (
     <svg
       className="w-5 h-5"

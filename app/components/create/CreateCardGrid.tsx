@@ -1,8 +1,9 @@
 "use client";
 
+import type { ReactElement } from "react";
 import CreateCard from "./CreateCard";
 
-const CreateCardGrid = () => {
+const CreateCardGrid = (): ReactElement => {
   const cards = [
     {
       title: "Create Quiz",

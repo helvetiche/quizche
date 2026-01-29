@@ -1,6 +1,8 @@
+/* eslint-disable @typescript-eslint/strict-boolean-expressions */
 "use client";
 
 import { useRef, useState, type ReactNode } from "react";
+import type { ReactElement } from "react";
 import { motion, useMotionValue, useSpring } from "motion/react";
 import "./TiltedCard.css";
 
@@ -40,7 +42,7 @@ export default function TiltedCard({
   showTooltip = true,
   overlayContent = null,
   displayOverlayContent = false,
-}: TiltedCardProps) {
+}: TiltedCardProps): ReactElement {
   const ref = useRef<HTMLElement>(null);
 
   const x = useMotionValue(0);
@@ -57,8 +59,8 @@ export default function TiltedCard({
 
   const [lastY, setLastY] = useState(0);
 
-  function handleMouse(e: React.MouseEvent): void {
-    if (!ref.current) return;
+  const handleMouse = (e: React.MouseEvent): void => {
+    if (ref.current === null) return;
 
     const rect = ref.current.getBoundingClientRect();
     const offsetX = e.clientX - rect.left - rect.width / 2;
@@ -76,20 +78,20 @@ export default function TiltedCard({
     const velocityY = offsetY - lastY;
     rotateFigcaption.set(-velocityY * 0.6);
     setLastY(offsetY);
-  }
+  };
 
-  function handleMouseEnter(): void {
+  const handleMouseEnter = (): void => {
     scale.set(scaleOnHover);
     opacity.set(1);
-  }
+  };
 
-  function handleMouseLeave(): void {
+  const handleMouseLeave = (): void => {
     opacity.set(0);
     scale.set(1);
     rotateX.set(0);
     rotateY.set(0);
     rotateFigcaption.set(0);
-  }
+  };
 
   return (
     <figure

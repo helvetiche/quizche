@@ -1,6 +1,9 @@
+/* eslint-disable @typescript-eslint/no-unnecessary-condition, @typescript-eslint/explicit-function-return-type */
+
 "use client";
 
 import { useState } from "react";
+import type { ReactElement } from "react";
 import { useRouter } from "next/navigation";
 import {
   useTabContext,
@@ -23,17 +26,20 @@ type TabNavigationProps = {
   onAIClick?: () => void;
 };
 
-const Badge = ({ count, color }: { count: number; color: string }) => {
-  // Validate count is a safe number
+const Badge = ({
+  count,
+  color,
+}: {
+  count: number;
+  color: string;
+}): ReactElement | null => {
   if (typeof count !== "number" || !Number.isFinite(count) || count <= 0) {
     return null;
   }
 
-  // Sanitize count display (max 9+)
   const safeCount = Math.max(0, Math.min(Math.floor(count), 9999));
   const displayCount = safeCount > 9 ? "9+" : safeCount.toString();
 
-  // Whitelist allowed colors to prevent CSS injection
   const allowedColors = [
     "bg-cyan-400",
     "bg-purple-400",
@@ -56,20 +62,18 @@ export default function TabNavigation({
   userRole,
   badges = {},
   onAIClick,
-}: TabNavigationProps) {
+}: TabNavigationProps): ReactElement {
   const { activeTab, setActiveTab } = useTabContext();
   const router = useRouter();
   const [showAICredits, setShowAICredits] = useState(false);
   const [showQuizLimit, setShowQuizLimit] = useState(false);
 
-  // TODO: Replace with actual credits from API/state
   const aiCreditsUsed = 3;
   const aiCreditsTotal = 10;
   const aiCreditsRemaining = aiCreditsTotal - aiCreditsUsed;
   const creditsPercentage = (aiCreditsRemaining / aiCreditsTotal) * 100;
 
-  // Quiz limit - based on badges.quizzes count
-  const quizzesCreated = badges.quizzes || 0;
+  const quizzesCreated = badges.quizzes ?? 0;
   const quizLimit = 10;
   const quizRemaining = Math.max(0, quizLimit - quizzesCreated);
   const quizPercentage = (quizRemaining / quizLimit) * 100;
@@ -140,8 +144,7 @@ export default function TabNavigation({
 
   const tabs = userRole === "teacher" ? teacherTabs : studentTabs;
 
-  const handleCreateClick = () => {
-    // Navigate to the new composer page
+  const handleCreateClick = (): void => {
     router.push("/teacher/composer");
   };
 
@@ -166,12 +169,14 @@ export default function TabNavigation({
                 {item.icon}
               </span>
               <span className="text-sm font-medium">{item.label}</span>
-              {item.badgeKey && item.badgeColor && (
-                <Badge
-                  count={badges[item.badgeKey] || 0}
-                  color={item.badgeColor}
-                />
-              )}
+              {item.badgeKey &&
+                item.badgeColor !== undefined &&
+                item.badgeColor !== null && (
+                  <Badge
+                    count={badges[item.badgeKey] ?? 0}
+                    color={item.badgeColor}
+                  />
+                )}
             </button>
           ))}
         </div>
@@ -180,7 +185,7 @@ export default function TabNavigation({
         {userRole === "teacher" && (
           <div className="relative">
             <button
-              onClick={handleCreateClick}
+              onClick={() => void handleCreateClick()}
               onMouseEnter={() => setShowQuizLimit(true)}
               onMouseLeave={() => setShowQuizLimit(false)}
               className="w-14 h-14 bg-amber-100 border-2 border-gray-800 rounded-full flex items-center justify-center shadow-[4px_4px_0px_0px_rgba(31,41,55,1)] hover:shadow-[5px_5px_0px_0px_rgba(31,41,55,1)] hover:-translate-x-0.5 hover:-translate-y-0.5 active:shadow-[2px_2px_0px_0px_rgba(31,41,55,1)] active:translate-x-0.5 active:translate-y-0.5 transition-all"
@@ -229,7 +234,11 @@ export default function TabNavigation({
             <button
               onMouseEnter={() => setShowAICredits(true)}
               onMouseLeave={() => setShowAICredits(false)}
-              onClick={onAIClick}
+              onClick={() => {
+                if (onAIClick !== undefined && onAIClick !== null) {
+                  onAIClick();
+                }
+              }}
               className="w-14 h-14 bg-amber-100 border-2 border-gray-800 rounded-full flex items-center justify-center shadow-[4px_4px_0px_0px_rgba(31,41,55,1)] hover:shadow-[5px_5px_0px_0px_rgba(31,41,55,1)] hover:-translate-x-0.5 hover:-translate-y-0.5 active:shadow-[2px_2px_0px_0px_rgba(31,41,55,1)] active:translate-x-0.5 active:translate-y-0.5 transition-all"
               aria-label="Generate with AI"
             >

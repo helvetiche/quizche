@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 import { useRef, useState, useEffect, useCallback } from "react";
 import { motion, useInView } from "motion/react";
 import "./AnimatedList.css";

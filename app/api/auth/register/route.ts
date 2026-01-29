@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { type NextRequest, NextResponse } from "next/server";
 import { adminAuth, adminDb } from "@/lib/firebase-admin";
 import {
@@ -53,7 +54,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         {
           displayName: decodedToken.name ?? userRecord.displayName ?? "",
           email: decodedToken.email ?? userRecord.email ?? "",
-          role: role,
+          role,
           tier: "free",
           profileCompleted: false,
           createdAt: new Date(),

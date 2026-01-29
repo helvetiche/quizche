@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/strict-boolean-expressions */
 "use client";
 
 type AppHeaderProps = {
@@ -5,7 +6,7 @@ type AppHeaderProps = {
   userEmail?: string;
 };
 
-const AppHeader = ({ title, userEmail }: AppHeaderProps) => {
+const AppHeader = ({ title, userEmail }: AppHeaderProps): React.JSX.Element => {
   return (
     <header className="border-b border-black">
       <div className="container mx-auto px-8 py-4 flex items-center justify-between">

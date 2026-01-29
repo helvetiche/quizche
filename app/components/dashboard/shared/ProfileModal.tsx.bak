@@ -38,9 +38,7 @@ function useAnimatedModal(isOpen: boolean, onClose: () => void) {
   // Handle opening
   useEffect(() => {
     if (isOpen && !isVisible && !isClosing) {
-      requestAnimationFrame(() => {
-        setIsVisible(true);
-      });
+      setIsVisible(true);
     }
   }, [isOpen, isVisible, isClosing]);
 
@@ -53,31 +51,29 @@ function useAnimatedModal(isOpen: boolean, onClose: () => void) {
       isVisible !== null &&
       !isClosing
     ) {
-      requestAnimationFrame(() => {
-        setIsClosing(true);
-        if (modalRef.current && backdropRef.current) {
-          gsap.to(modalRef.current, {
-            opacity: 0,
-            y: 50,
-            scale: 0.95,
-            filter: "blur(8px)",
-            duration: 0.3,
-            ease: "power2.in",
-          });
-          gsap.to(backdropRef.current, {
-            opacity: 0,
-            duration: 0.3,
-            ease: "power2.in",
-            onComplete: () => {
-              setIsVisible(false);
-              setIsClosing(false);
-            },
-          });
-        } else {
-          setIsVisible(false);
-          setIsClosing(false);
-        }
-      });
+      setIsClosing(true);
+      if (modalRef.current && backdropRef.current) {
+        gsap.to(modalRef.current, {
+          opacity: 0,
+          y: 50,
+          scale: 0.95,
+          filter: "blur(8px)",
+          duration: 0.3,
+          ease: "power2.in",
+        });
+        gsap.to(backdropRef.current, {
+          opacity: 0,
+          duration: 0.3,
+          ease: "power2.in",
+          onComplete: () => {
+            setIsVisible(false);
+            setIsClosing(false);
+          },
+        });
+      } else {
+        setIsVisible(false);
+        setIsClosing(false);
+      }
     }
     prevIsOpen.current = isOpen;
   }, [isOpen, isVisible, isClosing]);
@@ -91,28 +87,24 @@ function useAnimatedModal(isOpen: boolean, onClose: () => void) {
       modalRef.current !== null &&
       backdropRef.current
     ) {
-      requestAnimationFrame(() => {
-        if (backdropRef.current && modalRef.current) {
-          gsap.fromTo(
-            backdropRef.current,
-            { opacity: 0 },
-            { opacity: 1, duration: 0.3, ease: "power2.out" }
-          );
-          gsap.fromTo(
-            modalRef.current,
-            { opacity: 0, y: 100, scale: 0.9, filter: "blur(10px)" },
-            {
-              opacity: 1,
-              y: 0,
-              scale: 1,
-              filter: "blur(0px)",
-              duration: 0.5,
-              ease: "power3.out",
-              delay: 0.1,
-            }
-          );
+      gsap.fromTo(
+        backdropRef.current,
+        { opacity: 0 },
+        { opacity: 1, duration: 0.3, ease: "power2.out" }
+      );
+      gsap.fromTo(
+        modalRef.current,
+        { opacity: 0, y: 100, scale: 0.9, filter: "blur(10px)" },
+        {
+          opacity: 1,
+          y: 0,
+          scale: 1,
+          filter: "blur(0px)",
+          duration: 0.5,
+          ease: "power3.out",
+          delay: 0.1,
         }
-      });
+      );
     }
   }, [isVisible, isClosing]);
 
@@ -530,7 +522,7 @@ export default function ProfileModal({
                       name="firstName"
                       type="text"
                       value={profileData.firstName}
-                      onChange={(e) => void handleInputChange(e)}
+                      onChange={() => void handleInputChange()}
                       required
                       placeholder="Enter your first name"
                       className="w-full px-4 py-3 border-3 border-gray-900 rounded-xl bg-amber-50 font-medium placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-amber-400"
@@ -550,7 +542,7 @@ export default function ProfileModal({
                       name="lastName"
                       type="text"
                       value={profileData.lastName}
-                      onChange={(e) => void handleInputChange(e)}
+                      onChange={() => void handleInputChange()}
                       required
                       placeholder="Enter your last name"
                       className="w-full px-4 py-3 border-3 border-gray-900 rounded-xl bg-amber-50 font-medium placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-amber-400"
@@ -570,7 +562,7 @@ export default function ProfileModal({
                       name="age"
                       type="number"
                       value={profileData.age ?? ""}
-                      onChange={(e) => void handleInputChange(e)}
+                      onChange={() => void handleInputChange()}
                       required
                       min="1"
                       max="150"
@@ -595,7 +587,7 @@ export default function ProfileModal({
                       name="school"
                       type="text"
                       value={profileData.school}
-                      onChange={(e) => void handleInputChange(e)}
+                      onChange={() => void handleInputChange()}
                       placeholder="Enter your school"
                       className="w-full px-4 py-3 border-3 border-gray-900 rounded-xl bg-amber-50 font-medium placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-amber-400"
                       disabled={saving || uploadingPhoto}
@@ -620,7 +612,7 @@ export default function ProfileModal({
             </button>
             <button
               type="submit"
-              onClick={(e) => void handleSubmit(e)}
+              onClick={() => void handleSubmit()}
               disabled={saving || uploadingPhoto}
               className="px-5 py-2.5 bg-amber-200 text-gray-900 font-bold border-3 border-gray-900 rounded-full shadow-[3px_3px_0px_0px_rgba(31,41,55,1)] hover:shadow-[4px_4px_0px_0px_rgba(31,41,55,1)] active:shadow-[1px_1px_0px_0px_rgba(31,41,55,1)] transition-all disabled:opacity-50 flex items-center gap-2"
             >

@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unnecessary-condition, @typescript-eslint/explicit-function-return-type */
+
 "use client";
 
 import { useEffect } from "react";
@@ -10,7 +12,7 @@ export default function QuizDetailRedirectPage() {
   const router = useRouter();
 
   useEffect(() => {
-    if (params.id) {
+    if (params.id !== undefined && params.id !== null) {
       const quizId = String(params.id);
       if (/^[a-zA-Z0-9_-]+$/.test(quizId)) {
         router.replace(`/teacher/quiz/${quizId}`);

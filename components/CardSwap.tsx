@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/preserve-manual-memoization, react-hooks/exhaustive-deps */
 import React, {
   Children,
   cloneElement,
@@ -61,7 +62,7 @@ const makeSlot = (
   zIndex: total - i,
 });
 
-const placeNow = (el: HTMLElement, slot: Slot, skew: number) =>
+const placeNow = (el: HTMLElement, slot: Slot, skew: number): gsap.core.Tween =>
   gsap.set(el, {
     x: slot.x,
     y: slot.y,
@@ -124,19 +125,21 @@ const CardSwap: React.FC<CardSwapProps> = ({
 
   useEffect(() => {
     const total = refs.length;
-    refs.forEach((r, i) =>
-      placeNow(
-        r.current!,
-        makeSlot(i, cardDistance, verticalDistance, total),
-        skewAmount
-      )
-    );
+    refs.forEach((r, i) => {
+      if (r.current !== null) {
+        placeNow(
+          r.current,
+          makeSlot(i, cardDistance, verticalDistance, total),
+          skewAmount
+        );
+      }
+    });
 
-    const swap = () => {
+    const swap = (): void => {
       if (order.current.length < 2) return;
 
       const [front, ...rest] = order.current;
-      const elFront = refs[front].current!;
+      const elFront = refs[front].current;
       const tl = gsap.timeline();
       tlRef.current = tl;
 
@@ -148,7 +151,7 @@ const CardSwap: React.FC<CardSwapProps> = ({
 
       tl.addLabel("promote", `-=${config.durDrop * config.promoteOverlap}`);
       rest.forEach((idx, i) => {
-        const el = refs[idx].current!;
+        const el = refs[idx].current;
         const slot = makeSlot(i, cardDistance, verticalDistance, refs.length);
         tl.set(el, { zIndex: slot.zIndex }, "promote");
         tl.to(
@@ -172,7 +175,7 @@ const CardSwap: React.FC<CardSwapProps> = ({
       );
       tl.addLabel("return", `promote+=${config.durMove * config.returnDelay}`);
       tl.call(
-        () => {
+        (): void => {
           gsap.set(elFront, { zIndex: backSlot.zIndex });
         },
         undefined,
@@ -190,7 +193,7 @@ const CardSwap: React.FC<CardSwapProps> = ({
         "return"
       );
 
-      tl.call(() => {
+      tl.call((): void => {
         order.current = [...rest, front];
       });
     };
@@ -199,20 +202,24 @@ const CardSwap: React.FC<CardSwapProps> = ({
     intervalRef.current = window.setInterval(swap, delay);
 
     if (pauseOnHover) {
-      const node = container.current!;
-      const pause = () => {
+      const node = container.current;
+      const pause = (): void => {
         tlRef.current?.pause();
         clearInterval(intervalRef.current);
       };
-      const resume = () => {
+      const resume = (): void => {
         tlRef.current?.play();
         intervalRef.current = window.setInterval(swap, delay);
       };
-      node.addEventListener("mouseenter", pause);
-      node.addEventListener("mouseleave", resume);
+      if (node !== null) {
+        node.addEventListener("mouseenter", pause);
+        node.addEventListener("mouseleave", resume);
+      }
       return () => {
-        node.removeEventListener("mouseenter", pause);
-        node.removeEventListener("mouseleave", resume);
+        if (node !== null) {
+          node.removeEventListener("mouseenter", pause);
+          node.removeEventListener("mouseleave", resume);
+        }
         clearInterval(intervalRef.current);
       };
     }

@@ -1,5 +1,7 @@
+/* eslint-disable @typescript-eslint/no-unnecessary-condition */
 "use client";
 
+import type { ReactElement } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -16,17 +18,20 @@ type BottomNavigationProps = {
   badges?: BadgeCounts;
 };
 
-const Badge = ({ count, color }: { count: number; color: string }) => {
-  // Validate count is a safe number
+const Badge = ({
+  count,
+  color,
+}: {
+  count: number;
+  color: string;
+}): ReactElement | null => {
   if (typeof count !== "number" || !Number.isFinite(count) || count <= 0) {
     return null;
   }
 
-  // Sanitize count display (max 9+)
   const safeCount = Math.max(0, Math.min(Math.floor(count), 9999));
   const displayCount = safeCount > 9 ? "9+" : safeCount.toString();
 
-  // Whitelist allowed colors to prevent CSS injection
   const allowedColors = [
     "bg-cyan-400",
     "bg-purple-400",
@@ -45,15 +50,12 @@ const Badge = ({ count, color }: { count: number; color: string }) => {
   );
 };
 
-/**
- * BottomNavigation - Link-based navigation for legacy/redirect pages
- * All navigation now uses tab-based URLs that redirect to the main dashboard
- * For the main dashboard, use TabNavigation instead
- */
-const BottomNavigation = ({ userRole, badges = {} }: BottomNavigationProps) => {
+const BottomNavigation = ({
+  userRole,
+  badges = {},
+}: BottomNavigationProps): ReactElement => {
   const pathname = usePathname();
 
-  // All routes now point to the main dashboard with tab query params
   const homePath = userRole === "teacher" ? "/teacher" : "/student";
   const profilePath =
     userRole === "teacher" ? "/teacher?tab=profile" : "/student?tab=profile";
@@ -64,7 +66,7 @@ const BottomNavigation = ({ userRole, badges = {} }: BottomNavigationProps) => {
   const historyPath = "/student?tab=history";
   const connectionsPath = "/student?tab=connections";
 
-  const isHomeActive = () => {
+  const isHomeActive = (): boolean => {
     return pathname === "/teacher" || pathname === "/student";
   };
 
@@ -102,7 +104,7 @@ const BottomNavigation = ({ userRole, badges = {} }: BottomNavigationProps) => {
                   assignment
                 </span>
                 <span className="text-sm font-medium">Quizzes</span>
-                <Badge count={badges.quizzes || 0} color="bg-cyan-400" />
+                <Badge count={badges.quizzes ?? 0} color="bg-cyan-400" />
               </Link>
 
               <Link
@@ -115,7 +117,7 @@ const BottomNavigation = ({ userRole, badges = {} }: BottomNavigationProps) => {
               >
                 <span className="material-icons-outlined text-xl">school</span>
                 <span className="text-sm font-medium">Sections</span>
-                <Badge count={badges.sections || 0} color="bg-purple-400" />
+                <Badge count={badges.sections ?? 0} color="bg-purple-400" />
               </Link>
             </>
           )}
@@ -134,7 +136,7 @@ const BottomNavigation = ({ userRole, badges = {} }: BottomNavigationProps) => {
                   assignment
                 </span>
                 <span className="text-sm font-medium">Quizzes</span>
-                <Badge count={badges.quizzes || 0} color="bg-cyan-400" />
+                <Badge count={badges.quizzes ?? 0} color="bg-cyan-400" />
               </Link>
 
               <Link
@@ -147,7 +149,7 @@ const BottomNavigation = ({ userRole, badges = {} }: BottomNavigationProps) => {
               >
                 <span className="material-icons-outlined text-xl">layers</span>
                 <span className="text-sm font-medium">Cards</span>
-                <Badge count={badges.flashcards || 0} color="bg-lime-400" />
+                <Badge count={badges.flashcards ?? 0} color="bg-lime-400" />
               </Link>
 
               <Link
@@ -162,7 +164,7 @@ const BottomNavigation = ({ userRole, badges = {} }: BottomNavigationProps) => {
                   insights
                 </span>
                 <span className="text-sm font-medium">History</span>
-                <Badge count={badges.history || 0} color="bg-orange-400" />
+                <Badge count={badges.history ?? 0} color="bg-orange-400" />
               </Link>
 
               <Link
@@ -177,7 +179,7 @@ const BottomNavigation = ({ userRole, badges = {} }: BottomNavigationProps) => {
                   group_add
                 </span>
                 <span className="text-sm font-medium">Connect</span>
-                <Badge count={badges.connections || 0} color="bg-pink-400" />
+                <Badge count={badges.connections ?? 0} color="bg-pink-400" />
               </Link>
             </>
           )}

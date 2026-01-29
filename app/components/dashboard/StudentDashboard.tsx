@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/explicit-function-return-type, @typescript-eslint/no-explicit-any */
 "use client";
 
 import { useMemo } from "react";

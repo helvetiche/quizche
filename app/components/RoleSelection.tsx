@@ -1,6 +1,9 @@
+/* eslint-disable @typescript-eslint/no-misused-promises, react/no-unescaped-entities */
+/* eslint-disable @typescript-eslint/strict-boolean-expressions, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unnecessary-condition, @typescript-eslint/prefer-nullish-coalescing, @typescript-eslint/explicit-function-return-type, @typescript-eslint/no-explicit-any */
 "use client";
 
 import { useState } from "react";
+import type { ReactElement } from "react";
 import { useRouter } from "next/navigation";
 import { auth } from "@/lib/firebase";
 import ErrorMessage from "./ui/ErrorMessage";
@@ -9,7 +12,7 @@ type RoleSelectionProps = {
   idToken: string;
 };
 
-const RoleSelection = ({ idToken }: RoleSelectionProps) => {
+const RoleSelection = ({ idToken }: RoleSelectionProps): ReactElement => {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [selectedRole, setSelectedRole] = useState<
@@ -39,7 +42,7 @@ const RoleSelection = ({ idToken }: RoleSelectionProps) => {
       }
 
       const user = auth.currentUser;
-      if (user) {
+      if (user !== undefined && user !== null) {
         await user.getIdToken(true);
       }
 

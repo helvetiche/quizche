@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/strict-boolean-expressions, @typescript-eslint/explicit-function-return-type */
 "use client";
 
 import { useState, Suspense } from "react";
@@ -8,8 +9,13 @@ import StudentDashboard from "../components/dashboard/StudentDashboard";
 import { type StudentTab } from "../components/dashboard/TabContext";
 import Loading from "../components/ui/Loading";
 
+type User = {
+  uid: string;
+  email: string;
+};
+
 function StudentPageContent() {
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<User | null>(null);
   const searchParams = useSearchParams();
 
   // Parse tab from URL params

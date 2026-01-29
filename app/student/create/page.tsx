@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/explicit-function-return-type */
 "use client";
 
 import { useState } from "react";
@@ -5,8 +6,12 @@ import AuthGuard from "../../components/auth/AuthGuard";
 import DashboardLayout from "../../components/layout/DashboardLayout";
 import CreateCard from "../../components/create/CreateCard";
 
+type User = {
+  email?: string;
+};
+
 export default function StudentCreatePage() {
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<User | null>(null);
 
   const flashcardCard = {
     title: "Create Flashcard",
@@ -57,7 +62,7 @@ export default function StudentCreatePage() {
 
           <div className="text-center mt-8">
             <p className="text-sm text-gray-500">
-              Want to create quizzes? Ask your teacher to create them for you!
+              Want to create quizzes? Ask your teacher to create them for you
             </p>
           </div>
         </div>

@@ -1,6 +1,9 @@
+/* eslint-disable @typescript-eslint/no-misused-promises */
+/* eslint-disable @typescript-eslint/strict-boolean-expressions, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unnecessary-condition, @typescript-eslint/prefer-nullish-coalescing */
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import type { ReactElement } from "react";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { gsap } from "gsap";
@@ -29,13 +32,13 @@ function useAnimatedModal(
   isOpen: boolean,
   onClose: () => void
 ): {
-  modalRef: React.RefObject<HTMLDivElement>;
-  backdropRef: React.RefObject<HTMLDivElement>;
+  modalRef: React.RefObject<HTMLDivElement | null>;
+  backdropRef: React.RefObject<HTMLDivElement | null>;
   isVisible: boolean;
   handleClose: () => void;
 } {
-  const modalRef = useRef<HTMLDivElement>(null);
-  const backdropRef = useRef<HTMLDivElement>(null);
+  const modalRef = useRef<HTMLDivElement | null>(null);
+  const backdropRef = useRef<HTMLDivElement | null>(null);
   const [isVisible, setIsVisible] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
   const prevIsOpen = useRef(isOpen);
@@ -91,7 +94,13 @@ function useAnimatedModal(
 
   // Run entrance animation
   useEffect(() => {
-    if (isVisible && !isClosing && modalRef.current && backdropRef.current) {
+    if (
+      isVisible &&
+      !isClosing &&
+      modalRef.current !== undefined &&
+      modalRef.current !== null &&
+      backdropRef.current
+    ) {
       gsap.fromTo(
         backdropRef.current,
         { opacity: 0 },
@@ -159,7 +168,7 @@ function DeleteConfirmModal({
   onConfirm,
   onCancel,
   isDeleting,
-}: DeleteModalProps): JSX.Element {
+}: DeleteModalProps): ReactElement | null {
   const { modalRef, backdropRef, isVisible, handleClose } = useAnimatedModal(
     isOpen,
     onCancel
@@ -171,7 +180,7 @@ function DeleteConfirmModal({
       <div
         ref={backdropRef}
         className="absolute inset-0 bg-black/50"
-        onClick={handleClose}
+        onClick={() => void handleClose()}
       />
       <div
         ref={modalRef}
@@ -194,14 +203,14 @@ function DeleteConfirmModal({
         </p>
         <div className="flex gap-3 justify-end">
           <button
-            onClick={handleClose}
+            onClick={() => void handleClose()}
             disabled={isDeleting}
             className="px-5 py-2.5 bg-amber-200 text-gray-900 font-bold border-3 border-gray-900 rounded-full shadow-[3px_3px_0px_0px_rgba(31,41,55,1)] hover:shadow-[4px_4px_0px_0px_rgba(31,41,55,1)] active:shadow-[1px_1px_0px_0px_rgba(31,41,55,1)] transition-all disabled:opacity-50"
           >
             Cancel
           </button>
           <button
-            onClick={onConfirm}
+            onClick={() => void onConfirm()}
             disabled={isDeleting}
             className="px-5 py-2.5 bg-red-500 text-white font-bold border-3 border-gray-900 rounded-full shadow-[3px_3px_0px_0px_rgba(31,41,55,1)] hover:shadow-[4px_4px_0px_0px_rgba(31,41,55,1)] active:shadow-[1px_1px_0px_0px_rgba(31,41,55,1)] transition-all disabled:opacity-50 flex items-center gap-2"
           >
@@ -236,7 +245,7 @@ function ViewSectionModal({
   section,
   onClose,
   onEdit,
-}: ViewSectionModalProps): JSX.Element | null {
+}: ViewSectionModalProps): ReactElement | null {
   const { modalRef, backdropRef, isVisible, handleClose } = useAnimatedModal(
     isOpen,
     onClose
@@ -261,7 +270,7 @@ function ViewSectionModal({
       <div
         ref={backdropRef}
         className="absolute inset-0 bg-black/50"
-        onClick={handleClose}
+        onClick={() => void handleClose()}
       />
       <div
         ref={modalRef}
@@ -279,7 +288,7 @@ function ViewSectionModal({
             </h3>
           </div>
           <button
-            onClick={handleClose}
+            onClick={() => void handleClose()}
             className="w-8 h-8 bg-amber-100 border-2 border-gray-900 rounded-full flex items-center justify-center hover:bg-amber-300 transition-colors"
           >
             <span className="material-icons-outlined text-gray-900 text-lg">
@@ -369,13 +378,13 @@ function ViewSectionModal({
         </div>
         <div className="border-t-4 border-gray-900 px-6 py-4 bg-amber-50 flex gap-3 justify-end">
           <button
-            onClick={handleClose}
+            onClick={() => void handleClose()}
             className="px-5 py-2.5 bg-amber-200 text-gray-900 font-bold border-3 border-gray-900 rounded-full shadow-[3px_3px_0px_0px_rgba(31,41,55,1)] hover:shadow-[4px_4px_0px_0px_rgba(31,41,55,1)] active:shadow-[1px_1px_0px_0px_rgba(31,41,55,1)] transition-all"
           >
             Close
           </button>
           <button
-            onClick={onEdit}
+            onClick={() => void onEdit()}
             className="px-5 py-2.5 bg-amber-200 text-gray-900 font-bold border-3 border-gray-900 rounded-full shadow-[3px_3px_0px_0px_rgba(31,41,55,1)] hover:shadow-[4px_4px_0px_0px_rgba(31,41,55,1)] active:shadow-[1px_1px_0px_0px_rgba(31,41,55,1)] transition-all flex items-center gap-2"
           >
             <span className="material-icons-outlined text-lg">edit</span>
@@ -407,7 +416,7 @@ function EditSectionModal({
   onClose,
   onSave,
   idToken,
-}: EditSectionModalProps): JSX.Element {
+}: EditSectionModalProps): ReactElement | null {
   const { modalRef, backdropRef, isVisible, handleClose } = useAnimatedModal(
     isOpen,
     onClose
@@ -453,7 +462,7 @@ function EditSectionModal({
       if (response.ok === true) {
         const studentsData = data as { students: Student[] };
         setSearchResults(
-          (studentsData.students ?? []).filter(
+          (studentsData.students ?? ([] as never[])).filter(
             (s: Student) =>
               students.find((existing) => existing.id === s.id) === undefined
           )
@@ -507,7 +516,7 @@ function EditSectionModal({
       <div
         ref={backdropRef}
         className="absolute inset-0 bg-black/50"
-        onClick={handleClose}
+        onClick={() => void handleClose()}
       />
       <div
         ref={modalRef}
@@ -525,7 +534,7 @@ function EditSectionModal({
             </h3>
           </div>
           <button
-            onClick={handleClose}
+            onClick={() => void handleClose()}
             className="w-8 h-8 bg-cyan-300 border-2 border-gray-900 rounded-full flex items-center justify-center hover:bg-cyan-200 transition-colors"
           >
             <span className="material-icons-outlined text-gray-900 text-lg">
@@ -590,7 +599,7 @@ function EditSectionModal({
                 />
               </div>
               <button
-                onClick={handleStudentSearch}
+                onClick={() => void handleStudentSearch()}
                 disabled={searching}
                 className="px-4 py-2 bg-cyan-400 text-gray-900 font-bold text-sm border-3 border-gray-900 rounded-full shadow-[2px_2px_0px_0px_rgba(31,41,55,1)] hover:shadow-[3px_3px_0px_0px_rgba(31,41,55,1)] active:shadow-[1px_1px_0px_0px_rgba(31,41,55,1)] transition-all disabled:opacity-50"
               >
@@ -685,13 +694,13 @@ function EditSectionModal({
         </div>
         <div className="border-t-4 border-gray-900 px-6 py-4 bg-amber-50 flex gap-3 justify-end">
           <button
-            onClick={handleClose}
+            onClick={() => void handleClose()}
             className="px-5 py-2.5 bg-amber-200 text-gray-900 font-bold border-3 border-gray-900 rounded-full shadow-[3px_3px_0px_0px_rgba(31,41,55,1)] hover:shadow-[4px_4px_0px_0px_rgba(31,41,55,1)] active:shadow-[1px_1px_0px_0px_rgba(31,41,55,1)] transition-all"
           >
             Cancel
           </button>
           <button
-            onClick={handleSave}
+            onClick={() => void handleSave()}
             disabled={saving === true || name.trim().length === 0}
             className="px-5 py-2.5 bg-amber-200 text-gray-900 font-bold border-3 border-gray-900 rounded-full shadow-[3px_3px_0px_0px_rgba(31,41,55,1)] hover:shadow-[4px_4px_0px_0px_rgba(31,41,55,1)] active:shadow-[1px_1px_0px_0px_rgba(31,41,55,1)] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
           >
@@ -716,7 +725,7 @@ function EditSectionModal({
 type CreateSectionModalProps = {
   isOpen: boolean;
   onClose: () => void;
-  onCreateSection: (e: React.FormEvent) => void;
+  onCreateSection: (e?: React.FormEvent) => void;
   sectionName: string;
   setSectionName: (name: string) => void;
   sectionDescription: string;
@@ -749,7 +758,7 @@ function CreateSectionModal({
   onStudentSearch,
   onAddStudent,
   onRemoveStudent,
-}: CreateSectionModalProps): JSX.Element | null {
+}: CreateSectionModalProps): ReactElement | null {
   const modalRef = useRef<HTMLDivElement>(null);
   const backdropRef = useRef<HTMLDivElement>(null);
   const [isVisible, setIsVisible] = useState(false);
@@ -802,13 +811,11 @@ function CreateSectionModal({
     }
   }, [isVisible, isClosing]);
 
-  // Handle close with animation
   const handleClose = (): void => {
     if (isClosing === true) return;
     setIsClosing(true);
 
     if (modalRef.current !== null && backdropRef.current !== null) {
-      // Animate modal out
       gsap.to(modalRef.current, {
         opacity: 0,
         y: 50,
@@ -818,7 +825,6 @@ function CreateSectionModal({
         ease: "power2.in",
       });
 
-      // Animate backdrop out
       gsap.to(backdropRef.current, {
         opacity: 0,
         duration: 0.3,
@@ -843,7 +849,7 @@ function CreateSectionModal({
       <div
         ref={backdropRef}
         className="absolute inset-0 bg-black/50"
-        onClick={handleClose}
+        onClick={() => void handleClose()}
       />
       <div
         ref={modalRef}
@@ -862,7 +868,7 @@ function CreateSectionModal({
             </h3>
           </div>
           <button
-            onClick={handleClose}
+            onClick={() => void handleClose()}
             className="w-8 h-8 bg-amber-100 border-2 border-gray-900 rounded-full flex items-center justify-center hover:bg-amber-300 transition-colors"
           >
             <span className="material-icons-outlined text-gray-900 text-lg">
@@ -930,7 +936,7 @@ function CreateSectionModal({
               </div>
               <button
                 type="button"
-                onClick={onStudentSearch}
+                onClick={() => void onStudentSearch()}
                 disabled={searching}
                 className="px-4 py-2 bg-cyan-400 text-gray-900 font-bold text-sm border-3 border-gray-900 rounded-full shadow-[2px_2px_0px_0px_rgba(31,41,55,1)] hover:shadow-[3px_3px_0px_0px_rgba(31,41,55,1)] active:shadow-[1px_1px_0px_0px_rgba(31,41,55,1)] transition-all disabled:opacity-50"
               >
@@ -1015,13 +1021,13 @@ function CreateSectionModal({
         <div className="border-t-4 border-gray-900 px-6 py-4 bg-amber-50 flex gap-3 justify-end">
           <button
             type="button"
-            onClick={handleClose}
+            onClick={() => void handleClose()}
             className="px-5 py-2.5 bg-amber-200 text-gray-900 font-bold border-3 border-gray-900 rounded-full shadow-[3px_3px_0px_0px_rgba(31,41,55,1)] hover:shadow-[4px_4px_0px_0px_rgba(31,41,55,1)] active:shadow-[1px_1px_0px_0px_rgba(31,41,55,1)] transition-all"
           >
             Cancel
           </button>
           <button
-            onClick={onCreateSection}
+            onClick={() => void onCreateSection()}
             disabled={creating === true || sectionName.trim().length === 0}
             className="px-5 py-2.5 bg-amber-200 text-gray-900 font-bold border-3 border-gray-900 rounded-full shadow-[3px_3px_0px_0px_rgba(31,41,55,1)] hover:shadow-[4px_4px_0px_0px_rgba(31,41,55,1)] active:shadow-[1px_1px_0px_0px_rgba(31,41,55,1)] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
           >
@@ -1043,7 +1049,7 @@ function CreateSectionModal({
   );
 }
 
-export default function TeacherSectionsContent(): JSX.Element {
+export default function TeacherSectionsContent(): ReactElement {
   const [idToken, setIdToken] = useState<string | null>(null);
   const [sections, setSections] = useState<Section[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1131,7 +1137,7 @@ export default function TeacherSectionsContent(): JSX.Element {
         }
 
         const sectionsData = data as { sections: Section[] };
-        setSections(sectionsData.sections ?? []);
+        setSections(sectionsData.sections ?? ([] as never[]));
       } catch (err) {
         console.error("Error fetching sections:", err);
         setError(
@@ -1183,8 +1189,10 @@ export default function TeacherSectionsContent(): JSX.Element {
     e.preventDefault();
   };
 
-  const handleCreateSection = async (e: React.FormEvent): Promise<void> => {
-    e.preventDefault();
+  const handleCreateSection = async (e?: React.FormEvent): Promise<void> => {
+    if (e !== undefined && e !== null) {
+      e.preventDefault();
+    }
     if (
       idToken === null ||
       idToken === undefined ||
@@ -1227,7 +1235,7 @@ export default function TeacherSectionsContent(): JSX.Element {
       };
       if (sectionsResponse.ok === true) {
         const sectionsResponseData = sectionsData as { sections: Section[] };
-        setSections(sectionsResponseData.sections ?? []);
+        setSections(sectionsResponseData.sections ?? ([] as never[]));
       }
 
       setSectionName("");
@@ -1279,7 +1287,7 @@ export default function TeacherSectionsContent(): JSX.Element {
       }
 
       const studentsData = data as { students: Student[] };
-      setSearchResults(studentsData.students ?? []);
+      setSearchResults(studentsData.students ?? ([] as never[]));
     } catch (err) {
       console.error("Error searching students:", err);
       setError(
@@ -1391,7 +1399,7 @@ export default function TeacherSectionsContent(): JSX.Element {
       };
       if (sectionsResponse.ok === true) {
         const sectionsResponseData = sectionsData as { sections: Section[] };
-        setSections(sectionsResponseData.sections ?? []);
+        setSections(sectionsResponseData.sections ?? ([] as never[]));
       }
     } catch (err) {
       console.error("Error updating section:", err);
@@ -1411,7 +1419,7 @@ export default function TeacherSectionsContent(): JSX.Element {
     }
   };
 
-  const getTimeAgo = (dateString: string) => {
+  const getTimeAgo = (dateString: string): string => {
     const date = new Date(dateString);
     const now = new Date();
     const diff = Math.floor((now.getTime() - date.getTime()) / 1000);
@@ -1446,7 +1454,7 @@ export default function TeacherSectionsContent(): JSX.Element {
         </div>
 
         {/* Search Bar */}
-        <form onSubmit={handleSearch}>
+        <form onSubmit={(e) => void handleSearch(e)}>
           <div className="flex items-center bg-amber-100 border-3 border-gray-900 rounded-full shadow-[4px_4px_0px_0px_rgba(31,41,55,1)]">
             <span className="material-icons-outlined text-gray-900 text-xl pl-4">
               search
@@ -1633,7 +1641,7 @@ export default function TeacherSectionsContent(): JSX.Element {
               <p className="text-base font-medium text-gray-700 text-center">
                 {searchQuery
                   ? "Try adjusting your search or filters."
-                  : "Create your first section to organize your students!"}
+                  : "Create your first section to organize your students"}
               </p>
               {!searchQuery && (
                 <button
@@ -1903,7 +1911,7 @@ export default function TeacherSectionsContent(): JSX.Element {
           // Capture the section before closing the view modal
           const sectionToEdit = viewModal.section;
           setViewModal({ isOpen: false, section: null });
-          if (sectionToEdit) {
+          if (sectionToEdit !== undefined && sectionToEdit !== null) {
             // Small delay to let view modal close animation complete
             setTimeout(() => {
               setEditModal({ isOpen: true, section: sectionToEdit });

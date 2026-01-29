@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unnecessary-condition */
 import { z } from "zod";
 import DOMPurify from "isomorphic-dompurify";
 
@@ -330,7 +331,11 @@ export const sanitizeObject = <T extends Record<string, unknown>>(
           }
           return item;
         }) as T[typeof key];
-      } else if (value !== null && value !== undefined && typeof value === "object") {
+      } else if (
+        value !== null &&
+        value !== undefined &&
+        typeof value === "object"
+      ) {
         sanitized[key] = sanitizeObject(
           value as Record<string, unknown>
         ) as T[typeof key];
@@ -358,7 +363,12 @@ export const validateInput = <T>(
   const result = schema.safeParse(data);
 
   if (result.success) {
-    if (options.sanitize === true && result.data !== null && result.data !== undefined && typeof result.data === "object") {
+    if (
+      options.sanitize === true &&
+      result.data !== null &&
+      result.data !== undefined &&
+      typeof result.data === "object"
+    ) {
       return {
         success: true,
         data: sanitizeObject(result.data as Record<string, unknown>) as T,
