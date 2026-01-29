@@ -1,16 +1,22 @@
 "use client";
 
-import { useEffect, useRef, useState, ReactNode } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+  useCallback,
+} from "react";
 import { gsap } from "gsap";
 
-interface ModalProps {
+type ModalProps = {
   isOpen: boolean;
   onClose: () => void;
   children: ReactNode;
   className?: string;
   backdropClassName?: string;
   closeOnBackdropClick?: boolean;
-}
+};
 
 const Modal = ({
   isOpen,
@@ -25,24 +31,54 @@ const Modal = ({
   const modalRef = useRef<HTMLDivElement>(null);
   const backdropRef = useRef<HTMLDivElement>(null);
 
-  // Handle open animation
-  useEffect(() => {
-    if (isOpen && !isClosing) {
-      setIsVisible(true);
-    }
-  }, [isOpen, isClosing]);
+  const handleClose = useCallback((): void => {
+    if (isClosing) return;
+    setIsClosing(true);
 
-  // Animate on visibility change
+    if (modalRef.current && backdropRef.current) {
+      gsap.to(modalRef.current, {
+        opacity: 0,
+        y: 50,
+        scale: 0.95,
+        filter: "blur(8px)",
+        duration: 0.3,
+        ease: "power2.in",
+      });
+
+      gsap.to(backdropRef.current, {
+        opacity: 0,
+        duration: 0.3,
+        ease: "power2.in",
+        onComplete: () => {
+          setIsVisible(false);
+          setIsClosing(false);
+          onClose();
+        },
+      });
+    } else {
+      setIsVisible(false);
+      setIsClosing(false);
+      onClose();
+    }
+  }, [isClosing, onClose]);
+
+  useEffect(() => {
+    if (isOpen) {
+      setIsVisible(true);
+      setIsClosing(false);
+    } else if (isVisible) {
+      handleClose();
+    }
+  }, [isOpen, isVisible, handleClose]);
+
   useEffect(() => {
     if (isVisible && !isClosing && modalRef.current && backdropRef.current) {
-      // Animate backdrop in
       gsap.fromTo(
         backdropRef.current,
         { opacity: 0 },
         { opacity: 1, duration: 0.3, ease: "power2.out" }
       );
 
-      // Animate modal with masonry-like effect
       gsap.fromTo(
         modalRef.current,
         {
@@ -64,42 +100,7 @@ const Modal = ({
     }
   }, [isVisible, isClosing]);
 
-  // Handle close with animation
-  const handleClose = () => {
-    if (isClosing) return;
-    setIsClosing(true);
-
-    if (modalRef.current && backdropRef.current) {
-      // Animate modal out
-      gsap.to(modalRef.current, {
-        opacity: 0,
-        y: 50,
-        scale: 0.95,
-        filter: "blur(8px)",
-        duration: 0.3,
-        ease: "power2.in",
-      });
-
-      // Animate backdrop out
-      gsap.to(backdropRef.current, {
-        opacity: 0,
-        duration: 0.3,
-        ease: "power2.in",
-        onComplete: () => {
-          setIsVisible(false);
-          setIsClosing(false);
-          onClose();
-        },
-      });
-    } else {
-      setIsVisible(false);
-      setIsClosing(false);
-      onClose();
-    }
-  };
-
-  // Handle backdrop click
-  const handleBackdropClick = () => {
+  const handleBackdropClick = (): void => {
     if (closeOnBackdropClick) {
       handleClose();
     }

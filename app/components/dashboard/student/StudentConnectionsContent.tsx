@@ -6,7 +6,7 @@ import app from "@/lib/firebase";
 import ConnectionList from "../../connections/ConnectionList";
 import ConnectionRequest from "../../connections/ConnectionRequest";
 
-interface Connection {
+type Connection = {
   id: string;
   otherUserId: string;
   status: "pending" | "accepted" | "blocked";
@@ -17,13 +17,15 @@ interface Connection {
   };
   createdAt: string;
   updatedAt: string;
-}
+};
 
-interface StudentConnectionsContentProps {
+type StudentConnectionsContentProps = {
   user: any;
-}
+};
 
-export default function StudentConnectionsContent({ user }: StudentConnectionsContentProps) {
+export default function StudentConnectionsContent({
+  user,
+}: StudentConnectionsContentProps) {
   const [connections, setConnections] = useState<Connection[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"list" | "request">("list");

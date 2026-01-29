@@ -37,7 +37,9 @@ export default function StudentCreatePage() {
         userRole="student"
       >
         <div className="flex flex-col gap-8">
-          <h2 className="text-3xl font-light text-black">Create Study Materials</h2>
+          <h2 className="text-3xl font-light text-black">
+            Create Study Materials
+          </h2>
           <p className="text-lg text-gray-600">
             Build your own flashcard sets to enhance your learning experience.
           </p>

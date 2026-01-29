@@ -1,9 +1,15 @@
 "use client";
 
-import { createContext, useContext, useState, useCallback, ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useState,
+  useCallback,
+  type ReactNode,
+} from "react";
 import { useRouter } from "next/navigation";
 
-export type QuizView = 
+export type QuizView =
   | { type: "list" }
   | { type: "create" }
   | { type: "detail"; quizId: string }
@@ -11,7 +17,7 @@ export type QuizView =
   | { type: "results"; quizId: string }
   | { type: "live"; quizId: string };
 
-interface QuizViewContextType {
+type QuizViewContextType = {
   currentView: QuizView;
   setView: (view: QuizView) => void;
   goToList: () => void;
@@ -20,16 +26,21 @@ interface QuizViewContextType {
   goToSettings: (quizId: string) => void;
   goToResults: (quizId: string) => void;
   goToLive: (quizId: string) => void;
-}
+};
 
-const QuizViewContext = createContext<QuizViewContextType | undefined>(undefined);
+const QuizViewContext = createContext<QuizViewContextType | undefined>(
+  undefined
+);
 
-interface QuizViewProviderProps {
+type QuizViewProviderProps = {
   children: ReactNode;
   initialView?: QuizView;
-}
+};
 
-export function QuizViewProvider({ children, initialView = { type: "list" } }: QuizViewProviderProps) {
+export function QuizViewProvider({
+  children,
+  initialView = { type: "list" },
+}: QuizViewProviderProps) {
   const [currentView, setCurrentView] = useState<QuizView>(initialView);
   const router = useRouter();
 
@@ -54,37 +65,51 @@ export function QuizViewProvider({ children, initialView = { type: "list" } }: Q
     router.push("/teacher/composer");
   }, [router]);
 
-  const goToDetail = useCallback((quizId: string) => {
-    if (!/^[a-zA-Z0-9_-]+$/.test(quizId)) return;
-    router.push(`/teacher/quiz/${quizId}`);
-  }, [router]);
+  const goToDetail = useCallback(
+    (quizId: string) => {
+      if (!/^[a-zA-Z0-9_-]+$/.test(quizId)) return;
+      router.push(`/teacher/quiz/${quizId}`);
+    },
+    [router]
+  );
 
-  const goToSettings = useCallback((quizId: string) => {
-    if (!/^[a-zA-Z0-9_-]+$/.test(quizId)) return;
-    router.push(`/teacher/quiz/${quizId}?view=settings`);
-  }, [router]);
+  const goToSettings = useCallback(
+    (quizId: string) => {
+      if (!/^[a-zA-Z0-9_-]+$/.test(quizId)) return;
+      router.push(`/teacher/quiz/${quizId}?view=settings`);
+    },
+    [router]
+  );
 
-  const goToResults = useCallback((quizId: string) => {
-    if (!/^[a-zA-Z0-9_-]+$/.test(quizId)) return;
-    router.push(`/teacher/quiz/${quizId}?view=results`);
-  }, [router]);
+  const goToResults = useCallback(
+    (quizId: string) => {
+      if (!/^[a-zA-Z0-9_-]+$/.test(quizId)) return;
+      router.push(`/teacher/quiz/${quizId}?view=results`);
+    },
+    [router]
+  );
 
-  const goToLive = useCallback((quizId: string) => {
-    if (!/^[a-zA-Z0-9_-]+$/.test(quizId)) return;
-    router.push(`/teacher/quiz/${quizId}?view=live`);
-  }, [router]);
+  const goToLive = useCallback(
+    (quizId: string) => {
+      if (!/^[a-zA-Z0-9_-]+$/.test(quizId)) return;
+      router.push(`/teacher/quiz/${quizId}?view=live`);
+    },
+    [router]
+  );
 
   return (
-    <QuizViewContext.Provider value={{
-      currentView,
-      setView,
-      goToList,
-      goToCreate,
-      goToDetail,
-      goToSettings,
-      goToResults,
-      goToLive,
-    }}>
+    <QuizViewContext.Provider
+      value={{
+        currentView,
+        setView,
+        goToList,
+        goToCreate,
+        goToDetail,
+        goToSettings,
+        goToResults,
+        goToLive,
+      }}
+    >
       {children}
     </QuizViewContext.Provider>
   );

@@ -9,30 +9,30 @@ import DashboardLayout from "../../../../components/layout/DashboardLayout";
 import Loading from "../../../../components/ui/Loading";
 import Image from "next/image";
 
-interface Question {
+type Question = {
   question: string;
   type: string;
   choices?: string[];
   answer: string;
   imageUrl?: string;
-}
+};
 
-interface Quiz {
+type Quiz = {
   id: string;
   title: string;
   description?: string;
   questions: Question[];
   totalQuestions: number;
   showResults: boolean;
-}
+};
 
-interface Violation {
+type Violation = {
   type: string;
   timestamp: string;
   details?: string;
-}
+};
 
-interface QuizAttempt {
+type QuizAttempt = {
   id: string;
   quizId: string;
   quizTitle: string;
@@ -47,7 +47,7 @@ interface QuizAttempt {
   refreshDetected?: boolean;
   violations?: Violation[];
   disqualified?: boolean;
-}
+};
 
 function QuizResultsContent() {
   const params = useParams();
@@ -209,9 +209,7 @@ function QuizResultsContent() {
             <div className="flex flex-col gap-8">
               {/* Header */}
               <div className="flex flex-col gap-4">
-                <h1 className="text-3xl font-light text-black">
-                  Quiz Results
-                </h1>
+                <h1 className="text-3xl font-light text-black">Quiz Results</h1>
                 <div className="flex items-center gap-4">
                   <h2 className="text-xl font-light text-black">
                     {quiz.title}
@@ -228,16 +226,13 @@ function QuizResultsContent() {
                 <div className="flex items-center gap-4 text-sm font-light text-gray-600">
                   <span>
                     Completed on{" "}
-                    {new Date(attempt.completedAt).toLocaleDateString(
-                      "en-US",
-                      {
-                        year: "numeric",
-                        month: "long",
-                        day: "numeric",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      }
-                    )}
+                    {new Date(attempt.completedAt).toLocaleDateString("en-US", {
+                      year: "numeric",
+                      month: "long",
+                      day: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
                   </span>
                   <span>•</span>
                   <span>Time spent: {formatTimeSpent(attempt.timeSpent)}</span>
@@ -252,10 +247,10 @@ function QuizResultsContent() {
                       attempt.percentage >= 90
                         ? "bg-green-500"
                         : attempt.percentage >= 70
-                        ? "bg-blue-500"
-                        : attempt.percentage >= 50
-                        ? "bg-yellow-500"
-                        : "bg-red-500"
+                          ? "bg-blue-500"
+                          : attempt.percentage >= 50
+                            ? "bg-yellow-500"
+                            : "bg-red-500"
                     }`}
                     style={{ width: `${attempt.percentage}%` }}
                   ></div>
@@ -295,18 +290,17 @@ function QuizResultsContent() {
                           Tab Changes: {attempt.tabChangeCount}
                         </span>
                       )}
-                    {attempt.timeAway !== undefined &&
-                      attempt.timeAway > 0 && (
-                        <span
-                          className={`px-3 py-1 border-2 text-sm font-light ${
-                            attempt.timeAway > 5
-                              ? "bg-red-100 text-red-800 border-red-600"
-                              : "bg-yellow-100 text-yellow-800 border-yellow-600"
-                          }`}
-                        >
-                          Time Away: {attempt.timeAway}s
-                        </span>
-                      )}
+                    {attempt.timeAway !== undefined && attempt.timeAway > 0 && (
+                      <span
+                        className={`px-3 py-1 border-2 text-sm font-light ${
+                          attempt.timeAway > 5
+                            ? "bg-red-100 text-red-800 border-red-600"
+                            : "bg-yellow-100 text-yellow-800 border-yellow-600"
+                        }`}
+                      >
+                        Time Away: {attempt.timeAway}s
+                      </span>
+                    )}
                     {attempt.violations && attempt.violations.length > 0 && (
                       <span className="px-3 py-1 bg-yellow-100 text-yellow-800 border-2 border-yellow-600 text-sm font-light">
                         {attempt.violations.length} Violation(s)
@@ -416,14 +410,10 @@ function QuizResultsContent() {
                                     {question.choices.map(
                                       (choice, choiceIndex) => {
                                         const isCorrectAnswer =
-                                          correctAnswer
-                                            .trim()
-                                            .toLowerCase() ===
+                                          correctAnswer.trim().toLowerCase() ===
                                           choice.trim().toLowerCase();
                                         const isStudentAnswer =
-                                          studentAnswer
-                                            .trim()
-                                            .toLowerCase() ===
+                                          studentAnswer.trim().toLowerCase() ===
                                           choice.trim().toLowerCase();
 
                                         return (
@@ -433,8 +423,8 @@ function QuizResultsContent() {
                                               isCorrectAnswer
                                                 ? "bg-green-100 text-green-800 border-green-600"
                                                 : isStudentAnswer
-                                                ? "bg-red-100 text-red-800 border-red-600"
-                                                : "bg-white text-black border-gray-300"
+                                                  ? "bg-red-100 text-red-800 border-red-600"
+                                                  : "bg-white text-black border-gray-300"
                                             }`}
                                           >
                                             {choice}

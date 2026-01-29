@@ -9,21 +9,21 @@ import Loading from "../../components/ui/Loading";
 function MyQuizzesRedirectContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  
+
   useEffect(() => {
     // Preserve quiz view params if present
     const quizView = searchParams.get("quizView");
     const quizId = searchParams.get("quizId");
-    
+
     let redirectUrl = "/teacher?tab=quizzes";
-    
+
     if (quizView) {
       redirectUrl += `&quizView=${quizView}`;
       if (quizId && /^[a-zA-Z0-9_-]+$/.test(quizId)) {
         redirectUrl += `&quizId=${quizId}`;
       }
     }
-    
+
     router.replace(redirectUrl);
   }, [router, searchParams]);
 

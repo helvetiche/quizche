@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 import { verifyAuth } from "@/lib/auth";
 import {
   getSecurityHeaders,
@@ -6,7 +6,7 @@ import {
 } from "@/lib/security-headers";
 import { handleApiError } from "@/lib/error-handler";
 
-export async function GET(request: NextRequest) {
+export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
     const user = await verifyAuth(request);
 

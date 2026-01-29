@@ -136,7 +136,11 @@ export const SessionUpdateSchema = z.object({
 // PDF upload validation
 export const PDFUploadSchema = z.object({
   fileName: z.string().min(1).max(255),
-  fileSize: z.number().int().min(1).max(10 * 1024 * 1024), // Max 10MB
+  fileSize: z
+    .number()
+    .int()
+    .min(1)
+    .max(10 * 1024 * 1024), // Max 10MB
   fileType: z.literal("application/pdf"),
 });
 
@@ -244,7 +248,7 @@ export const sanitizeHTML = (input: string): string => {
  * Removes potentially dangerous characters and patterns
  * For HTML content, use sanitizeHTML() instead
  */
-export const sanitizeString = (input: string, useDOMPurify: boolean = false): string => {
+export const sanitizeString = (input: string, useDOMPurify = false): string => {
   if (typeof input !== "string") {
     return input;
   }
@@ -254,54 +258,55 @@ export const sanitizeString = (input: string, useDOMPurify: boolean = false): st
     return sanitizeHTML(input).trim();
   }
 
-  return input
-    .trim()
-    // Remove script tags and their content (case-insensitive)
-    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
-    // Remove style tags and their content (case-insensitive)
-    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
-    // Remove iframe tags
-    .replace(/<iframe[^>]*>[\s\S]*?<\/iframe>/gi, "")
-    // Remove object/embed tags
-    .replace(/<object[^>]*>[\s\S]*?<\/object>/gi, "")
-    .replace(/<embed[^>]*>/gi, "")
-    // Remove angle brackets (remaining HTML tags)
-    .replace(/[<>]/g, "")
-    // Remove javascript: protocol (case-insensitive)
-    .replace(/javascript:/gi, "")
-    // Remove event handlers (onclick, onerror, onload, etc.)
-    .replace(/on\w+\s*=/gi, "")
-    // Remove data: protocol (can be used for XSS)
-    .replace(/data:/gi, "")
-    // Remove vbscript: protocol
-    .replace(/vbscript:/gi, "")
-    // Remove file: protocol
-    .replace(/file:\/\//gi, "")
-    // Remove CSS expressions
-    .replace(/expression\s*\(/gi, "")
-    // Remove import statements
-    .replace(/import\s+/gi, "")
-    // Remove CSS @import
-    .replace(/@import/gi, "")
-    // Clean up multiple spaces
-    .replace(/\s+/g, " ");
+  return (
+    input
+      .trim()
+      // Remove script tags and their content (case-insensitive)
+      .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
+      // Remove style tags and their content (case-insensitive)
+      .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
+      // Remove iframe tags
+      .replace(/<iframe[^>]*>[\s\S]*?<\/iframe>/gi, "")
+      // Remove object/embed tags
+      .replace(/<object[^>]*>[\s\S]*?<\/object>/gi, "")
+      .replace(/<embed[^>]*>/gi, "")
+      // Remove angle brackets (remaining HTML tags)
+      .replace(/[<>]/g, "")
+      // Remove javascript: protocol (case-insensitive)
+      .replace(/javascript:/gi, "")
+      // Remove event handlers (onclick, onerror, onload, etc.)
+      .replace(/on\w+\s*=/gi, "")
+      // Remove data: protocol (can be used for XSS)
+      .replace(/data:/gi, "")
+      // Remove vbscript: protocol
+      .replace(/vbscript:/gi, "")
+      // Remove file: protocol
+      .replace(/file:\/\//gi, "")
+      // Remove CSS expressions
+      .replace(/expression\s*\(/gi, "")
+      // Remove import statements
+      .replace(/import\s+/gi, "")
+      // Remove CSS @import
+      .replace(/@import/gi, "")
+      // Clean up multiple spaces
+      .replace(/\s+/g, " ")
+  );
 };
 
-/**
- * Sanitize an object recursively, applying sanitizeString to all string values
- */
-export const sanitizeObject = <T extends Record<string, any>>(obj: T): T => {
-  if (!obj || typeof obj !== "object") {
+export const sanitizeObject = <T extends Record<string, unknown>>(
+  obj: T
+): T => {
+  if (obj === null || obj === undefined || typeof obj !== "object") {
     return obj;
   }
 
-  // Handle arrays
   if (Array.isArray(obj)) {
     return obj.map((item: unknown) => {
       if (typeof item === "string") {
         return sanitizeString(item);
-      } else if (item && typeof item === "object") {
-        return sanitizeObject(item as Record<string, any>);
+      }
+      if (item !== null && item !== undefined && typeof item === "object") {
+        return sanitizeObject(item as Record<string, unknown>);
       }
       return item;
     }) as unknown as T;
@@ -319,13 +324,16 @@ export const sanitizeObject = <T extends Record<string, any>>(obj: T): T => {
         sanitized[key] = value.map((item: unknown) => {
           if (typeof item === "string") {
             return sanitizeString(item);
-          } else if (item && typeof item === "object") {
-            return sanitizeObject(item as Record<string, any>);
+          }
+          if (item !== null && item !== undefined && typeof item === "object") {
+            return sanitizeObject(item as Record<string, unknown>);
           }
           return item;
         }) as T[typeof key];
-      } else if (value && typeof value === "object") {
-        sanitized[key] = sanitizeObject(value) as T[typeof key];
+      } else if (value !== null && value !== undefined && typeof value === "object") {
+        sanitized[key] = sanitizeObject(
+          value as Record<string, unknown>
+        ) as T[typeof key];
       }
     }
   }
@@ -333,40 +341,32 @@ export const sanitizeObject = <T extends Record<string, any>>(obj: T): T => {
   return sanitized;
 };
 
-/**
- * Sanitize array of strings
- */
 export const sanitizeStringArray = (arr: string[]): string[] => {
   if (!Array.isArray(arr)) {
     return arr;
   }
-  return arr.map((item: string | unknown) => 
-    typeof item === "string" ? sanitizeString(item) : item as string
+  return arr.map((item: unknown) =>
+    typeof item === "string" ? sanitizeString(item) : (item as string)
   );
 };
 
-/**
- * Validate and sanitize input using Zod schema
- * @param schema - Zod schema to validate against
- * @param data - Data to validate and sanitize
- * @param options - Options for validation
- * @param options.sanitize - Whether to sanitize string fields after validation (default: true)
- */
 export const validateInput = <T>(
   schema: z.ZodSchema<T>,
   data: unknown,
   options: { sanitize?: boolean } = { sanitize: true }
 ): { success: true; data: T } | { success: false; error: z.ZodError } => {
   const result = schema.safeParse(data);
-  
+
   if (result.success) {
-    // Sanitize string fields if enabled
-    if (options.sanitize && result.data && typeof result.data === "object") {
-      return { success: true, data: sanitizeObject(result.data as Record<string, any>) as T };
+    if (options.sanitize === true && result.data !== null && result.data !== undefined && typeof result.data === "object") {
+      return {
+        success: true,
+        data: sanitizeObject(result.data as Record<string, unknown>) as T,
+      };
     }
     return { success: true, data: result.data };
   }
-  
+
   return { success: false, error: result.error };
 };
 

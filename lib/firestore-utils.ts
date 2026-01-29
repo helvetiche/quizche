@@ -38,7 +38,7 @@ export const removeUndefined = <T extends Record<string, unknown>>(
  */
 export const assertFirestoreSafe = (
   obj: Record<string, unknown>,
-  fieldName: string = "data"
+  fieldName = "data"
 ): void => {
   const undefinedFields: string[] = [];
 
@@ -81,7 +81,7 @@ export const assertFirestoreSafe = (
  */
 export const makeFirestoreSafe = <T extends Record<string, unknown>>(
   obj: T,
-  validate: boolean = false
+  validate = false
 ): Partial<T> => {
   const safe = removeUndefined(obj);
 

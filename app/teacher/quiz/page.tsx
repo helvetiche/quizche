@@ -8,7 +8,7 @@ import Loading from "../../components/ui/Loading";
 // The actual quiz pages are at /teacher/quiz/[id]
 function QuizIndexRedirect() {
   const router = useRouter();
-  
+
   useEffect(() => {
     router.replace("/teacher?tab=quizzes");
   }, [router]);

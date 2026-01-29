@@ -10,12 +10,12 @@ import Loading from "../components/ui/Loading";
 function TeacherPageContent() {
   const [user, setUser] = useState<any>(null);
   const searchParams = useSearchParams();
-  
+
   // Parse tab and quiz view from URL params
   const tab = searchParams.get("tab");
   const quizView = searchParams.get("quizView");
   const quizId = searchParams.get("quizId");
-  
+
   // Determine initial quiz view based on URL params
   let initialQuizView = undefined;
   if (quizView && quizId) {
@@ -25,11 +25,14 @@ function TeacherPageContent() {
     }
   }
   // Note: "create" view is now handled by /teacher/composer page
-  
+
   // Determine initial tab - if quizView is set, default to quizzes tab
-  const initialTab = tab === "quizzes" || tab === "sections" 
-    ? tab 
-    : (quizView ? "quizzes" : "home");
+  const initialTab =
+    tab === "quizzes" || tab === "sections"
+      ? tab
+      : quizView
+        ? "quizzes"
+        : "home";
 
   return (
     <AuthGuard requiredRole="teacher" onAuthSuccess={setUser}>

@@ -1,15 +1,18 @@
-import { initializeApp, getApps, cert, App } from "firebase-admin/app";
-import { getAuth, Auth } from "firebase-admin/auth";
-import { getFirestore, Firestore } from "firebase-admin/firestore";
+import { initializeApp, getApps, cert, type App } from "firebase-admin/app";
+import { getAuth } from "firebase-admin/auth";
+import { getFirestore } from "firebase-admin/firestore";
 import { env } from "./env";
 
 let app: App;
 
 if (!getApps().length) {
-  let serviceAccount;
+  let serviceAccount: Record<string, unknown>;
 
-  if (env.FIREBASE_SERVICE_ACCOUNT_KEY && env.FIREBASE_SERVICE_ACCOUNT_KEY.length > 0) {
-    serviceAccount = JSON.parse(env.FIREBASE_SERVICE_ACCOUNT_KEY);
+  if (env.FIREBASE_SERVICE_ACCOUNT_KEY.length > 0) {
+    serviceAccount = JSON.parse(env.FIREBASE_SERVICE_ACCOUNT_KEY) as Record<
+      string,
+      unknown
+    >;
   } else {
     const privateKey = env.FIREBASE_ADMIN_PRIVATE_KEY.replace(/\\n/g, "\n");
 
@@ -22,8 +25,10 @@ if (!getApps().length) {
       client_id: env.FIREBASE_ADMIN_CLIENT_ID || undefined,
       auth_uri: env.FIREBASE_ADMIN_AUTH_URI,
       token_uri: env.FIREBASE_ADMIN_TOKEN_URI,
-      auth_provider_x509_cert_url: env.FIREBASE_ADMIN_AUTH_PROVIDER_X509_CERT_URL || undefined,
-      client_x509_cert_url: env.FIREBASE_ADMIN_CLIENT_X509_CERT_URL || undefined,
+      auth_provider_x509_cert_url:
+        env.FIREBASE_ADMIN_AUTH_PROVIDER_X509_CERT_URL || undefined,
+      client_x509_cert_url:
+        env.FIREBASE_ADMIN_CLIENT_X509_CERT_URL || undefined,
     };
   }
 

@@ -1,6 +1,6 @@
 /**
  * Implementation Verification Test
- * 
+ *
  * This script verifies that all security enhancements have been properly implemented:
  * 1. Environment variable validation
  * 2. DOMPurify integration
@@ -11,12 +11,12 @@
 import * as fs from "fs";
 import * as path from "path";
 
-interface TestResult {
+type TestResult = {
   name: string;
   passed: boolean;
   message: string;
   details?: string[];
-}
+};
 
 const results: TestResult[] = [];
 
@@ -58,9 +58,10 @@ function testEnvironmentValidation(): TestResult {
   return {
     name: "Environment Validation File",
     passed: hasEnvalid && hasCleanEnv && hasExports,
-    message: hasEnvalid && hasCleanEnv && hasExports
-      ? "Environment validation properly configured"
-      : "Missing required envalid setup",
+    message:
+      hasEnvalid && hasCleanEnv && hasExports
+        ? "Environment validation properly configured"
+        : "Missing required envalid setup",
     details: [
       `Has envalid import: ${hasEnvalid}`,
       `Has cleanEnv: ${hasCleanEnv}`,
@@ -83,15 +84,17 @@ function testDOMPurifyIntegration(): TestResult {
   }
 
   const content = fs.readFileSync(validationPath, "utf-8");
-  const hasDOMPurifyImport = content.includes("isomorphic-dompurify") || content.includes("DOMPurify");
+  const hasDOMPurifyImport =
+    content.includes("isomorphic-dompurify") || content.includes("DOMPurify");
   const hasSanitizeHTML = content.includes("sanitizeHTML");
 
   return {
     name: "DOMPurify Integration",
     passed: hasDOMPurifyImport && hasSanitizeHTML,
-    message: hasDOMPurifyImport && hasSanitizeHTML
-      ? "DOMPurify properly integrated"
-      : "DOMPurify integration incomplete",
+    message:
+      hasDOMPurifyImport && hasSanitizeHTML
+        ? "DOMPurify properly integrated"
+        : "DOMPurify integration incomplete",
     details: [
       `Has DOMPurify import: ${hasDOMPurifyImport}`,
       `Has sanitizeHTML function: ${hasSanitizeHTML}`,
@@ -120,9 +123,10 @@ function testErrorHandler(): TestResult {
   return {
     name: "Error Handler File",
     passed: hasHandleApiError && hasErrorCategories,
-    message: hasHandleApiError && hasErrorCategories
-      ? "Error handler properly configured"
-      : "Error handler incomplete",
+    message:
+      hasHandleApiError && hasErrorCategories
+        ? "Error handler properly configured"
+        : "Error handler incomplete",
     details: [
       `Has handleApiError function: ${hasHandleApiError}`,
       `Has ErrorCategory enum: ${hasErrorCategories}`,
@@ -142,7 +146,8 @@ function testMiddleware(): TestResult {
     return {
       name: "Security Headers Proxy",
       passed: false,
-      message: "middleware.ts exists but proxy.ts does not - migration incomplete",
+      message:
+        "middleware.ts exists but proxy.ts does not - migration incomplete",
     };
   }
 
@@ -158,16 +163,18 @@ function testMiddleware(): TestResult {
   const hasProxyFunction = content.includes("export function proxy");
   const hasSecurityHeaders = content.includes("getSecurityHeaders");
   const hasConfig = content.includes("export const config");
-  const excludesContentType = content.includes("delete headers[\"Content-Type\"]") || 
-                              !content.includes("Content-Type") || 
-                              content.includes("getPublicSecurityHeaders");
+  const excludesContentType =
+    content.includes('delete headers["Content-Type"]') ||
+    !content.includes("Content-Type") ||
+    content.includes("getPublicSecurityHeaders");
 
   return {
     name: "Security Headers Proxy",
     passed: hasProxyFunction && hasSecurityHeaders && hasConfig,
-    message: hasProxyFunction && hasSecurityHeaders && hasConfig
-      ? "Proxy properly configured (migrated from middleware)"
-      : "Proxy incomplete",
+    message:
+      hasProxyFunction && hasSecurityHeaders && hasConfig
+        ? "Proxy properly configured (migrated from middleware)"
+        : "Proxy incomplete",
     details: [
       `Has proxy function: ${hasProxyFunction}`,
       `Uses security headers: ${hasSecurityHeaders}`,
@@ -188,7 +195,9 @@ function testErrorHandlerImports(): TestResult {
 
   for (const file of routeFiles) {
     const content = fs.readFileSync(file, "utf-8");
-    const hasImport = content.includes('from "@/lib/error-handler"') || content.includes('from "../lib/error-handler"');
+    const hasImport =
+      content.includes('from "@/lib/error-handler"') ||
+      content.includes('from "../lib/error-handler"');
     const usesHandler = content.includes("handleApiError(");
 
     if (usesHandler && !hasImport) {
@@ -206,9 +215,10 @@ function testErrorHandlerImports(): TestResult {
   return {
     name: "Error Handler Imports in API Routes",
     passed: issues.length === 0,
-    message: issues.length === 0
-      ? `All ${routesUsingHandler} routes using handleApiError have proper imports`
-      : `${issues.length} route(s) missing handleApiError import`,
+    message:
+      issues.length === 0
+        ? `All ${routesUsingHandler} routes using handleApiError have proper imports`
+        : `${issues.length} route(s) missing handleApiError import`,
     details: [
       `Routes with handler import: ${routesWithHandler}`,
       `Routes using handler: ${routesUsingHandler}`,
@@ -229,13 +239,15 @@ function testCatchBlockUsage(): TestResult {
   for (const file of routeFiles) {
     const content = fs.readFileSync(file, "utf-8");
     const lines = content.split("\n");
-    
+
     // Find catch blocks more accurately
     for (let i = 0; i < lines.length; i++) {
       if (lines[i].trim().startsWith("} catch")) {
         // Found a catch block, check the next few lines
-        const catchBlockLines = lines.slice(i, Math.min(i + 15, lines.length)).join("\n");
-        
+        const catchBlockLines = lines
+          .slice(i, Math.min(i + 15, lines.length))
+          .join("\n");
+
         if (catchBlockLines.includes("handleApiError")) {
           catchBlocksWithHandler++;
         } else if (
@@ -247,7 +259,9 @@ function testCatchBlockUsage(): TestResult {
         ) {
           // Manual error handling without handleApiError (excluding cleanup blocks)
           catchBlocksWithoutHandler++;
-          issues.push(`${path.relative(process.cwd(), file)}:${i + 1} - Manual error handling`);
+          issues.push(
+            `${path.relative(process.cwd(), file)}:${i + 1} - Manual error handling`
+          );
         }
       }
     }
@@ -256,9 +270,10 @@ function testCatchBlockUsage(): TestResult {
   return {
     name: "Catch Block Error Handling",
     passed: catchBlocksWithoutHandler === 0,
-    message: catchBlocksWithoutHandler === 0
-      ? `All ${catchBlocksWithHandler} catch blocks use handleApiError`
-      : `${catchBlocksWithoutHandler} catch block(s) still use manual error handling`,
+    message:
+      catchBlocksWithoutHandler === 0
+        ? `All ${catchBlocksWithHandler} catch blocks use handleApiError`
+        : `${catchBlocksWithoutHandler} catch block(s) still use manual error handling`,
     details: [
       `Catch blocks with handleApiError: ${catchBlocksWithHandler}`,
       `Catch blocks without handler: ${catchBlocksWithoutHandler}`,
@@ -281,8 +296,10 @@ function testUserScopeIssues(): TestResult {
     for (let i = 0; i < lines.length; i++) {
       if (lines[i].trim().startsWith("} catch")) {
         // Found a catch block, check the next 20 lines
-        const catchBlockLines = lines.slice(i, Math.min(i + 20, lines.length)).join("\n");
-        
+        const catchBlockLines = lines
+          .slice(i, Math.min(i + 20, lines.length))
+          .join("\n");
+
         if (
           catchBlockLines.includes("user?.uid") &&
           !catchBlockLines.includes("const user = await verifyAuth") &&
@@ -293,11 +310,19 @@ function testUserScopeIssues(): TestResult {
           // Check if user is declared in outer scope (before try block)
           const beforeCatch = lines.slice(0, i).join("\n");
           const tryBlockStart = beforeCatch.lastIndexOf("try {");
-          const beforeTry = beforeCatch.substring(Math.max(0, tryBlockStart - 50), tryBlockStart);
-          
-          if (!beforeTry.includes("const user") && !beforeTry.includes("let user")) {
+          const beforeTry = beforeCatch.substring(
+            Math.max(0, tryBlockStart - 50),
+            tryBlockStart
+          );
+
+          if (
+            !beforeTry.includes("const user") &&
+            !beforeTry.includes("let user")
+          ) {
             // Potential scope issue - user not declared before try or in catch
-            issues.push(`${path.relative(process.cwd(), file)}:${i + 1} - Potential user scope issue`);
+            issues.push(
+              `${path.relative(process.cwd(), file)}:${i + 1} - Potential user scope issue`
+            );
           }
         }
       }
@@ -307,9 +332,10 @@ function testUserScopeIssues(): TestResult {
   return {
     name: "User Variable Scope in Catch Blocks",
     passed: issues.length === 0,
-    message: issues.length === 0
-      ? "No user scope issues detected"
-      : `${issues.length} potential user scope issue(s) found`,
+    message:
+      issues.length === 0
+        ? "No user scope issues detected"
+        : `${issues.length} potential user scope issue(s) found`,
     details: issues.length > 0 ? issues.slice(0, 10) : [],
   };
 }
@@ -330,8 +356,12 @@ function testEnvironmentVariableUsage(): TestResult {
     if (!fs.existsSync(fullPath)) continue;
 
     const content = fs.readFileSync(fullPath, "utf-8");
-    const usesProcessEnv = content.includes("process.env.") && !content.includes("// Legacy") && !content.includes("// Build-time");
-    const usesEnvImport = content.includes('from "./env"') || content.includes('from "@/lib/env"');
+    const usesProcessEnv =
+      content.includes("process.env.") &&
+      !content.includes("// Legacy") &&
+      !content.includes("// Build-time");
+    const usesEnvImport =
+      content.includes('from "./env"') || content.includes('from "@/lib/env"');
 
     if (usesProcessEnv && !usesEnvImport) {
       issues.push(`${filePath} - Still uses process.env directly`);
@@ -343,9 +373,10 @@ function testEnvironmentVariableUsage(): TestResult {
   return {
     name: "Environment Variable Usage",
     passed: issues.length === 0,
-    message: issues.length === 0
-      ? `All ${filesUsingEnv} files use validated environment variables`
-      : `${issues.length} file(s) still use process.env directly`,
+    message:
+      issues.length === 0
+        ? `All ${filesUsingEnv} files use validated environment variables`
+        : `${issues.length} file(s) still use process.env directly`,
     details: issues.length > 0 ? issues : [],
   };
 }
@@ -361,10 +392,13 @@ function testDependencies(): TestResult {
     };
   }
 
-  const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf-8"));
+  const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf-8")) as {
+    dependencies?: Record<string, string>;
+    devDependencies?: Record<string, string>;
+  };
   const dependencies = {
-    ...packageJson.dependencies,
-    ...packageJson.devDependencies,
+    ...(packageJson.dependencies ?? {}),
+    ...(packageJson.devDependencies ?? {}),
   };
 
   const required = ["envalid", "isomorphic-dompurify"];
@@ -379,11 +413,12 @@ function testDependencies(): TestResult {
   return {
     name: "Required Dependencies",
     passed: missing.length === 0,
-    message: missing.length === 0
-      ? "All required dependencies are installed"
-      : `Missing dependencies: ${missing.join(", ")}`,
+    message:
+      missing.length === 0
+        ? "All required dependencies are installed"
+        : `Missing dependencies: ${missing.join(", ")}`,
     details: [
-      `envalid: ${dependencies["envalid"] ? "✓" : "✗"}`,
+      `envalid: ${dependencies.envalid ? "✓" : "✗"}`,
       `isomorphic-dompurify: ${dependencies["isomorphic-dompurify"] ? "✓" : "✗"}`,
     ],
   };
@@ -403,7 +438,6 @@ function runTests(): void {
   results.push(testEnvironmentVariableUsage());
   results.push(testDependencies());
 
-  // Print results
   let passed = 0;
   let failed = 0;
 
@@ -427,7 +461,6 @@ function runTests(): void {
     }
   }
 
-  // Summary
   console.log("=".repeat(60));
   console.log(`Summary: ${passed} passed, ${failed} failed`);
   console.log("=".repeat(60));
@@ -436,10 +469,14 @@ function runTests(): void {
     console.log("\n🎉 All tests passed! Implementation looks good.");
     process.exit(0);
   } else {
-    console.log(`\n⚠️  ${failed} test(s) failed. Please review the issues above.`);
+    console.log(
+      `\n⚠️  ${failed} test(s) failed. Please review the issues above.`
+    );
     process.exit(1);
   }
 }
 
 // Run tests
-runTests();
+if (require.main === module) {
+  runTests();
+}

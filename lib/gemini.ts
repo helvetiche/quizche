@@ -1,12 +1,11 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { adminDb } from "./firebase-admin";
-import cache, { withCache } from "./cache";
+import cache from "./cache";
 import { env } from "./env";
 import * as crypto from "crypto";
 
 let genAI: GoogleGenerativeAI | null = null;
 
-// Primary and fallback models
 const PRIMARY_MODEL = "gemini-2.0-flash-exp";
 const FALLBACK_MODEL = "gemini-1.5-flash";
 
@@ -19,55 +18,34 @@ const initializeGemini = (): GoogleGenerativeAI => {
   return genAI;
 };
 
-/**
- * Get model with fallback support
- */
-const getModelWithFallback = async (genAIInstance: GoogleGenerativeAI, preferredModel: string = PRIMARY_MODEL) => {
-  try {
-    const model = genAIInstance.getGenerativeModel({ model: preferredModel });
-    return { model, modelName: preferredModel };
-  } catch (error) {
-    console.warn(`Failed to get model ${preferredModel}, falling back to ${FALLBACK_MODEL}`);
-    const model = genAIInstance.getGenerativeModel({ model: FALLBACK_MODEL });
-    return { model, modelName: FALLBACK_MODEL };
-  }
-};
-
-/**
- * Generate hash for PDF content deduplication
- */
 const hashPDF = (pdfBuffer: Buffer): string => {
   return crypto.createHash("sha256").update(pdfBuffer).digest("hex");
 };
 
-/**
- * Check if PDF was already processed (deduplication)
- */
 const getCachedPDFExtraction = async (
   pdfHash: string
 ): Promise<string | null> => {
   try {
-    // Check cache first
     const cacheKey = `pdf_extraction:${pdfHash}`;
     const cached = await cache.get<string>(cacheKey);
-    if (cached) {
+    if (cached !== null && cached !== undefined) {
       return cached;
     }
 
-    // Check database cache
     const cacheDoc = await adminDb
       .collection("pdfExtractionCache")
       .doc(pdfHash)
       .get();
 
-    if (cacheDoc.exists) {
-      const data = cacheDoc.data();
-      const extractedText = data?.extractedText;
-      if (extractedText) {
-        // Cache in memory for faster access
-        cache.set(cacheKey, extractedText, 3600); // 1 hour
-        return extractedText;
-      }
+    if (!cacheDoc.exists) {
+      return null;
+    }
+
+    const data = cacheDoc.data() as Record<string, unknown> | undefined;
+    const extractedText = data?.extractedText;
+    if (typeof extractedText === "string") {
+      void cache.set(cacheKey, extractedText, 3600);
+      return extractedText;
     }
 
     return null;
@@ -77,30 +55,24 @@ const getCachedPDFExtraction = async (
   }
 };
 
-/**
- * Cache PDF extraction result
- */
 const cachePDFExtraction = async (
   pdfHash: string,
   extractedText: string
 ): Promise<void> => {
   try {
     const cacheKey = `pdf_extraction:${pdfHash}`;
-    // Cache in Redis
-    await cache.set(cacheKey, extractedText, 3600); // 1 hour
+    await cache.set(cacheKey, extractedText, 3600);
 
-    // Cache in database (longer term)
     await adminDb
       .collection("pdfExtractionCache")
       .doc(pdfHash)
       .set({
         extractedText,
         createdAt: new Date(),
-        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
       });
   } catch (error) {
     console.error("Error caching PDF extraction:", error);
-    // Don't throw - caching failure shouldn't break the operation
   }
 };
 
@@ -108,22 +80,19 @@ export const extractTextFromPDF = async (
   pdfBuffer: Buffer
 ): Promise<string> => {
   try {
-    // Check for duplicate PDF (deduplication)
     const pdfHash = hashPDF(pdfBuffer);
     const cached = await getCachedPDFExtraction(pdfHash);
-    if (cached) {
+    if (cached !== null && cached !== undefined) {
       return cached;
     }
 
     const genAIInstance = initializeGemini();
-    
-    // Try primary model first, then fallback
+
     let extractedText: string | null = null;
     let lastError: Error | null = null;
-    
+
     for (const modelName of [PRIMARY_MODEL, FALLBACK_MODEL]) {
       try {
-        console.log(`Attempting PDF extraction with model: ${modelName}`);
         const model = genAIInstance.getGenerativeModel({ model: modelName });
 
         const base64Pdf = pdfBuffer.toString("base64");
@@ -143,9 +112,8 @@ export const extractTextFromPDF = async (
 
         const response = result.response;
         extractedText = response.text();
-        
-        if (extractedText && extractedText.trim().length > 0) {
-          console.log(`PDF extraction successful with model: ${modelName}`);
+
+        if (extractedText !== null && extractedText !== undefined && extractedText.trim().length > 0) {
           break;
         }
       } catch (error) {
@@ -154,11 +122,10 @@ export const extractTextFromPDF = async (
       }
     }
 
-    if (!extractedText || extractedText.trim().length === 0) {
-      throw lastError || new Error("Failed to extract text from PDF");
+    if (extractedText === null || extractedText === undefined || extractedText.trim().length === 0) {
+      throw lastError ?? new Error("Failed to extract text from PDF");
     }
 
-    // Cache the result
     await cachePDFExtraction(pdfHash, extractedText);
 
     return extractedText;
@@ -166,15 +133,12 @@ export const extractTextFromPDF = async (
     console.error("Error extracting text from PDF:", error);
     throw new Error(
       error instanceof Error
-        ? `PDF extraction failed: ${error.message}`
-        : "Failed to extract text from PDF"
+        ? `PDF text extraction failed: ${error.message}`
+        : "Something went wrong reading the PDF"
     );
   }
 };
 
-/**
- * Generate hash for content-based caching
- */
 const hashContent = (
   content: string,
   difficulty: string,
@@ -183,11 +147,39 @@ const hashContent = (
 ): string => {
   const contentHash = crypto
     .createHash("sha256")
-    .update(content.substring(0, 1000)) // Use first 1000 chars for hash
+    .update(content.substring(0, 1000))
     .digest("hex");
   return `quiz:${contentHash}:${difficulty}:${numQuestions}:${
-    additionalInstructions || ""
+    additionalInstructions ?? ""
   }`;
+};
+
+type QuizQuestion = {
+  question: string;
+  type: string;
+  choices?: string[];
+  answer: string;
+  explanation?: string;
+  choiceExplanations?: string[];
+};
+
+type QuizResponse = {
+  title: string;
+  description: string;
+  questions: QuizQuestion[];
+};
+
+type RawQuizData = {
+  title?: string;
+  description?: string;
+  questions?: {
+    question?: string;
+    type?: string;
+    choices?: string[];
+    answer?: string;
+    explanation?: string;
+    choiceExplanations?: string[];
+  }[];
 };
 
 export const generateQuizFromContent = async (
@@ -195,38 +187,15 @@ export const generateQuizFromContent = async (
   difficulty: "easy" | "medium" | "hard",
   numQuestions: number,
   additionalInstructions?: string
-): Promise<{
-  title: string;
-  description: string;
-  questions: Array<{
-    question: string;
-    type: string;
-    choices?: string[];
-    answer: string;
-    explanation?: string;
-    choiceExplanations?: string[];
-  }>;
-}> => {
+): Promise<QuizResponse> => {
   try {
-    // Check cache first
     const cacheKey = hashContent(
       content,
       difficulty,
       numQuestions,
       additionalInstructions
     );
-    const cached = await cache.get<{
-      title: string;
-      description: string;
-      questions: Array<{
-        question: string;
-        type: string;
-        choices?: string[];
-        answer: string;
-        explanation?: string;
-        choiceExplanations?: string[];
-      }>;
-    }>(`quiz_gen:${cacheKey}`);
+    const cached = await cache.get<QuizResponse>(`quiz_gen:${cacheKey}`);
 
     if (cached) {
       return cached;
@@ -251,7 +220,7 @@ Requirements:
 - Difficulty level: ${difficulty}
 - ${difficultyInstructions[difficulty]}`;
 
-    if (additionalInstructions && additionalInstructions.trim().length > 0) {
+    if (additionalInstructions !== null && additionalInstructions !== undefined && additionalInstructions.trim().length > 0) {
       prompt += `\n\nAdditional Instructions:
 ${additionalInstructions.trim()}`;
     }
@@ -291,33 +260,34 @@ Important:
 - Explanations should be educational and help students understand the concept
 - Return ONLY valid JSON, no additional text or markdown formatting`;
 
-    // Try primary model first, then fallback
-    let quizData: any = null;
+    let quizData: RawQuizData | null = null;
     let lastError: Error | null = null;
-    
+
     for (const modelName of [PRIMARY_MODEL, FALLBACK_MODEL]) {
       try {
-        console.log(`Attempting quiz generation with model: ${modelName}`);
         const model = genAIInstance.getGenerativeModel({ model: modelName });
-        
+
         const aiResult = await model.generateContent(prompt);
         const response = aiResult.response;
         const text = response.text();
 
         try {
-          const jsonMatch = text.match(/\{[\s\S]*\}/);
-          if (jsonMatch) {
-            quizData = JSON.parse(jsonMatch[0]);
-          } else {
-            quizData = JSON.parse(text);
-          }
-          
-          if (quizData.title && quizData.questions && Array.isArray(quizData.questions)) {
-            console.log(`Quiz generation successful with model: ${modelName}`);
+          const jsonMatch = /\{[\s\S]*\}/.exec(text);
+          const jsonStr = jsonMatch?.[0] ?? text;
+          quizData = JSON.parse(jsonStr) as RawQuizData;
+
+          if (
+            quizData?.title !== null && quizData?.title !== undefined &&
+            quizData?.questions !== null && quizData?.questions !== undefined &&
+            Array.isArray(quizData.questions)
+          ) {
             break;
           }
-        } catch (parseError) {
-          console.warn(`Failed to parse response from ${modelName}:`, text.substring(0, 200));
+        } catch {
+          console.warn(
+            `Failed to parse response from ${modelName}:`,
+            text.substring(0, 200)
+          );
           lastError = new Error("Failed to parse quiz generation response");
         }
       } catch (error) {
@@ -326,8 +296,11 @@ Important:
       }
     }
 
-    if (!quizData || !quizData.title || !quizData.questions) {
-      throw lastError || new Error("Failed to generate quiz with all available models");
+    if (quizData?.title === null || quizData?.title === undefined || quizData?.questions === null || quizData?.questions === undefined) {
+      throw (
+        lastError ??
+        new Error("Something went wrong generating the quiz")
+      );
     }
 
     if (quizData.questions.length !== numQuestions) {
@@ -336,65 +309,88 @@ Important:
       );
     }
 
-    const validatedQuestions = quizData.questions.map(
-      (q: any, index: number) => {
-        if (!q.question || !q.type || !q.answer) {
-          throw new Error(`Question ${index + 1} is missing required fields`);
-        }
-
-        if (q.type === "multiple_choice") {
-          if (!q.choices || !Array.isArray(q.choices) || q.choices.length < 2) {
-            throw new Error(
-              `Question ${
-                index + 1
-              }: Multiple choice must have at least 2 choices`
-            );
-          }
-          if (!q.choices.includes(q.answer)) {
-            throw new Error(
-              `Question ${index + 1}: Answer must be one of the choices`
-            );
-          }
-        }
-
-        if (q.type === "true_or_false") {
-          if (q.answer !== "true" && q.answer !== "false") {
-            throw new Error(
-              `Question ${
-                index + 1
-              }: True/false answer must be "true" or "false"`
-            );
-          }
-        }
-
-        const result: any = {
-          question: q.question.trim(),
-          type: q.type,
-          choices: q.choices?.map((c: string) => c.trim()),
-          answer: q.answer.trim(),
-        };
-
-        // Add explanations based on question type
-        if (q.type === "multiple_choice" && q.choiceExplanations && Array.isArray(q.choiceExplanations)) {
-          result.choiceExplanations = q.choiceExplanations.map((e: string) => (e || "").trim());
-        }
-        
-        if ((q.type === "identification" || q.type === "true_or_false") && q.explanation) {
-          result.explanation = q.explanation.trim();
-        }
-
-        return result;
+    const validatedQuestions = quizData.questions.map((q, index: number) => {
+      const questionObj = q;
+      if (
+        questionObj?.question === null || questionObj?.question === undefined ||
+        questionObj?.type === null || questionObj?.type === undefined ||
+        questionObj?.answer === null || questionObj?.answer === undefined
+      ) {
+        throw new Error(`Question ${index + 1} is missing required fields`);
       }
-    );
 
-    const result = {
+      if (questionObj.type === "multiple_choice") {
+        if (
+          questionObj.choices === null || questionObj.choices === undefined ||
+          !Array.isArray(questionObj.choices) ||
+          questionObj.choices.length < 2
+        ) {
+          throw new Error(
+            `Question ${
+              index + 1
+            }: Multiple choice must have at least 2 choices`
+          );
+        }
+        const choices = questionObj.choices;
+        const answer = String(questionObj.answer);
+        if (!choices.includes(answer)) {
+          throw new Error(
+            `Question ${index + 1}: Answer must be one of the choices`
+          );
+        }
+      }
+
+      if (questionObj.type === "true_or_false") {
+        if (questionObj.answer !== "true" && questionObj.answer !== "false") {
+          throw new Error(
+            `Question ${index + 1}: True/false answer must be "true" or "false"`
+          );
+        }
+      }
+
+      const result: QuizQuestion = {
+        question: String(questionObj.question).trim(),
+        type: String(questionObj.type),
+        answer: String(questionObj.answer).trim(),
+      };
+
+      if (
+        questionObj.choices !== null && questionObj.choices !== undefined &&
+        Array.isArray(questionObj.choices)
+      ) {
+        result.choices = (questionObj.choices).map((c: string) =>
+          String(c).trim()
+        );
+      }
+
+      if (
+        questionObj.type === "multiple_choice" &&
+        questionObj.choiceExplanations !== null && questionObj.choiceExplanations !== undefined &&
+        Array.isArray(questionObj.choiceExplanations)
+      ) {
+        result.choiceExplanations = (
+          questionObj.choiceExplanations
+        ).map((e: string) => (e ?? "").trim());
+      }
+
+      if (
+        (questionObj.type === "identification" ||
+          questionObj.type === "true_or_false") &&
+        questionObj.explanation !== null && questionObj.explanation !== undefined
+      ) {
+        result.explanation = String(questionObj.explanation).trim();
+      }
+
+      return result;
+    });
+
+    const result: QuizResponse = {
       title: quizData.title.trim(),
-      description: (quizData.description || "").trim(),
+      description: (quizData.description ?? "").trim(),
       questions: validatedQuestions,
     };
 
-    // Cache the result
-    await cache.set(`quiz_gen:${cacheKey}`, result, 3600); // 1 hour
+    await cache.set(`quiz_gen:${cacheKey}`, result, 3600);
 
     return result;
   } catch (error) {
@@ -402,14 +398,11 @@ Important:
     throw new Error(
       error instanceof Error
         ? `Quiz generation failed: ${error.message}`
-        : "Failed to generate quiz"
+        : "Something went wrong creating the quiz"
     );
   }
 };
 
-/**
- * Generate hash for flashcard content-based caching
- */
 const hashFlashcardContent = (
   content: string,
   difficulty: string,
@@ -418,11 +411,28 @@ const hashFlashcardContent = (
 ): string => {
   const contentHash = crypto
     .createHash("sha256")
-    .update(content.substring(0, 1000)) // Use first 1000 chars for hash
+    .update(content.substring(0, 1000))
     .digest("hex");
   return `flashcard:${contentHash}:${difficulty}:${numCards}:${
-    additionalInstructions || ""
+    additionalInstructions ?? ""
   }`;
+};
+
+type FlashcardCard = {
+  front: string;
+  back: string;
+};
+
+type FlashcardResponse = {
+  title: string;
+  description: string;
+  cards: FlashcardCard[];
+};
+
+type RawFlashcardData = {
+  title?: string;
+  description?: string;
+  cards?: { front?: string; back?: string }[];
 };
 
 export const generateFlashcardsFromContent = async (
@@ -430,27 +440,17 @@ export const generateFlashcardsFromContent = async (
   difficulty: "easy" | "medium" | "hard",
   numCards: number,
   additionalInstructions?: string
-): Promise<{
-  title: string;
-  description: string;
-  cards: Array<{
-    front: string;
-    back: string;
-  }>;
-}> => {
+): Promise<FlashcardResponse> => {
   try {
-    // Check cache first
     const cacheKey = hashFlashcardContent(
       content,
       difficulty,
       numCards,
       additionalInstructions
     );
-    const cached = await cache.get<{
-      title: string;
-      description: string;
-      cards: Array<{ front: string; back: string }>;
-    }>(`flashcard_gen:${cacheKey}`);
+    const cached = await cache.get<FlashcardResponse>(
+      `flashcard_gen:${cacheKey}`
+    );
 
     if (cached) {
       return cached;
@@ -475,7 +475,7 @@ Requirements:
 - Difficulty level: ${difficulty}
 - ${difficultyInstructions[difficulty]}`;
 
-    if (additionalInstructions && additionalInstructions.trim().length > 0) {
+    if (additionalInstructions !== null && additionalInstructions !== undefined && additionalInstructions.trim().length > 0) {
       prompt += `\n\nAdditional Instructions:
 ${additionalInstructions.trim()}`;
     }
@@ -506,34 +506,37 @@ Important:
 - Make sure all flashcards are based on the provided content
 - Return ONLY valid JSON, no additional text or markdown formatting`;
 
-    // Try primary model first, then fallback
-    let flashcardData: any = null;
+    let flashcardData: RawFlashcardData | null = null;
     let lastError: Error | null = null;
-    
+
     for (const modelName of [PRIMARY_MODEL, FALLBACK_MODEL]) {
       try {
-        console.log(`Attempting flashcard generation with model: ${modelName}`);
         const model = genAIInstance.getGenerativeModel({ model: modelName });
-        
+
         const aiResult = await model.generateContent(prompt);
         const response = aiResult.response;
         const text = response.text();
 
         try {
-          const jsonMatch = text.match(/\{[\s\S]*\}/);
-          if (jsonMatch) {
-            flashcardData = JSON.parse(jsonMatch[0]);
-          } else {
-            flashcardData = JSON.parse(text);
-          }
-          
-          if (flashcardData.title && flashcardData.cards && Array.isArray(flashcardData.cards)) {
-            console.log(`Flashcard generation successful with model: ${modelName}`);
+          const jsonMatch = /\{[\s\S]*\}/.exec(text);
+          const jsonStr = jsonMatch?.[0] ?? text;
+          flashcardData = JSON.parse(jsonStr) as RawFlashcardData;
+
+          if (
+            flashcardData?.title !== null && flashcardData?.title !== undefined &&
+            flashcardData?.cards !== null && flashcardData?.cards !== undefined &&
+            Array.isArray(flashcardData.cards)
+          ) {
             break;
           }
-        } catch (parseError) {
-          console.warn(`Failed to parse response from ${modelName}:`, text.substring(0, 200));
-          lastError = new Error("Failed to parse flashcard generation response");
+        } catch {
+          console.warn(
+            `Failed to parse response from ${modelName}:`,
+            text.substring(0, 200)
+          );
+          lastError = new Error(
+            "Failed to parse flashcard generation response"
+          );
         }
       } catch (error) {
         console.warn(`Model ${modelName} failed:`, error);
@@ -541,8 +544,11 @@ Important:
       }
     }
 
-    if (!flashcardData || !flashcardData.title || !flashcardData.cards) {
-      throw lastError || new Error("Failed to generate flashcards with all available models");
+    if (flashcardData?.title === null || flashcardData?.title === undefined || flashcardData?.cards === null || flashcardData?.cards === undefined) {
+      throw (
+        lastError ??
+        new Error("Something went wrong generating flashcards")
+      );
     }
 
     if (flashcardData.cards.length !== numCards) {
@@ -552,8 +558,8 @@ Important:
     }
 
     const validatedCards = flashcardData.cards.map(
-      (card: any, index: number) => {
-        if (!card.front || !card.back) {
+      (card: { front?: string; back?: string }, index: number) => {
+        if (card?.front === null || card?.front === undefined || card?.back === null || card?.back === undefined) {
           throw new Error(`Card ${index + 1} is missing required fields`);
         }
 
@@ -572,14 +578,13 @@ Important:
       }
     );
 
-    const result = {
+    const result: FlashcardResponse = {
       title: flashcardData.title.trim(),
-      description: (flashcardData.description || "").trim(),
+      description: (flashcardData.description ?? "").trim(),
       cards: validatedCards,
     };
 
-    // Cache the result
-    await cache.set(`flashcard_gen:${cacheKey}`, result, 3600); // 1 hour
+    await cache.set(`flashcard_gen:${cacheKey}`, result, 3600);
 
     return result;
   } catch (error) {
@@ -587,7 +592,7 @@ Important:
     throw new Error(
       error instanceof Error
         ? `Flashcard generation failed: ${error.message}`
-        : "Failed to generate flashcards"
+        : "Something went wrong creating flashcards"
     );
   }
 };

@@ -9,21 +9,21 @@ import DashboardLayout from "../../../../components/layout/DashboardLayout";
 import Loading from "../../../../components/ui/Loading";
 import Image from "next/image";
 
-interface Flashcard {
+type Flashcard = {
   front: string;
   back: string;
   frontImageUrl?: string;
   backImageUrl?: string;
-}
+};
 
-interface FlashcardSet {
+type FlashcardSet = {
   id: string;
   title: string;
   description?: string;
   cards: Flashcard[];
   totalCards: number;
   coverImageUrl?: string;
-}
+};
 
 export default function StudyFlashcardPage() {
   const router = useRouter();

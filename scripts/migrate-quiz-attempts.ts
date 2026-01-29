@@ -17,7 +17,7 @@ import { adminDb } from "../lib/firebase-admin";
 
 const BATCH_SIZE = 500; // Firestore batch write limit
 
-async function migrateQuizAttempts() {
+async function migrateQuizAttempts(): Promise<void> {
   console.log("Starting migration of quizAttempts...");
 
   let totalProcessed = 0;
@@ -26,8 +26,6 @@ async function migrateQuizAttempts() {
 
   try {
     while (true) {
-      // Query all attempts - Firestore doesn't support querying for null/missing fields
-      // We'll filter client-side to find documents that need migration
       let query = adminDb
         .collection("quizAttempts")
         .orderBy("completedAt", "desc")
@@ -44,30 +42,26 @@ async function migrateQuizAttempts() {
         break;
       }
 
-      // Filter documents that need migration (missing denormalized fields)
       const docsToUpdate = snapshot.docs.filter((doc) => {
         const data = doc.data();
         return !data.studentEmail || !data.studentName;
       });
 
       if (docsToUpdate.length === 0) {
-        // All documents in this batch are already migrated, continue
         lastDoc = snapshot.docs[snapshot.docs.length - 1];
         totalProcessed += snapshot.docs.length;
         continue;
       }
 
-      // Collect unique user IDs
       const userIds = new Set<string>();
       docsToUpdate.forEach((doc) => {
         const userId = doc.data().userId;
         if (userId) userIds.add(userId);
       });
 
-      // Batch fetch users
       const userMap = new Map<string, { email: string; displayName: string }>();
       const userIdsArray = Array.from(userIds);
-      const userBatchSize = 10; // Firestore 'in' query limit
+      const userBatchSize = 10;
 
       for (let i = 0; i < userIdsArray.length; i += userBatchSize) {
         const batch = userIdsArray.slice(i, i + userBatchSize);
@@ -79,21 +73,20 @@ async function migrateQuizAttempts() {
           if (doc.exists) {
             const userData = doc.data();
             userMap.set(batch[index], {
-              email: userData?.email || "",
-              displayName: userData?.displayName || "",
+              email: (userData?.email as string) ?? "",
+              displayName: (userData?.displayName as string) ?? "",
             });
           }
         });
       }
 
-      // Batch update documents
       const writeBatch = adminDb.batch();
       let batchCount = 0;
 
       for (const doc of docsToUpdate) {
         const attemptData = doc.data();
         const userId = attemptData.userId;
-        const userInfo = userMap.get(userId);
+        const userInfo = userMap.get(userId as string);
 
         if (userInfo) {
           writeBatch.update(doc.ref, {
@@ -102,12 +95,10 @@ async function migrateQuizAttempts() {
           });
           batchCount++;
 
-          // Firestore batch limit is 500 operations
           if (batchCount >= 500) {
             await writeBatch.commit();
             totalUpdated += batchCount;
             console.log(`Updated ${totalUpdated} documents so far...`);
-            // Start new batch
             const newBatch = adminDb.batch();
             newBatch.update(doc.ref, {
               studentEmail: userInfo.email,
@@ -118,7 +109,6 @@ async function migrateQuizAttempts() {
         }
       }
 
-      // Commit remaining updates
       if (batchCount > 0) {
         await writeBatch.commit();
         totalUpdated += batchCount;
@@ -131,7 +121,6 @@ async function migrateQuizAttempts() {
         `Processed ${totalProcessed} documents, updated ${totalUpdated} documents`
       );
 
-      // If we got fewer documents than batch size, we're done
       if (snapshot.docs.length < BATCH_SIZE) {
         break;
       }
@@ -148,7 +137,7 @@ async function migrateQuizAttempts() {
 
 // Alternative approach: Query by checking if field doesn't exist
 // This is more efficient but requires a different query strategy
-async function migrateQuizAttemptsAlternative() {
+async function _migrateQuizAttemptsAlternative(): Promise<void> {
   console.log("Starting migration (alternative approach)...");
 
   let totalProcessed = 0;
@@ -157,7 +146,6 @@ async function migrateQuizAttemptsAlternative() {
 
   try {
     while (true) {
-      // Query all attempts - we'll filter client-side
       let query = adminDb
         .collection("quizAttempts")
         .orderBy("completedAt", "desc")
@@ -174,7 +162,6 @@ async function migrateQuizAttemptsAlternative() {
         break;
       }
 
-      // Filter documents that need migration
       const docsToUpdate = snapshot.docs.filter((doc) => {
         const data = doc.data();
         return !data.studentEmail || !data.studentName;
@@ -186,14 +173,12 @@ async function migrateQuizAttemptsAlternative() {
         continue;
       }
 
-      // Collect unique user IDs
       const userIds = new Set<string>();
       docsToUpdate.forEach((doc) => {
         const userId = doc.data().userId;
         if (userId) userIds.add(userId);
       });
 
-      // Batch fetch users
       const userMap = new Map<string, { email: string; displayName: string }>();
       const userIdsArray = Array.from(userIds);
 
@@ -207,21 +192,20 @@ async function migrateQuizAttemptsAlternative() {
           if (doc.exists) {
             const userData = doc.data();
             userMap.set(batch[index], {
-              email: userData?.email || "",
-              displayName: userData?.displayName || "",
+              email: (userData?.email as string) ?? "",
+              displayName: (userData?.displayName as string) ?? "",
             });
           }
         });
       }
 
-      // Batch update documents
       const writeBatch = adminDb.batch();
       let batchCount = 0;
 
       for (const doc of docsToUpdate) {
         const attemptData = doc.data();
         const userId = attemptData.userId;
-        const userInfo = userMap.get(userId);
+        const userInfo = userMap.get(userId as string);
 
         if (
           userInfo &&
@@ -237,8 +221,6 @@ async function migrateQuizAttemptsAlternative() {
             await writeBatch.commit();
             totalUpdated += batchCount;
             console.log(`Updated ${totalUpdated} documents so far...`);
-            // Note: This approach has a limitation - we can't easily continue
-            // the batch. For production, use the first approach or process in smaller chunks.
             break;
           }
         }
@@ -274,10 +256,10 @@ async function migrateQuizAttemptsAlternative() {
 if (require.main === module) {
   migrateQuizAttempts()
     .then(() => {
-      console.log("Migration script finished successfully.");
+      console.warn("Migration script finished successfully.");
       process.exit(0);
     })
-    .catch((error) => {
+    .catch((error: unknown) => {
       console.error("Migration script failed:", error);
       process.exit(1);
     });

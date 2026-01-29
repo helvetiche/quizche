@@ -5,19 +5,26 @@ import { useSearchParams } from "next/navigation";
 import AuthGuard from "../components/auth/AuthGuard";
 import TabDashboardLayout from "../components/layout/TabDashboardLayout";
 import StudentDashboard from "../components/dashboard/StudentDashboard";
-import { StudentTab } from "../components/dashboard/TabContext";
+import { type StudentTab } from "../components/dashboard/TabContext";
 import Loading from "../components/ui/Loading";
 
 function StudentPageContent() {
   const [user, setUser] = useState<any>(null);
   const searchParams = useSearchParams();
-  
+
   // Parse tab from URL params
   const tab = searchParams.get("tab");
-  
+
   // Validate and determine initial tab
-  const validTabs: StudentTab[] = ["home", "quizzes", "flashcards", "history", "connections"];
-  const initialTab = tab && validTabs.includes(tab as StudentTab) ? tab as StudentTab : "home";
+  const validTabs: StudentTab[] = [
+    "home",
+    "quizzes",
+    "flashcards",
+    "history",
+    "connections",
+  ];
+  const initialTab =
+    tab && validTabs.includes(tab as StudentTab) ? (tab as StudentTab) : "home";
 
   return (
     <AuthGuard requiredRole="student" onAuthSuccess={setUser}>

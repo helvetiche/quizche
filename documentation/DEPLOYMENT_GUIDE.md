@@ -7,11 +7,13 @@ This guide covers the steps needed to deploy the scalability optimizations imple
 The system now requires composite indexes for optimal query performance. Deploy them using one of these methods:
 
 ### Method 1: Firebase Console (Recommended)
+
 1. Go to Firebase Console → Firestore Database → Indexes
 2. Click "Create Index"
 3. Import the `firestore.indexes.json` file or manually create each index listed below
 
 ### Method 2: Firebase CLI
+
 ```bash
 # Install Firebase CLI if not already installed
 npm install -g firebase-tools
@@ -24,6 +26,7 @@ firebase deploy --only firestore:indexes
 ```
 
 ### Required Indexes:
+
 - `flashcards`: `userId` (ASC) + `createdAt` (DESC)
 - `flashcardShares`: `sharedWithUserId` (ASC) + `createdAt` (DESC)
 - `flashcardShares`: `flashcardId` (ASC) + `sharedWithUserId` (ASC)
@@ -65,6 +68,7 @@ IMGBB_API_KEY=your-imgbb-api-key
 ```
 
 **Setting Environment Variables in Vercel:**
+
 1. Go to your Vercel project dashboard
 2. Navigate to Settings → Environment Variables
 3. Add each variable above
@@ -79,6 +83,7 @@ npm install @upstash/redis @upstash/ratelimit
 ```
 
 Or if using yarn:
+
 ```bash
 yarn add @upstash/redis @upstash/ratelimit
 ```
@@ -93,7 +98,8 @@ The optimizations create these new Firestore collections:
 - `costDailySummary` - Daily aggregated cost stats
 - `pdfExtractionCache` - Caches PDF extraction results (30-day TTL)
 
-**Note**: 
+**Note**:
+
 - Rate limiting is now handled by **Upstash Redis** (not Firestore)
 - Caching is now handled by **Upstash Redis** (distributed across serverless instances)
 - These collections will be created automatically on first use. Consider setting up TTL policies for automatic cleanup.
@@ -111,6 +117,7 @@ Set up Time-To-Live policies for automatic cleanup:
 ```
 
 Or via Firebase CLI:
+
 ```bash
 gcloud firestore fields ttl update expiresAt --collection-group=rateLimits
 gcloud firestore fields ttl update expiresAt --collection-group=pdfExtractionCache
@@ -119,12 +126,15 @@ gcloud firestore fields ttl update expiresAt --collection-group=pdfExtractionCac
 ## 6. Monitoring Setup
 
 ### Usage Monitoring
+
 The system automatically tracks:
+
 - API calls per user
 - Route usage statistics
 - AI operation counts
 
 View usage stats:
+
 ```typescript
 import { getUserUsageStats } from "@/lib/monitoring";
 
@@ -132,11 +142,14 @@ const stats = await getUserUsageStats(userId, 30); // Last 30 days
 ```
 
 ### Cost Tracking
+
 Costs are automatically tracked for:
+
 - Gemini AI operations (with token estimates)
 - Firestore operations (via usage tracking)
 
 View daily costs:
+
 ```typescript
 // Query costDailySummary collection
 const dailyCosts = await adminDb
@@ -150,6 +163,7 @@ const dailyCosts = await adminDb
 **Now using @upstash/ratelimit** for distributed rate limiting across all Vercel serverless instances.
 
 **Features:**
+
 - Sliding window algorithm (more accurate than fixed window)
 - Built-in analytics for monitoring
 - Automatic key expiration
@@ -179,6 +193,7 @@ Adjust these values based on your needs.
 - **PDF Extractions**: 1 hour in Redis, 30 days in Firestore database
 
 **Benefits of Redis caching:**
+
 - Shared cache across all serverless instances
 - Faster response times
 - Reduced Firestore read costs
@@ -187,6 +202,7 @@ Adjust these values based on your needs.
 ## 9. Performance Testing
 
 After deployment, test:
+
 1. API response times (should be faster with caching)
 2. Rate limiting (try exceeding limits)
 3. Database query performance (check Firebase Console → Performance)
@@ -195,6 +211,7 @@ After deployment, test:
 ## 10. Monitoring & Alerts
 
 Set up alerts for:
+
 - High API usage spikes
 - High AI costs
 - Rate limit violations
@@ -203,18 +220,21 @@ Set up alerts for:
 ## 11. Scaling Considerations
 
 ### Current Implementation ✅ (Production-Ready)
+
 - **Upstash Redis** for distributed caching and rate limiting
 - **Firestore** for database and monitoring
 - **Vercel** for serverless hosting
 - **Basic monitoring** via Firestore collections
 
 ### Already Optimized For:
+
 - ✅ Distributed rate limiting (Redis)
 - ✅ Distributed caching (Redis)
 - ✅ Multiple serverless instances (Vercel)
 - ✅ Cost tracking and monitoring
 
 ### Additional Optimizations (Optional at 100K+ users)
+
 1. **Monitoring Service** (e.g., Datadog, New Relic) for advanced analytics
 2. **CDN** for static assets (Vercel Edge Network)
 3. **Database Read Replicas** if Firestore read costs become high
@@ -223,17 +243,20 @@ Set up alerts for:
 ## Troubleshooting
 
 ### Index Creation Fails
+
 - Ensure you have proper Firestore permissions
 - Check that collection names match exactly
 - Verify field names and types match your data
 
 ### Rate Limiting Not Working
+
 - Verify `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` are set
 - Check Redis connection (check Vercel logs)
 - Verify rate limit configuration
 - Check Redis dashboard in Upstash console
 
 ### Caching Not Working
+
 - Verify `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` are set
 - Check Redis connection (check Vercel logs)
 - Verify cache keys are consistent
@@ -241,6 +264,7 @@ Set up alerts for:
 - Ensure TTL values are appropriate
 
 ### Cost Tracking Not Working
+
 - Verify `costTracking` collection exists
 - Check Firestore write permissions
 - Review error logs for tracking failures
@@ -248,6 +272,7 @@ Set up alerts for:
 ## Support
 
 For issues or questions:
+
 1. Check Firebase Console logs
 2. Review application logs
 3. Check Firestore usage metrics

@@ -21,12 +21,9 @@ class Cache {
     }
   }
 
-  /**
-   * Set cached value in Redis
-   */
   async set(
     key: string,
-    data: any,
+    data: unknown,
     ttl: number = this.DEFAULT_TTL
   ): Promise<void> {
     try {
@@ -34,7 +31,6 @@ class Cache {
       await redis.setex(`cache:${key}`, ttl, data);
     } catch (error) {
       console.error("Cache set error:", error);
-      // Don't throw - caching failure shouldn't break the operation
     }
   }
 
@@ -50,28 +46,16 @@ class Cache {
     }
   }
 
-  /**
-   * Delete multiple cached values by pattern
-   */
-  async deletePattern(_pattern: string): Promise<void> {
+  deletePattern(_pattern: string): void {
     try {
-      // Note: Upstash Redis REST API doesn't support KEYS command
-      // For pattern deletion, you'd need to track keys separately
-      // or use SCAN if available. For now, we'll delete specific keys.
-      // This is a limitation of REST API - consider using Redis client library for full features.
       console.warn("Pattern deletion not fully supported with REST API");
     } catch (error) {
       console.error("Cache delete pattern error:", error);
     }
   }
 
-  /**
-   * Clear all cache (use with caution)
-   */
-  async clear(): Promise<void> {
+  clear(): void {
     try {
-      // Note: FLUSHDB not available in REST API
-      // In production, consider namespacing keys and tracking them
       console.warn("Clear all cache not supported with REST API");
     } catch (error) {
       console.error("Cache clear error:", error);
@@ -87,7 +71,7 @@ const cache = new Cache();
  */
 export const getCacheKey = (
   collection: string,
-  filters: Record<string, any>,
+  filters: Record<string, unknown>,
   options?: { limit?: number; orderBy?: string }
 ): string => {
   const parts = [collection];
@@ -122,10 +106,10 @@ export const getApiCacheKey = (
 export const withCache = async <T>(
   key: string,
   fn: () => Promise<T>,
-  ttl: number = 300
+  ttl = 300
 ): Promise<T> => {
   const cached = await cache.get<T>(key);
-  if (cached !== null) {
+  if (cached !== null && cached !== undefined) {
     return cached;
   }
 
@@ -138,8 +122,8 @@ export const withCache = async <T>(
  * Invalidate cache by pattern
  * Note: Limited support with REST API - consider tracking keys separately
  */
-export const invalidateCache = async (pattern: string): Promise<void> => {
-  await cache.deletePattern(pattern);
+export const invalidateCache = (pattern: string): void => {
+  cache.deletePattern(pattern);
 };
 
 export default cache;

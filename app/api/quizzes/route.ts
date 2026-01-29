@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 import { verifyAuth } from "@/lib/auth";
 import { adminDb } from "@/lib/firebase-admin";
 import { verifyCSRF } from "@/lib/csrf";
@@ -27,7 +27,7 @@ const QUESTION_TYPES = [
 
 type QuestionType = (typeof QUESTION_TYPES)[number];
 
-interface Question {
+type Question = {
   question: string;
   type: QuestionType;
   choices?: string[];
@@ -35,18 +35,18 @@ interface Question {
   imageUrl?: string;
   explanation?: string;
   choiceExplanations?: string[];
-}
+};
 
-interface QuizData {
+type QuizData = {
   title: string;
   description?: string;
   questions: Question[];
-}
+};
 
 // Legacy validation functions kept for backward compatibility
 // New code should use Zod schemas from lib/validation.ts
 
-export async function POST(request: NextRequest) {
+export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
     const user = await verifyAuth(request);
 
@@ -127,19 +127,29 @@ export async function POST(request: NextRequest) {
         if (filteredChoices.length > 0) {
           questionData.choices = filteredChoices;
         }
-        
+
         // Handle choice explanations for multiple choice
         if (q.choiceExplanations && Array.isArray(q.choiceExplanations)) {
-          questionData.choiceExplanations = sanitizeStringArray(q.choiceExplanations);
+          questionData.choiceExplanations = sanitizeStringArray(
+            q.choiceExplanations
+          );
         }
       }
 
-      if (q.imageUrl && typeof q.imageUrl === "string" && q.imageUrl.length > 0) {
+      if (
+        q.imageUrl &&
+        typeof q.imageUrl === "string" &&
+        q.imageUrl.length > 0
+      ) {
         questionData.imageUrl = sanitizeString(q.imageUrl);
       }
 
       // Handle explanation for identification and true_or_false
-      if ((q.type === "identification" || q.type === "true_or_false") && q.explanation && typeof q.explanation === "string") {
+      if (
+        (q.type === "identification" || q.type === "true_or_false") &&
+        q.explanation &&
+        typeof q.explanation === "string"
+      ) {
         questionData.explanation = sanitizeString(q.explanation);
       }
 
@@ -207,7 +217,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-export async function GET(request: NextRequest) {
+export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
     const user = await verifyAuth(request);
 
@@ -254,14 +264,14 @@ export async function GET(request: NextRequest) {
       const createdAt = data.createdAt?.toDate
         ? data.createdAt.toDate().toISOString()
         : data.createdAt instanceof Date
-        ? data.createdAt.toISOString()
-        : data.createdAt || new Date().toISOString();
+          ? data.createdAt.toISOString()
+          : data.createdAt || new Date().toISOString();
 
       const updatedAt = data.updatedAt?.toDate
         ? data.updatedAt.toDate().toISOString()
         : data.updatedAt instanceof Date
-        ? data.updatedAt.toISOString()
-        : data.updatedAt || createdAt;
+          ? data.updatedAt.toISOString()
+          : data.updatedAt || createdAt;
 
       return {
         id: doc.id,

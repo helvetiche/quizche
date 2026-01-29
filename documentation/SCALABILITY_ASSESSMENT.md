@@ -290,18 +290,15 @@ Many queries use `.where()` + `.orderBy()` which require composite indexes:
 ### Priority 1: Critical (Implement Immediately)
 
 1. **Implement Rate Limiting**
-
    - Use Upstash Redis or Firestore-based solution
    - Enforce limits per user/IP
    - Prevent abuse and cost spikes
 
 2. **Add Composite Indexes**
-
    - Create all required Firestore composite indexes
    - Prevents query failures and improves performance
 
 3. **Implement Caching**
-
    - Add Redis for API response caching
    - Cache frequently accessed data (user profiles, quiz metadata)
    - Reduce database reads by 50-80%
@@ -314,13 +311,11 @@ Many queries use `.where()` + `.orderBy()` which require composite indexes:
 ### Priority 2: High Impact (Implement Soon)
 
 5. **Optimize Database Queries**
-
    - Reduce number of queries per request
    - Use field selection (`.select()`)
    - Implement batch operations where possible
 
 6. **Cache AI-Generated Content**
-
    - Store generated quizzes/flashcards in database
    - Check if content already exists before generating
    - Implement request deduplication (hash PDF content)
@@ -333,12 +328,10 @@ Many queries use `.where()` + `.orderBy()` which require composite indexes:
 ### Priority 3: Medium Impact (Consider for Scale)
 
 8. **Migrate Image Storage**
-
    - Consider Firebase Storage or AWS S3 instead of ImgBB
    - Better cost control and integration
 
 9. **Implement CDN Caching**
-
    - Cache static assets
    - Cache API responses where appropriate
 

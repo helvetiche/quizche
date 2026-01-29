@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 import { verifyAuth } from "@/lib/auth";
 import { adminDb } from "@/lib/firebase-admin";
 import { verifyCSRF } from "@/lib/csrf";
@@ -10,7 +10,7 @@ import {
 import { StudentAssignmentSchema, validateInput } from "@/lib/validation";
 import { handleApiError } from "@/lib/error-handler";
 
-export async function GET(request: NextRequest) {
+export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
     const user = await verifyAuth(request);
 
@@ -37,7 +37,10 @@ export async function GET(request: NextRequest) {
 
     const studentPromises = teacherStudentsSnapshot.docs.map(async (doc) => {
       const data = doc.data();
-      const studentDoc = await adminDb.collection("users").doc(data.studentId).get();
+      const studentDoc = await adminDb
+        .collection("users")
+        .doc(data.studentId)
+        .get();
 
       if (!studentDoc.exists) return null;
 
@@ -81,7 +84,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-export async function POST(request: NextRequest) {
+export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
     const user = await verifyAuth(request);
 

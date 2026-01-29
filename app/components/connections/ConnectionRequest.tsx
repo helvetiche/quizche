@@ -5,16 +5,16 @@ import { getAuth } from "firebase/auth";
 import app from "@/lib/firebase";
 import UserSearch from "./UserSearch";
 
-interface User {
+type User = {
   id: string;
   email: string;
   displayName: string;
-}
+};
 
-interface ConnectionRequestProps {
+type ConnectionRequestProps = {
   onRequestSent: () => void;
   existingConnectionIds?: string[];
-}
+};
 
 const ConnectionRequest = ({
   onRequestSent,

@@ -7,7 +7,7 @@ import { getAuth } from "firebase/auth";
 import app from "@/lib/firebase";
 import ShareFlashcardModal from "../../flashcards/ShareFlashcardModal";
 
-interface FlashcardSet {
+type FlashcardSet = {
   id: string;
   title: string;
   description?: string;
@@ -19,16 +19,20 @@ interface FlashcardSet {
   isShared?: boolean;
   sharedBy?: string;
   sharedByUserId?: string;
-}
+};
 
-interface StudentFlashcardsContentProps {
+type StudentFlashcardsContentProps = {
   user: any;
-}
+};
 
-export default function StudentFlashcardsContent({ user }: StudentFlashcardsContentProps) {
+export default function StudentFlashcardsContent({
+  user,
+}: StudentFlashcardsContentProps) {
   const [flashcards, setFlashcards] = useState<FlashcardSet[]>([]);
   const [loading, setLoading] = useState(true);
-  const [shareModalFlashcardId, setShareModalFlashcardId] = useState<string | null>(null);
+  const [shareModalFlashcardId, setShareModalFlashcardId] = useState<
+    string | null
+  >(null);
 
   const fetchFlashcards = async () => {
     if (!user) return;
@@ -159,9 +163,7 @@ export default function StudentFlashcardsContent({ user }: StudentFlashcardsCont
                 <div className="flex flex-col gap-2 text-sm font-light text-gray-600">
                   <div className="flex items-center justify-between">
                     <span>Cards:</span>
-                    <span className="text-black">
-                      {flashcard.totalCards}
-                    </span>
+                    <span className="text-black">{flashcard.totalCards}</span>
                   </div>
                   {!flashcard.isShared && (
                     <div className="flex items-center justify-between">

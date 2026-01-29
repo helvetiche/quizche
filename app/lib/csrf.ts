@@ -6,7 +6,7 @@
  */
 
 let csrfToken: string | null = null;
-let tokenExpiry: number = 0;
+let tokenExpiry = 0;
 const TOKEN_REFRESH_THRESHOLD = 300000; // Refresh 5 minutes before expiry (1 hour = 3600000ms)
 
 /**

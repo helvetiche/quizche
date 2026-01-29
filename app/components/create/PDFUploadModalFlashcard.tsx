@@ -5,24 +5,24 @@ import Modal from "@/components/Modal";
 
 type Difficulty = "easy" | "medium" | "hard";
 
-interface Flashcard {
+type Flashcard = {
   front: string;
   back: string;
-}
+};
 
-interface GeneratedFlashcardSet {
+type GeneratedFlashcardSet = {
   title: string;
   description: string;
   cards: Flashcard[];
-}
+};
 
-interface PDFUploadModalFlashcardProps {
+type PDFUploadModalFlashcardProps = {
   isOpen: boolean;
   onClose: () => void;
   onSave: (flashcardSet: GeneratedFlashcardSet) => void;
   onEdit: (flashcardSet: GeneratedFlashcardSet) => void;
   idToken: string;
-}
+};
 
 const PDFUploadModalFlashcard = ({
   isOpen,
@@ -35,15 +35,20 @@ const PDFUploadModalFlashcard = ({
   const [file, setFile] = useState<File | null>(null);
   const [difficulty, setDifficulty] = useState<Difficulty>("medium");
   const [numCards, setNumCards] = useState<number>(10);
-  const [additionalInstructions, setAdditionalInstructions] = useState<string>("");
+  const [additionalInstructions, setAdditionalInstructions] =
+    useState<string>("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [generatedFlashcardSet, setGeneratedFlashcardSet] = useState<GeneratedFlashcardSet | null>(null);
+  const [generatedFlashcardSet, setGeneratedFlashcardSet] =
+    useState<GeneratedFlashcardSet | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
 
   const handleFileSelect = useCallback((selectedFile: File) => {
-    if (selectedFile.type !== "application/pdf" && !selectedFile.name.toLowerCase().endsWith(".pdf")) {
+    if (
+      selectedFile.type !== "application/pdf" &&
+      !selectedFile.name.toLowerCase().endsWith(".pdf")
+    ) {
       setError("Please select a PDF file");
       return;
     }
@@ -120,7 +125,10 @@ const PDFUploadModalFlashcard = ({
       formData.append("difficulty", difficulty);
       formData.append("numCards", numCards.toString());
       if (additionalInstructions.trim()) {
-        formData.append("additionalInstructions", additionalInstructions.trim());
+        formData.append(
+          "additionalInstructions",
+          additionalInstructions.trim()
+        );
       }
 
       const { apiPost } = await import("../../lib/api");
@@ -141,7 +149,9 @@ const PDFUploadModalFlashcard = ({
     } catch (err) {
       console.error("Error generating flashcards:", err);
       setError(
-        err instanceof Error ? err.message : "Failed to generate flashcards. Please try again."
+        err instanceof Error
+          ? err.message
+          : "Failed to generate flashcards. Please try again."
       );
       setStep(2);
     } finally {
@@ -186,14 +196,20 @@ const PDFUploadModalFlashcard = ({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={handleClose} className="w-full max-w-4xl max-h-[90vh]">
+    <Modal
+      isOpen={isOpen}
+      onClose={handleClose}
+      className="w-full max-w-4xl max-h-[90vh]"
+    >
       <div className="bg-amber-50 border-3 border-gray-900 rounded-2xl shadow-[8px_8px_0px_0px_rgba(17,24,39,1)] w-full max-h-[90vh] overflow-hidden flex flex-col">
         <div className="bg-amber-200 border-b-3 border-gray-900 px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-amber-400 rounded-xl flex items-center justify-center border-2 border-gray-900 shadow-[2px_2px_0px_0px_rgba(17,24,39,1)]">
               <span className="material-icons text-gray-900">auto_awesome</span>
             </div>
-            <h2 className="text-xl font-black text-gray-900">Generate Flashcards from PDF</h2>
+            <h2 className="text-xl font-black text-gray-900">
+              Generate Flashcards from PDF
+            </h2>
           </div>
           <button
             onClick={handleClose}
@@ -210,7 +226,8 @@ const PDFUploadModalFlashcard = ({
               <div className="flex flex-col gap-4">
                 <h3 className="text-xl font-light text-black">Upload PDF</h3>
                 <p className="text-base font-light text-gray-600">
-                  Upload a PDF file containing educational content to generate flashcards.
+                  Upload a PDF file containing educational content to generate
+                  flashcards.
                 </p>
               </div>
 
@@ -278,7 +295,9 @@ const PDFUploadModalFlashcard = ({
                         />
                       </svg>
                       <div className="flex flex-col">
-                        <span className="text-base font-light text-black">{file.name}</span>
+                        <span className="text-base font-light text-black">
+                          {file.name}
+                        </span>
                         <span className="text-sm font-light text-gray-600">
                           {(file.size / 1024 / 1024).toFixed(2)} MB
                         </span>
@@ -312,7 +331,8 @@ const PDFUploadModalFlashcard = ({
               <div className="flex flex-col gap-4">
                 <h3 className="text-xl font-light text-black">Configuration</h3>
                 <p className="text-base font-light text-gray-600">
-                  Configure the difficulty level and number of flashcards to generate.
+                  Configure the difficulty level and number of flashcards to
+                  generate.
                 </p>
               </div>
 
@@ -322,41 +342,46 @@ const PDFUploadModalFlashcard = ({
                     Difficulty Level
                   </label>
                   <div className="flex flex-col gap-3">
-                    {(["easy", "medium", "hard"] as Difficulty[]).map((level) => (
-                      <label
-                        key={level}
-                        className="flex items-center gap-3 p-4 border-2 border-gray-300 cursor-pointer hover:bg-gray-50 transition-colors"
-                      >
-                        <input
-                          type="radio"
-                          name="difficulty"
-                          value={level}
-                          checked={difficulty === level}
-                          onChange={(e) =>
-                            setDifficulty(e.target.value as Difficulty)
-                          }
-                          className="w-4 h-4 text-black"
-                        />
-                        <div className="flex flex-col">
-                          <span className="text-base font-light text-black capitalize">
-                            {level}
-                          </span>
-                          <span className="text-sm font-light text-gray-600">
-                            {level === "easy" &&
-                              "Original descriptions, straightforward flashcards"}
-                            {level === "medium" &&
-                              "Rewritten descriptions, requires understanding"}
-                            {level === "hard" &&
-                              "Completely rewritten, requires deep understanding"}
-                          </span>
-                        </div>
-                      </label>
-                    ))}
+                    {(["easy", "medium", "hard"] as Difficulty[]).map(
+                      (level) => (
+                        <label
+                          key={level}
+                          className="flex items-center gap-3 p-4 border-2 border-gray-300 cursor-pointer hover:bg-gray-50 transition-colors"
+                        >
+                          <input
+                            type="radio"
+                            name="difficulty"
+                            value={level}
+                            checked={difficulty === level}
+                            onChange={(e) =>
+                              setDifficulty(e.target.value as Difficulty)
+                            }
+                            className="w-4 h-4 text-black"
+                          />
+                          <div className="flex flex-col">
+                            <span className="text-base font-light text-black capitalize">
+                              {level}
+                            </span>
+                            <span className="text-sm font-light text-gray-600">
+                              {level === "easy" &&
+                                "Original descriptions, straightforward flashcards"}
+                              {level === "medium" &&
+                                "Rewritten descriptions, requires understanding"}
+                              {level === "hard" &&
+                                "Completely rewritten, requires deep understanding"}
+                            </span>
+                          </div>
+                        </label>
+                      )
+                    )}
                   </div>
                 </div>
 
                 <div className="flex flex-col gap-4">
-                  <label htmlFor="numCards" className="text-lg font-light text-black">
+                  <label
+                    htmlFor="numCards"
+                    className="text-lg font-light text-black"
+                  >
                     Number of Flashcards
                   </label>
                   <input
@@ -379,7 +404,10 @@ const PDFUploadModalFlashcard = ({
                 </div>
 
                 <div className="flex flex-col gap-4">
-                  <label htmlFor="additionalInstructions" className="text-lg font-light text-black">
+                  <label
+                    htmlFor="additionalInstructions"
+                    className="text-lg font-light text-black"
+                  >
                     Additional Instructions (Optional)
                   </label>
                   <textarea
@@ -391,7 +419,8 @@ const PDFUploadModalFlashcard = ({
                     rows={4}
                   />
                   <p className="text-sm font-light text-gray-600">
-                    Provide specific instructions or focus areas for the flashcard generation
+                    Provide specific instructions or focus areas for the
+                    flashcard generation
                   </p>
                 </div>
               </div>
@@ -440,21 +469,28 @@ const PDFUploadModalFlashcard = ({
           {step === 4 && generatedFlashcardSet && (
             <div className="flex flex-col gap-6">
               <div className="flex flex-col gap-4">
-                <h3 className="text-xl font-light text-black">Preview Generated Flashcards</h3>
+                <h3 className="text-xl font-light text-black">
+                  Preview Generated Flashcards
+                </h3>
                 <p className="text-base font-light text-gray-600">
-                  Review the generated flashcards. You can save them directly or continue editing.
+                  Review the generated flashcards. You can save them directly or
+                  continue editing.
                 </p>
               </div>
 
               <div className="flex flex-col gap-6 border-2 border-gray-300 p-6">
                 <div className="flex flex-col gap-2">
                   <h4 className="text-lg font-light text-black">Title</h4>
-                  <p className="text-base font-light text-black">{generatedFlashcardSet.title}</p>
+                  <p className="text-base font-light text-black">
+                    {generatedFlashcardSet.title}
+                  </p>
                 </div>
 
                 {generatedFlashcardSet.description && (
                   <div className="flex flex-col gap-2">
-                    <h4 className="text-lg font-light text-black">Description</h4>
+                    <h4 className="text-lg font-light text-black">
+                      Description
+                    </h4>
                     <p className="text-base font-light text-gray-600">
                       {generatedFlashcardSet.description}
                     </p>
@@ -477,13 +513,17 @@ const PDFUploadModalFlashcard = ({
                           </span>
                           <div className="flex-1 flex flex-col gap-3">
                             <div className="flex flex-col gap-2">
-                              <p className="text-xs font-light text-gray-600">Front</p>
+                              <p className="text-xs font-light text-gray-600">
+                                Front
+                              </p>
                               <p className="text-base font-light text-black">
                                 {card.front}
                               </p>
                             </div>
                             <div className="flex flex-col gap-2">
-                              <p className="text-xs font-light text-gray-600">Back</p>
+                              <p className="text-xs font-light text-gray-600">
+                                Back
+                              </p>
                               <p className="text-base font-light text-gray-700">
                                 {card.back}
                               </p>
@@ -550,7 +590,11 @@ const PDFUploadModalFlashcard = ({
                   {loading && (
                     <div className="w-4 h-4 border-2 border-gray-900 border-t-transparent rounded-full animate-spin"></div>
                   )}
-                  {step === 1 ? "Continue" : step === 2 ? "Generate" : "Processing..."}
+                  {step === 1
+                    ? "Continue"
+                    : step === 2
+                      ? "Generate"
+                      : "Processing..."}
                   <span className="material-icons text-sm">arrow_forward</span>
                 </button>
               </>

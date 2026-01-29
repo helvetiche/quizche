@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 import { verifyAuth } from "@/lib/auth";
 import { adminDb } from "@/lib/firebase-admin";
 import { verifyCSRF } from "@/lib/csrf";
@@ -13,7 +13,7 @@ import {
 } from "@/lib/validation";
 import { handleApiError } from "@/lib/error-handler";
 
-export async function POST(request: NextRequest) {
+export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
     const user = await verifyAuth(request);
 
@@ -94,7 +94,9 @@ export async function POST(request: NextRequest) {
     const answerMap: Record<number, string> = {};
 
     validatedData.answers.forEach((answer) => {
-      answerMap[answer.questionIndex] = sanitizeString(answer.answer).toLowerCase();
+      answerMap[answer.questionIndex] = sanitizeString(
+        answer.answer
+      ).toLowerCase();
     });
 
     questions.forEach((question: any, index: number) => {
@@ -182,6 +184,9 @@ export async function POST(request: NextRequest) {
     } catch {
       // Ignore auth errors in error handler
     }
-    return handleApiError(error, { route: "/api/student/quizzes/submit", userId });
+    return handleApiError(error, {
+      route: "/api/student/quizzes/submit",
+      userId,
+    });
   }
 }

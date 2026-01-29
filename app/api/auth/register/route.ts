@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 import { adminAuth, adminDb } from "@/lib/firebase-admin";
 import {
   getSecurityHeaders,
@@ -7,12 +7,12 @@ import {
 import { AuthRegisterSchema, validateInput } from "@/lib/validation";
 import { handleApiError } from "@/lib/error-handler";
 
-export async function POST(request: NextRequest) {
+export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
     // Register endpoint should NOT require CSRF - it's the initial registration point
     // CSRF protection is meant for authenticated sessions, not for establishing them
 
-    const body = await request.json();
+    const body = (await request.json()) as Record<string, unknown>;
 
     // Validate input using Zod
     const validation = validateInput(AuthRegisterSchema, body);
@@ -32,9 +32,9 @@ export async function POST(request: NextRequest) {
     const uid = decodedToken.uid;
 
     const userRecord = await adminAuth.getUser(uid);
-    const existingClaims = userRecord.customClaims || {};
+    const existingClaims = userRecord.customClaims ?? {};
 
-    if (existingClaims.role) {
+    if (existingClaims.role !== null && existingClaims.role !== undefined) {
       return NextResponse.json(
         { error: "User already has a role assigned" },
         { status: 400, headers: getErrorSecurityHeaders() }
@@ -46,18 +46,21 @@ export async function POST(request: NextRequest) {
       tier: "free",
     });
 
-    await adminDb.collection("users").doc(uid).set(
-      {
-        displayName: decodedToken.name || userRecord.displayName || "",
-        email: decodedToken.email || userRecord.email || "",
-        role: role,
-        tier: "free",
-        profileCompleted: false,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
-      { merge: true }
-    );
+    await adminDb
+      .collection("users")
+      .doc(uid)
+      .set(
+        {
+          displayName: decodedToken.name ?? userRecord.displayName ?? "",
+          email: decodedToken.email ?? userRecord.email ?? "",
+          role: role,
+          tier: "free",
+          profileCompleted: false,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+        { merge: true }
+      );
 
     return NextResponse.json(
       {

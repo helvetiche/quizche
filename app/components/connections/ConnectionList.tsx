@@ -4,7 +4,7 @@ import { useState } from "react";
 import { getAuth } from "firebase/auth";
 import app from "@/lib/firebase";
 
-interface Connection {
+type Connection = {
   id: string;
   otherUserId: string;
   status: "pending" | "accepted" | "blocked";
@@ -15,13 +15,13 @@ interface Connection {
   };
   createdAt: string;
   updatedAt: string;
-}
+};
 
-interface ConnectionListProps {
+type ConnectionListProps = {
   connections: Connection[];
   currentUserId: string;
   onUpdate: () => void;
-}
+};
 
 const ConnectionList = ({
   connections,

@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 import { verifyAuth } from "@/lib/auth";
 import { adminDb } from "@/lib/firebase-admin";
 import { verifyCSRF } from "@/lib/csrf";
@@ -41,7 +41,10 @@ export async function GET(
     }
 
     // Get section
-    const sectionDoc = await adminDb.collection("sections").doc(sectionId).get();
+    const sectionDoc = await adminDb
+      .collection("sections")
+      .doc(sectionId)
+      .get();
 
     if (!sectionDoc.exists) {
       return NextResponse.json(
@@ -64,15 +67,17 @@ export async function GET(
       .where("sectionId", "==", sectionId)
       .get();
 
-    const studentIds = sectionStudentsSnapshot.docs.map((doc) => doc.data().studentId);
-    
+    const studentIds = sectionStudentsSnapshot.docs.map(
+      (doc) => doc.data().studentId
+    );
+
     let students: any[] = [];
     if (studentIds.length > 0) {
       const usersSnapshot = await adminDb
         .collection("users")
         .where("__name__", "in", studentIds.slice(0, 10))
         .get();
-      
+
       students = usersSnapshot.docs.map((doc) => ({
         id: doc.id,
         email: doc.data().email,
@@ -99,7 +104,10 @@ export async function GET(
     } catch {
       // Ignore
     }
-    return handleApiError(error, { route: "/api/teacher/sections/[id]", userId });
+    return handleApiError(error, {
+      route: "/api/teacher/sections/[id]",
+      userId,
+    });
   }
 }
 
@@ -144,7 +152,10 @@ export async function PUT(
     }
 
     // Check if section exists and belongs to this teacher
-    const sectionDoc = await adminDb.collection("sections").doc(sectionId).get();
+    const sectionDoc = await adminDb
+      .collection("sections")
+      .doc(sectionId)
+      .get();
 
     if (!sectionDoc.exists) {
       return NextResponse.json(
@@ -221,7 +232,9 @@ export async function PUT(
         .where("sectionId", "==", sectionId)
         .get();
 
-      const currentStudentIds = currentStudentsSnapshot.docs.map((doc) => doc.data().studentId);
+      const currentStudentIds = currentStudentsSnapshot.docs.map(
+        (doc) => doc.data().studentId
+      );
 
       // Remove students no longer in the section
       for (const doc of currentStudentsSnapshot.docs) {
@@ -255,7 +268,10 @@ export async function PUT(
     } catch {
       // Ignore
     }
-    return handleApiError(error, { route: "/api/teacher/sections/[id]", userId });
+    return handleApiError(error, {
+      route: "/api/teacher/sections/[id]",
+      userId,
+    });
   }
 }
 

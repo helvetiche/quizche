@@ -15,8 +15,12 @@ export default function CreateFlashcardPage() {
         userRole="teacher"
       >
         <div className="flex flex-col gap-8">
-          <h2 className="text-3xl font-light text-black">Create Flashcard Set</h2>
-          <p className="text-lg text-black">Flashcard creation page coming soon...</p>
+          <h2 className="text-3xl font-light text-black">
+            Create Flashcard Set
+          </h2>
+          <p className="text-lg text-black">
+            Flashcard creation page coming soon...
+          </p>
         </div>
       </DashboardLayout>
     </AuthGuard>

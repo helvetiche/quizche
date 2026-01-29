@@ -1,6 +1,6 @@
-interface ErrorMessageProps {
+type ErrorMessageProps = {
   message: string;
-}
+};
 
 const ErrorMessage = ({ message }: ErrorMessageProps) => {
   return (

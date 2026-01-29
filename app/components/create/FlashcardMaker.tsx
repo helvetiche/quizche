@@ -7,7 +7,7 @@ import { uploadImageToImgbb } from "@/lib/imgbb";
 import Image from "next/image";
 import ShareFlashcardModal from "../flashcards/ShareFlashcardModal";
 
-interface Flashcard {
+type Flashcard = {
   front: string;
   back: string;
   frontImageUrl?: string;
@@ -16,25 +16,30 @@ interface Flashcard {
   backImageFile?: File;
   frontImagePreview?: string;
   backImagePreview?: string;
-}
+};
 
-interface GeneratedFlashcardSet {
+type GeneratedFlashcardSet = {
   title: string;
   description: string;
-  cards: Array<{
+  cards: {
     front: string;
     back: string;
-  }>;
-}
+  }[];
+};
 
-interface FlashcardMakerProps {
+type FlashcardMakerProps = {
   onSuccess?: () => void;
   initialData?: GeneratedFlashcardSet;
   flashcardId?: string;
   idToken?: string;
-}
+};
 
-export default function FlashcardMaker({ onSuccess, initialData, flashcardId, idToken }: FlashcardMakerProps) {
+export default function FlashcardMaker({
+  onSuccess,
+  initialData,
+  flashcardId,
+  idToken,
+}: FlashcardMakerProps): JSX.Element {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [cards, setCards] = useState<Flashcard[]>([{ front: "", back: "" }]);
@@ -42,8 +47,12 @@ export default function FlashcardMaker({ onSuccess, initialData, flashcardId, id
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [coverImageFile, setCoverImageFile] = useState<File | null>(null);
-  const [coverImagePreview, setCoverImagePreview] = useState<string | null>(null);
-  const [coverImageUrl, setCoverImageUrl] = useState<string | undefined>(undefined);
+  const [coverImagePreview, setCoverImagePreview] = useState<string | null>(
+    null
+  );
+  const [coverImageUrl, setCoverImageUrl] = useState<string | undefined>(
+    undefined
+  );
   const [imagePreviewUrls, setImagePreviewUrls] = useState<
     Record<string, { front?: string; back?: string }>
   >({});
@@ -51,22 +60,32 @@ export default function FlashcardMaker({ onSuccess, initialData, flashcardId, id
 
   // Populate form with initial data or load from API
   useEffect(() => {
-    if (initialData) {
-      setTitle(initialData.title || "");
-      setDescription(initialData.description || "");
-      if (initialData.cards && initialData.cards.length > 0) {
+    if (initialData !== undefined && initialData !== null) {
+      setTitle(initialData.title ?? "");
+      setDescription(initialData.description ?? "");
+      if (
+        initialData.cards !== undefined &&
+        initialData.cards !== null &&
+        initialData.cards.length > 0
+      ) {
         setCards(
           initialData.cards.map((card) => ({
-            front: card.front || "",
-            back: card.back || "",
+            front: card.front ?? "",
+            back: card.back ?? "",
           }))
         );
       }
       return;
     }
 
-    const fetchFlashcardSet = async () => {
-      if (!flashcardId || !idToken) return;
+    const fetchFlashcardSet = async (): Promise<void> => {
+      if (
+        flashcardId === null ||
+        flashcardId === undefined ||
+        idToken === null ||
+        idToken === undefined
+      )
+        return;
 
       try {
         const { apiGet } = await import("../../lib/api");
@@ -74,23 +93,56 @@ export default function FlashcardMaker({ onSuccess, initialData, flashcardId, id
           idToken,
         });
 
-        const data = await response.json();
+        const data = (await response.json()) as {
+          error?: string;
+          flashcardSet?: {
+            title?: string;
+            description?: string;
+            coverImageUrl?: string;
+            isPublic?: boolean;
+            cards?: {
+              front?: string;
+              back?: string;
+              frontImageUrl?: string;
+              backImageUrl?: string;
+            }[];
+          };
+        };
 
-        if (!response.ok) {
-          throw new Error(data.error || "Failed to fetch flashcard set");
+        if (response.ok === false) {
+          const errorData = data as { error?: string };
+          throw new Error(errorData.error ?? "Failed to fetch flashcard set");
         }
 
-        const flashcardSet = data.flashcardSet;
-        setTitle(flashcardSet.title || "");
-        setDescription(flashcardSet.description || "");
+        const flashcardSetData = data as {
+          flashcardSet: {
+            title?: string;
+            description?: string;
+            coverImageUrl?: string;
+            isPublic?: boolean;
+            cards?: {
+              front?: string;
+              back?: string;
+              frontImageUrl?: string;
+              backImageUrl?: string;
+            }[];
+          };
+        };
+        const flashcardSet = flashcardSetData.flashcardSet;
+        setTitle(flashcardSet.title ?? "");
+        setDescription(flashcardSet.description ?? "");
         setCoverImageUrl(flashcardSet.coverImageUrl);
-        setIsPublic(flashcardSet.isPublic || false);
-        
-        if (flashcardSet.cards && flashcardSet.cards.length > 0) {
+        setIsPublic(flashcardSet.isPublic ?? false);
+
+        if (
+          flashcardSet.cards !== undefined &&
+          flashcardSet.cards !== null &&
+          flashcardSet.cards.length > 0
+        ) {
           setCards(
-            flashcardSet.cards.map((card: any) => ({
-              front: card.front || "",
-              back: card.back || "",
+            flashcardSet.cards.map((card) => ({
+              front: card.front ?? "",
+              back: card.back ?? "",
               frontImageUrl: card.frontImageUrl,
               backImageUrl: card.backImageUrl,
             }))
@@ -106,8 +158,13 @@ export default function FlashcardMaker({ onSuccess, initialData, flashcardId, id
       }
     };
 
-    if (flashcardId && idToken) {
-      fetchFlashcardSet();
+    if (
+      flashcardId !== null &&
+      flashcardId !== undefined &&
+      idToken !== null &&
+      idToken !== undefined
+    ) {
+      void fetchFlashcardSet();
     }
   }, [initialData, flashcardId, idToken]);
 
@@ -115,20 +172,30 @@ export default function FlashcardMaker({ onSuccess, initialData, flashcardId, id
   useEffect(() => {
     return () => {
       Object.values(imagePreviewUrls).forEach((urls) => {
-        if (urls.front) URL.revokeObjectURL(urls.front);
-        if (urls.back) URL.revokeObjectURL(urls.back);
+        if (
+          urls.front !== undefined &&
+          urls.front !== null &&
+          urls.front !== ""
+        )
+          URL.revokeObjectURL(urls.front);
+        if (urls.back !== undefined && urls.back !== null && urls.back !== "")
+          URL.revokeObjectURL(urls.back);
       });
-      if (coverImagePreview) {
+      if (
+        coverImagePreview !== null &&
+        coverImagePreview !== undefined &&
+        coverImagePreview !== ""
+      ) {
         URL.revokeObjectURL(coverImagePreview);
       }
     };
   }, [imagePreviewUrls, coverImagePreview]);
 
-  const handleAddCard = () => {
+  const handleAddCard = (): void => {
     setCards([...cards, { front: "", back: "" }]);
   };
 
-  const handleRemoveCard = (index: number) => {
+  const handleRemoveCard = (index: number): void => {
     if (cards.length > 1) {
       setCards(cards.filter((_, i) => i !== index));
     }
@@ -138,7 +205,7 @@ export default function FlashcardMaker({ onSuccess, initialData, flashcardId, id
     index: number,
     field: "front" | "back",
     value: string
-  ) => {
+  ): void => {
     const updatedCards = [...cards];
     updatedCards[index][field] = value;
     setCards(updatedCards);
@@ -148,13 +215,15 @@ export default function FlashcardMaker({ onSuccess, initialData, flashcardId, id
     cardIndex: number,
     side: "front" | "back",
     file: File
-  ) => {
-    if (!file.type.startsWith("image/")) {
+  ): void => {
+    if (file.type.startsWith("image/") === false) {
+      // eslint-disable-next-line no-alert
       alert("Please select an image file");
       return;
     }
 
     if (file.size > 10 * 1024 * 1024) {
+      // eslint-disable-next-line no-alert
       alert("Image size must be less than 10MB");
       return;
     }
@@ -187,17 +256,27 @@ export default function FlashcardMaker({ onSuccess, initialData, flashcardId, id
     setCards(updatedCards);
   };
 
-  const handleRemoveImage = (cardIndex: number, side: "front" | "back") => {
+  const handleRemoveImage = (
+    cardIndex: number,
+    side: "front" | "back"
+  ): void => {
     const cardId = `card-${cardIndex}`;
     const previewUrl = imagePreviewUrls[cardId]?.[side];
 
-    if (previewUrl) {
+    if (previewUrl !== undefined && previewUrl !== null && previewUrl !== "") {
       URL.revokeObjectURL(previewUrl);
       setImagePreviewUrls((prev) => {
         const newUrls = { ...prev };
-        if (newUrls[cardId]) {
+        if (newUrls[cardId] !== undefined && newUrls[cardId] !== null) {
           delete newUrls[cardId][side];
-          if (!newUrls[cardId].front && !newUrls[cardId].back) {
+          if (
+            (newUrls[cardId].front === undefined ||
+              newUrls[cardId].front === null ||
+              newUrls[cardId].front === "") &&
+            (newUrls[cardId].back === undefined ||
+              newUrls[cardId].back === null ||
+              newUrls[cardId].back === "")
+          ) {
             delete newUrls[cardId];
           }
         }
@@ -224,16 +303,16 @@ export default function FlashcardMaker({ onSuccess, initialData, flashcardId, id
     setCards(updatedCards);
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (): Promise<void> => {
     setError(null);
 
-    if (!title.trim()) {
+    if (title.trim().length === 0) {
       setError("Please enter a title for your flashcard set");
       return;
     }
 
     const validCards = cards.filter(
-      (card) => card.front.trim() && card.back.trim()
+      (card) => card.front.trim().length > 0 && card.back.trim().length > 0
     );
 
     if (validCards.length === 0) {
@@ -246,7 +325,7 @@ export default function FlashcardMaker({ onSuccess, initialData, flashcardId, id
     try {
       const auth = getAuth(app);
       const currentUser = auth.currentUser;
-      if (!currentUser) {
+      if (currentUser === null || currentUser === undefined) {
         setError("You must be logged in to create flashcards");
         setLoading(false);
         return;
@@ -256,10 +335,17 @@ export default function FlashcardMaker({ onSuccess, initialData, flashcardId, id
 
       // Upload cover image first if exists
       let finalCoverImageUrl = coverImageUrl;
-      if (coverImageFile) {
+      if (coverImageFile !== null && coverImageFile !== undefined) {
         try {
-          finalCoverImageUrl = await uploadImageToImgbb(coverImageFile, idToken);
-          if (coverImagePreview) {
+          finalCoverImageUrl = await uploadImageToImgbb(
+            coverImageFile,
+            idToken
+          );
+          if (
+            coverImagePreview !== null &&
+            coverImagePreview !== undefined &&
+            coverImagePreview !== ""
+          ) {
             URL.revokeObjectURL(coverImagePreview);
           }
         } catch (error) {
@@ -277,15 +363,28 @@ export default function FlashcardMaker({ onSuccess, initialData, flashcardId, id
           let backImageUrl = card.backImageUrl;
 
           // Upload front image if file exists
-          if (card.frontImageFile) {
+          if (
+            card.frontImageFile !== undefined &&
+            card.frontImageFile !== null
+          ) {
             try {
-              frontImageUrl = await uploadImageToImgbb(card.frontImageFile, idToken);
+              frontImageUrl = await uploadImageToImgbb(
+                card.frontImageFile,
+                idToken
+              );
               // Clean up preview URL
-              if (card.frontImagePreview) {
+              if (
+                card.frontImagePreview !== undefined &&
+                card.frontImagePreview !== null &&
+                card.frontImagePreview !== ""
+              ) {
                 URL.revokeObjectURL(card.frontImagePreview);
               }
             } catch (error) {
-              console.error(`Error uploading front image for card ${index}:`, error);
+              console.error(
+                `Error uploading front image for card ${index}:`,
+                error
+              );
               throw new Error(
                 `Failed to upload front image for card ${index + 1}. ${error instanceof Error ? error.message : "Please try again."}`
               );
@@ -293,15 +392,25 @@ export default function FlashcardMaker({ onSuccess, initialData, flashcardId, id
           }
 
           // Upload back image if file exists
-          if (card.backImageFile) {
+          if (card.backImageFile !== undefined && card.backImageFile !== null) {
             try {
-              backImageUrl = await uploadImageToImgbb(card.backImageFile, idToken);
+              backImageUrl = await uploadImageToImgbb(
+                card.backImageFile,
+                idToken
+              );
               // Clean up preview URL
-              if (card.backImagePreview) {
+              if (
+                card.backImagePreview !== undefined &&
+                card.backImagePreview !== null &&
+                card.backImagePreview !== ""
+              ) {
                 URL.revokeObjectURL(card.backImagePreview);
               }
             } catch (error) {
-              console.error(`Error uploading back image for card ${index}:`, error);
+              console.error(
+                `Error uploading back image for card ${index}:`,
+                error
+              );
               throw new Error(
                 `Failed to upload back image for card ${index + 1}. ${error instanceof Error ? error.message : "Please try again."}`
               );
@@ -326,48 +435,105 @@ export default function FlashcardMaker({ onSuccess, initialData, flashcardId, id
       };
 
       // #region agent log
-      fetch('http://127.0.0.1:7244/ingest/0cdefbcf-c0dd-4af8-9322-fa937123a23b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'FlashcardMaker.tsx:328',message:'FlashcardMaker: submitting flashcard',data:{flashcardId:flashcardId||null,hasIdToken:!!idToken,idTokenLength:idToken?.length||0,method:flashcardId?'PUT':'POST'},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+      fetch(
+        "http://127.0.0.1:7244/ingest/0cdefbcf-c0dd-4af8-9322-fa937123a23b",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            location: "FlashcardMaker.tsx:328",
+            message: "FlashcardMaker: submitting flashcard",
+            data: {
+              flashcardId: flashcardId ?? null,
+              hasIdToken: idToken !== undefined && idToken !== null,
+              idTokenLength: idToken?.length ?? 0,
+              method: flashcardId ? "PUT" : "POST",
+            },
+            timestamp: Date.now(),
+            sessionId: "debug-session",
+            runId: "run1",
+            hypothesisId: "E",
+          }),
+        }
+      ).catch(() => {});
       // #endregion
       const { apiPost, apiPut } = await import("../../lib/api");
-      const url = flashcardId ? `/api/flashcards/${flashcardId}` : "/api/flashcards";
-      const response = flashcardId
-        ? await apiPut(url, {
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify(flashcardData),
-            idToken,
-          })
-        : await apiPost(url, {
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify(flashcardData),
-            idToken,
-          });
+      const url =
+        flashcardId !== undefined && flashcardId !== null
+          ? `/api/flashcards/${flashcardId}`
+          : "/api/flashcards";
+      const response =
+        flashcardId !== undefined && flashcardId !== null
+          ? await apiPut(url, {
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify(flashcardData),
+              idToken,
+            })
+          : await apiPost(url, {
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify(flashcardData),
+              idToken,
+            });
       // #region agent log
-      fetch('http://127.0.0.1:7244/ingest/0cdefbcf-c0dd-4af8-9322-fa937123a23b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'FlashcardMaker.tsx:345',message:'FlashcardMaker: response received',data:{status:response.status,ok:response.ok},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+      fetch(
+        "http://127.0.0.1:7244/ingest/0cdefbcf-c0dd-4af8-9322-fa937123a23b",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            location: "FlashcardMaker.tsx:345",
+            message: "FlashcardMaker: response received",
+            data: { status: response.status, ok: response.ok },
+            timestamp: Date.now(),
+            sessionId: "debug-session",
+            runId: "run1",
+            hypothesisId: "D",
+          }),
+        }
+      ).catch(() => {});
       // #endregion
 
-      if (!response.ok) {
-        const data = await response.json();
-        setError(data.error || (flashcardId ? "Failed to update flashcard set" : "Failed to create flashcard set"));
+      if (response.ok === false) {
+        const data = (await response.json()) as { error?: string };
+        setError(
+          data.error ??
+            (flashcardId !== undefined && flashcardId !== null
+              ? "Failed to update flashcard set"
+              : "Failed to create flashcard set")
+        );
         setLoading(false);
         return;
       }
 
-      const responseData = await response.json();
+      const responseData = (await response.json()) as {
+        cloned?: boolean;
+        id?: string;
+      };
 
       // Handle clone-on-edit: If a clone was created, redirect to the new flashcard
-      if (responseData.cloned && responseData.id) {
+      if (
+        responseData.cloned === true &&
+        responseData.id !== undefined &&
+        responseData.id !== null
+      ) {
         // Clean up all remaining preview URLs
         Object.values(imagePreviewUrls).forEach((urls) => {
-          if (urls.front) URL.revokeObjectURL(urls.front);
-          if (urls.back) URL.revokeObjectURL(urls.back);
+          if (
+            urls.front !== undefined &&
+            urls.front !== null &&
+            urls.front !== ""
+          )
+            URL.revokeObjectURL(urls.front);
+          if (urls.back !== undefined && urls.back !== null && urls.back !== "")
+            URL.revokeObjectURL(urls.back);
         });
 
         // Redirect to the cloned flashcard edit page
-        if (onSuccess) {
+        if (onSuccess !== undefined && onSuccess !== null) {
           // Update the flashcard ID in the URL
           window.location.href = `/student/flashcards/${responseData.id}/edit`;
         }
@@ -376,8 +542,14 @@ export default function FlashcardMaker({ onSuccess, initialData, flashcardId, id
 
       // Clean up all remaining preview URLs
       Object.values(imagePreviewUrls).forEach((urls) => {
-        if (urls.front) URL.revokeObjectURL(urls.front);
-        if (urls.back) URL.revokeObjectURL(urls.back);
+        if (
+          urls.front !== undefined &&
+          urls.front !== null &&
+          urls.front !== ""
+        )
+          URL.revokeObjectURL(urls.front);
+        if (urls.back !== undefined && urls.back !== null && urls.back !== "")
+          URL.revokeObjectURL(urls.back);
       });
 
       // Reset form
@@ -391,7 +563,7 @@ export default function FlashcardMaker({ onSuccess, initialData, flashcardId, id
       setCoverImagePreview(null);
       setCoverImageUrl(undefined);
 
-      if (onSuccess) {
+      if (onSuccess !== undefined && onSuccess !== null) {
         onSuccess();
       }
     } catch (err) {
@@ -592,7 +764,11 @@ export default function FlashcardMaker({ onSuccess, initialData, flashcardId, id
                         <div className="flex flex-col gap-2">
                           <div className="relative w-full max-w-xs h-48 border-2 border-gray-300">
                             <Image
-                              src={card.frontImagePreview || card.frontImageUrl || ""}
+                              src={
+                                card.frontImagePreview ||
+                                card.frontImageUrl ||
+                                ""
+                              }
                               alt="Front image"
                               fill
                               className="object-contain"
@@ -663,7 +839,9 @@ export default function FlashcardMaker({ onSuccess, initialData, flashcardId, id
                         <div className="flex flex-col gap-2">
                           <div className="relative w-full max-w-xs h-48 border-2 border-gray-300">
                             <Image
-                              src={card.backImagePreview || card.backImageUrl || ""}
+                              src={
+                                card.backImagePreview || card.backImageUrl || ""
+                              }
                               alt="Back image"
                               fill
                               className="object-contain"
@@ -785,8 +963,10 @@ export default function FlashcardMaker({ onSuccess, initialData, flashcardId, id
               </svg>
               {flashcardId ? "Updating..." : "Creating..."}
             </span>
+          ) : flashcardId ? (
+            "Update Flashcard Set"
           ) : (
-            flashcardId ? "Update Flashcard Set" : "Create Flashcard Set"
+            "Create Flashcard Set"
           )}
         </button>
 

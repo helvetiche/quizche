@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 import { verifyAuth } from "@/lib/auth";
 import { adminDb } from "@/lib/firebase-admin";
 import { verifyCSRF } from "@/lib/csrf";
@@ -96,7 +96,10 @@ export async function PUT(
 
     // Validate that all sections exist and belong to this teacher
     for (const sectionId of sectionIds) {
-      const sectionDoc = await adminDb.collection("sections").doc(sectionId).get();
+      const sectionDoc = await adminDb
+        .collection("sections")
+        .doc(sectionId)
+        .get();
       if (!sectionDoc.exists) {
         return NextResponse.json(
           { error: `Section ${sectionId} not found` },
@@ -124,7 +127,7 @@ export async function PUT(
       .get();
 
     const batch = adminDb.batch();
-    
+
     // Delete old assignments
     existingAssignments.docs.forEach((doc) => {
       batch.delete(doc.ref);
@@ -147,7 +150,9 @@ export async function PUT(
 
     // Create new exclusions
     for (const studentId of excludedStudentIds) {
-      const newExclusionRef = adminDb.collection("quiz_excluded_students").doc();
+      const newExclusionRef = adminDb
+        .collection("quiz_excluded_students")
+        .doc();
       batch.set(newExclusionRef, {
         quizId,
         studentId,
@@ -169,7 +174,10 @@ export async function PUT(
     } catch {
       // Ignore
     }
-    return handleApiError(error, { route: "/api/quizzes/[id]/sections", userId });
+    return handleApiError(error, {
+      route: "/api/quizzes/[id]/sections",
+      userId,
+    });
   }
 }
 
@@ -194,7 +202,9 @@ export async function GET(
       .where("quizId", "==", quizId)
       .get();
 
-    const sectionIds = assignmentsSnapshot.docs.map((doc) => doc.data().sectionId);
+    const sectionIds = assignmentsSnapshot.docs.map(
+      (doc) => doc.data().sectionId
+    );
 
     // Get excluded students for this quiz
     const exclusionsSnapshot = await adminDb
@@ -202,7 +212,9 @@ export async function GET(
       .where("quizId", "==", quizId)
       .get();
 
-    const excludedStudentIds = exclusionsSnapshot.docs.map((doc) => doc.data().studentId);
+    const excludedStudentIds = exclusionsSnapshot.docs.map(
+      (doc) => doc.data().studentId
+    );
 
     return NextResponse.json(
       { sectionIds, excludedStudentIds },
@@ -216,6 +228,9 @@ export async function GET(
     } catch {
       // Ignore
     }
-    return handleApiError(error, { route: "/api/quizzes/[id]/sections", userId });
+    return handleApiError(error, {
+      route: "/api/quizzes/[id]/sections",
+      userId,
+    });
   }
 }

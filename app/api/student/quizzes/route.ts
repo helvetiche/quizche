@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 import { verifyAuth } from "@/lib/auth";
 import { adminDb } from "@/lib/firebase-admin";
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
@@ -10,7 +10,7 @@ import {
 } from "@/lib/security-headers";
 import { handleApiError } from "@/lib/error-handler";
 
-export async function GET(request: NextRequest) {
+export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
     const user = await verifyAuth(request);
 
@@ -132,26 +132,26 @@ export async function GET(request: NextRequest) {
         const createdAt = data.createdAt?.toDate
           ? data.createdAt.toDate().toISOString()
           : data.createdAt instanceof Date
-          ? data.createdAt.toISOString()
-          : data.createdAt || new Date().toISOString();
+            ? data.createdAt.toISOString()
+            : data.createdAt || new Date().toISOString();
 
         const updatedAt = data.updatedAt?.toDate
           ? data.updatedAt.toDate().toISOString()
           : data.updatedAt instanceof Date
-          ? data.updatedAt.toISOString()
-          : data.updatedAt || createdAt;
+            ? data.updatedAt.toISOString()
+            : data.updatedAt || createdAt;
 
         const availableDate = data.availableDate?.toDate
           ? data.availableDate.toDate()
           : data.availableDate instanceof Date
-          ? data.availableDate
-          : null;
+            ? data.availableDate
+            : null;
 
         const dueDate = data.dueDate?.toDate
           ? data.dueDate.toDate()
           : data.dueDate instanceof Date
-          ? data.dueDate
-          : null;
+            ? data.dueDate
+            : null;
 
         return {
           id: doc.id,
@@ -172,7 +172,7 @@ export async function GET(request: NextRequest) {
         // Only show active quizzes (check the data)
         const quizDoc = quizDocs.find((doc) => doc.id === quiz.id);
         const quizData = quizDoc?.data();
-        if (quizData && quizData.isActive === false) return false;
+        if (quizData?.isActive === false) return false;
 
         // Check if quiz is available (if availableDate is set)
         if (quiz.availableDate) {

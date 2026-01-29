@@ -2,10 +2,10 @@
 
 import { getCSRFToken, clearCSRFToken, needsCSRFTokenRefresh } from "./csrf";
 
-export interface ApiRequestOptions extends RequestInit {
+export type ApiRequestOptions = {
   requireCSRF?: boolean; // Default: true for POST, PUT, DELETE, PATCH
   idToken?: string | null;
-}
+} & RequestInit;
 
 /**
  * Enhanced fetch wrapper that automatically includes CSRF tokens
@@ -38,8 +38,15 @@ export const apiFetch = async (
 
   // Check if body is FormData - if so, remove Content-Type to let browser set it with boundary
   const isFormData = restOptions.body instanceof FormData;
-  console.log("apiFetch - isFormData:", isFormData, "body type:", typeof restOptions.body, "body constructor:", restOptions.body?.constructor?.name);
-  
+  console.log(
+    "apiFetch - isFormData:",
+    isFormData,
+    "body type:",
+    typeof restOptions.body,
+    "body constructor:",
+    restOptions.body?.constructor?.name
+  );
+
   if (isFormData) {
     delete requestHeaders["Content-Type"];
     delete requestHeaders["content-type"];
@@ -47,7 +54,7 @@ export const apiFetch = async (
 
   // Add Authorization header if idToken provided
   if (idToken) {
-    requestHeaders["Authorization"] = `Bearer ${idToken}`;
+    requestHeaders.Authorization = `Bearer ${idToken}`;
   }
 
   // Add CSRF token if needed
@@ -96,7 +103,7 @@ export const apiFetch = async (
 
     // Add CSRF token to headers (ensure it's trimmed and valid length)
     const trimmedToken = csrfToken.trim();
-    if (!trimmedToken || trimmedToken.length !== 64) {
+    if (trimmedToken?.length !== 64) {
       console.error(
         `Invalid CSRF token length: ${trimmedToken?.length || 0}, expected 64`
       );
@@ -131,15 +138,15 @@ export const apiFetch = async (
     signal: restOptions.signal,
     mode: restOptions.mode,
   };
-  
+
   // Set headers - for FormData, only include auth headers (no Content-Type)
   if (isFormData) {
     const formDataHeaders: HeadersInit = {};
-    if (requestHeaders["Authorization"]) {
-      (formDataHeaders as Record<string, string>)["Authorization"] = requestHeaders["Authorization"];
+    if (requestHeaders.Authorization) {
+      formDataHeaders.Authorization = requestHeaders.Authorization;
     }
     if (requestHeaders["X-CSRF-Token"]) {
-      (formDataHeaders as Record<string, string>)["X-CSRF-Token"] = requestHeaders["X-CSRF-Token"];
+      formDataHeaders["X-CSRF-Token"] = requestHeaders["X-CSRF-Token"];
     }
     console.log("apiFetch - FormData headers being sent:", formDataHeaders);
     fetchOptions.headers = formDataHeaders;
@@ -178,13 +185,13 @@ export const apiFetch = async (
           signal: restOptions.signal,
           mode: restOptions.mode,
         };
-        
+
         if (isFormData) {
           const retryHeaders: HeadersInit = {};
-          if (requestHeaders["Authorization"]) {
-            (retryHeaders as Record<string, string>)["Authorization"] = requestHeaders["Authorization"];
+          if (requestHeaders.Authorization) {
+            retryHeaders.Authorization = requestHeaders.Authorization;
           }
-          (retryHeaders as Record<string, string>)["X-CSRF-Token"] = newToken;
+          retryHeaders["X-CSRF-Token"] = newToken;
           retryFetchOptions.headers = retryHeaders;
         } else {
           retryFetchOptions.headers = {
@@ -192,7 +199,7 @@ export const apiFetch = async (
             "X-CSRF-Token": newToken,
           };
         }
-        
+
         response = await fetch(url, retryFetchOptions);
       }
     }

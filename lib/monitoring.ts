@@ -3,39 +3,34 @@ import { adminDb } from "./firebase-admin";
 const USAGE_COLLECTION = "usageTracking";
 const COST_COLLECTION = "costTracking";
 
-export interface UsageEvent {
+export type UsageEvent = {
   userId: string;
   route: string;
   method: string;
   timestamp: Date;
-  metadata?: Record<string, any>;
-}
+  metadata?: Record<string, unknown>;
+};
 
-export interface CostEvent {
+export type CostEvent = {
   service: "gemini" | "firestore" | "imgbb" | "other";
   amount: number;
   unit: string;
   timestamp: Date;
-  metadata?: Record<string, any>;
-}
+  metadata?: Record<string, unknown>;
+};
 
-/**
- * Track API usage for monitoring and cost analysis
- */
 export const trackUsage = async (event: UsageEvent): Promise<void> => {
   try {
-    // Use batch writes to reduce costs
     const batch = adminDb.batch();
     const docRef = adminDb.collection(USAGE_COLLECTION).doc();
 
     batch.set(docRef, {
       ...event,
-      timestamp: event.timestamp || new Date(),
-      date: new Date().toISOString().split("T")[0], // For daily aggregation
-      hour: new Date().getHours(), // For hourly aggregation
+      timestamp: event.timestamp ?? new Date(),
+      date: new Date().toISOString().split("T")[0],
+      hour: new Date().getHours(),
     });
 
-    // Also update daily summary (denormalized for efficient queries)
     const dailySummaryRef = adminDb
       .collection("usageDailySummary")
       .doc(`${event.userId}:${new Date().toISOString().split("T")[0]}`);
@@ -43,12 +38,16 @@ export const trackUsage = async (event: UsageEvent): Promise<void> => {
     const dailySummaryDoc = await dailySummaryRef.get();
     if (dailySummaryDoc.exists) {
       const data = dailySummaryDoc.data();
+      const currentCount = (data?.count as number) ?? 0;
+      const currentRoutes = (data?.routes as Record<string, number>) ?? {};
+      const routeCount = (currentRoutes[event.route]) ?? 0;
+
       batch.update(dailySummaryRef, {
-        count: (data?.count || 0) + 1,
+        count: currentCount + 1,
         lastUpdated: new Date(),
         routes: {
-          ...(data?.routes || {}),
-          [event.route]: ((data?.routes?.[event.route] || 0) + 1),
+          ...currentRoutes,
+          [event.route]: routeCount + 1,
         },
       });
     } else {
@@ -66,24 +65,19 @@ export const trackUsage = async (event: UsageEvent): Promise<void> => {
 
     await batch.commit();
   } catch (error) {
-    // Don't fail the request if tracking fails
     console.error("Usage tracking error:", error);
   }
 };
 
-/**
- * Track costs for different services
- */
 export const trackCost = async (event: CostEvent): Promise<void> => {
   try {
     const docRef = adminDb.collection(COST_COLLECTION).doc();
     await docRef.set({
       ...event,
-      timestamp: event.timestamp || new Date(),
+      timestamp: event.timestamp ?? new Date(),
       date: new Date().toISOString().split("T")[0],
     });
 
-    // Update daily cost summary
     const dailyCostRef = adminDb
       .collection("costDailySummary")
       .doc(`${event.service}:${new Date().toISOString().split("T")[0]}`);
@@ -91,9 +85,12 @@ export const trackCost = async (event: CostEvent): Promise<void> => {
     const dailyCostDoc = await dailyCostRef.get();
     if (dailyCostDoc.exists) {
       const data = dailyCostDoc.data();
+      const currentAmount = (data?.totalAmount as number) ?? 0;
+      const currentCount = (data?.count as number) ?? 0;
+
       await dailyCostRef.update({
-        totalAmount: (data?.totalAmount || 0) + event.amount,
-        count: (data?.count || 0) + 1,
+        totalAmount: currentAmount + event.amount,
+        count: currentCount + 1,
         lastUpdated: new Date(),
       });
     } else {
@@ -145,12 +142,9 @@ export const trackAIUsage = async (
   });
 };
 
-/**
- * Get usage stats for a user
- */
 export const getUserUsageStats = async (
   userId: string,
-  days: number = 30
+  days = 30
 ): Promise<{
   totalRequests: number;
   requestsByRoute: Record<string, number>;
@@ -175,13 +169,15 @@ export const getUserUsageStats = async (
 
     summaryDocs.forEach((doc) => {
       const data = doc.data();
-      totalRequests += data?.count || 0;
-      Object.entries(data?.routes || {}).forEach(([route, count]) => {
-        requestsByRoute[route] = (requestsByRoute[route] || 0) + (count as number);
-      });
+      totalRequests += (data?.count as number) ?? 0;
+      Object.entries((data?.routes as Record<string, number>) ?? {}).forEach(
+        ([route, count]) => {
+          requestsByRoute[route] =
+            ((requestsByRoute[route]) ?? 0) + (count);
+        }
+      );
     });
 
-    // Get AI usage from cost tracking
     const aiCostDocs = await adminDb
       .collection(COST_COLLECTION)
       .where("service", "==", "gemini")
@@ -196,13 +192,13 @@ export const getUserUsageStats = async (
 
     aiCostDocs.forEach((doc) => {
       const data = doc.data();
-      const operation = data?.metadata?.operation;
+      const operation = (data?.metadata as Record<string, unknown>)?.operation;
       if (operation === "pdf_extraction") {
-        aiUsage.pdfExtractions++;
+        aiUsage.pdfExtractions += 1;
       } else if (operation === "quiz_generation") {
-        aiUsage.quizGenerations++;
+        aiUsage.quizGenerations += 1;
       } else if (operation === "flashcard_generation") {
-        aiUsage.flashcardGenerations++;
+        aiUsage.flashcardGenerations += 1;
       }
     });
 

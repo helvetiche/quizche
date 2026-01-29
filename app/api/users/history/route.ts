@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 import { verifyAuth } from "@/lib/auth";
 import { adminDb } from "@/lib/firebase-admin";
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
@@ -10,7 +10,7 @@ import {
 } from "@/lib/security-headers";
 import { handleApiError } from "@/lib/error-handler";
 
-export async function GET(request: NextRequest) {
+export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
     const user = await verifyAuth(request);
 
@@ -85,7 +85,10 @@ export async function GET(request: NextRequest) {
       .limit(validatedLimit);
 
     if (lastDocId) {
-      const lastDoc = await adminDb.collection("quizAttempts").doc(lastDocId).get();
+      const lastDoc = await adminDb
+        .collection("quizAttempts")
+        .doc(lastDocId)
+        .get();
       if (lastDoc.exists) {
         attemptsQuery = attemptsQuery.startAfter(lastDoc);
       }
@@ -99,7 +102,10 @@ export async function GET(request: NextRequest) {
       const violations = data.violations || [];
       const formattedViolations = violations.map((v: any) => ({
         type: v.type,
-        timestamp: v.timestamp?.toDate?.()?.toISOString() || v.timestamp || new Date().toISOString(),
+        timestamp:
+          v.timestamp?.toDate?.()?.toISOString() ||
+          v.timestamp ||
+          new Date().toISOString(),
         details: v.details,
       }));
 
@@ -154,16 +160,13 @@ export async function GET(request: NextRequest) {
     // Cache the response
     await cache.set(cacheKey, result, 300); // 5 minutes
 
-    return NextResponse.json(
-      result,
-      {
-        status: 200,
-        headers: getPublicSecurityHeaders({
-          rateLimitHeaders: rateLimitResult.headers,
-          cacheControl: "private, max-age=300",
-        }),
-      }
-    );
+    return NextResponse.json(result, {
+      status: 200,
+      headers: getPublicSecurityHeaders({
+        rateLimitHeaders: rateLimitResult.headers,
+        cacheControl: "private, max-age=300",
+      }),
+    });
   } catch (error) {
     // Try to get user for error context, but don't fail if auth fails
     let userId: string | undefined;

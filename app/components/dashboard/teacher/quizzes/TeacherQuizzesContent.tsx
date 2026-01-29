@@ -1,7 +1,11 @@
 "use client";
 
 import { useMemo } from "react";
-import { QuizViewProvider, useQuizView, QuizView } from "./QuizViewContext";
+import {
+  QuizViewProvider,
+  useQuizView,
+  type QuizView,
+} from "./QuizViewContext";
 import QuizListView from "./QuizListView";
 import QuizCreateView from "./QuizCreateView";
 import QuizDetailView from "./QuizDetailView";
@@ -9,7 +13,7 @@ import QuizSettingsView from "./QuizSettingsView";
 import QuizResultsView from "./QuizResultsView";
 import QuizLiveView from "./QuizLiveView";
 
-interface TeacherQuizzesContentInnerProps {}
+type TeacherQuizzesContentInnerProps = {};
 
 function TeacherQuizzesContentInner({}: TeacherQuizzesContentInnerProps) {
   const { currentView } = useQuizView();
@@ -34,17 +38,17 @@ function TeacherQuizzesContentInner({}: TeacherQuizzesContentInnerProps) {
   }, [currentView]);
 
   return (
-    <div className="transition-opacity duration-200 ease-in-out">
-      {content}
-    </div>
+    <div className="transition-opacity duration-200 ease-in-out">{content}</div>
   );
 }
 
-interface TeacherQuizzesContentProps {
+type TeacherQuizzesContentProps = {
   initialView?: QuizView;
-}
+};
 
-export default function TeacherQuizzesContent({ initialView }: TeacherQuizzesContentProps) {
+export default function TeacherQuizzesContent({
+  initialView,
+}: TeacherQuizzesContentProps) {
   return (
     <QuizViewProvider initialView={initialView}>
       <TeacherQuizzesContentInner />

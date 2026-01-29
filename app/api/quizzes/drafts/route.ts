@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 import { verifyAuth } from "@/lib/auth";
 import { adminDb } from "@/lib/firebase-admin";
 import { verifyCSRF } from "@/lib/csrf";
@@ -19,7 +19,7 @@ import { handleApiError } from "@/lib/error-handler";
  * POST /api/quizzes/drafts - Save a quiz draft
  * Creates a new draft or updates existing one
  */
-export async function POST(request: NextRequest) {
+export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
     const user = await verifyAuth(request);
 
@@ -92,7 +92,11 @@ export async function POST(request: NextRequest) {
         choices: q.choices ? sanitizeStringArray(q.choices) : [],
       };
 
-      if (q.imageUrl && typeof q.imageUrl === "string" && q.imageUrl.length > 0) {
+      if (
+        q.imageUrl &&
+        typeof q.imageUrl === "string" &&
+        q.imageUrl.length > 0
+      ) {
         questionData.imageUrl = sanitizeString(q.imageUrl);
       }
 
@@ -103,7 +107,9 @@ export async function POST(request: NextRequest) {
 
       // Handle choice explanations for multiple choice
       if (q.choiceExplanations && Array.isArray(q.choiceExplanations)) {
-        questionData.choiceExplanations = sanitizeStringArray(q.choiceExplanations);
+        questionData.choiceExplanations = sanitizeStringArray(
+          q.choiceExplanations
+        );
       }
 
       return questionData;
@@ -213,7 +219,7 @@ export async function POST(request: NextRequest) {
 /**
  * GET /api/quizzes/drafts - Get all drafts for the authenticated teacher
  */
-export async function GET(request: NextRequest) {
+export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
     const user = await verifyAuth(request);
 
@@ -251,14 +257,14 @@ export async function GET(request: NextRequest) {
       const createdAt = data.createdAt?.toDate
         ? data.createdAt.toDate().toISOString()
         : data.createdAt instanceof Date
-        ? data.createdAt.toISOString()
-        : data.createdAt || new Date().toISOString();
+          ? data.createdAt.toISOString()
+          : data.createdAt || new Date().toISOString();
 
       const updatedAt = data.updatedAt?.toDate
         ? data.updatedAt.toDate().toISOString()
         : data.updatedAt instanceof Date
-        ? data.updatedAt.toISOString()
-        : data.updatedAt || createdAt;
+          ? data.updatedAt.toISOString()
+          : data.updatedAt || createdAt;
 
       return {
         id: doc.id,
@@ -271,7 +277,10 @@ export async function GET(request: NextRequest) {
     });
 
     // Sort by updatedAt descending in memory
-    drafts.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+    drafts.sort(
+      (a, b) =>
+        new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+    );
 
     // Apply pagination after sorting
     const paginatedDrafts = drafts.slice(0, limit);

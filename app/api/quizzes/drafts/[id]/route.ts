@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 import { verifyAuth } from "@/lib/auth";
 import { adminDb } from "@/lib/firebase-admin";
 import { verifyCSRF } from "@/lib/csrf";
@@ -9,9 +9,9 @@ import {
 } from "@/lib/security-headers";
 import { handleApiError } from "@/lib/error-handler";
 
-interface RouteParams {
+type RouteParams = {
   params: Promise<{ id: string }>;
-}
+};
 
 /**
  * GET /api/quizzes/drafts/[id] - Get a specific draft
@@ -58,14 +58,14 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     const createdAt = draftData.createdAt?.toDate
       ? draftData.createdAt.toDate().toISOString()
       : draftData.createdAt instanceof Date
-      ? draftData.createdAt.toISOString()
-      : draftData.createdAt || new Date().toISOString();
+        ? draftData.createdAt.toISOString()
+        : draftData.createdAt || new Date().toISOString();
 
     const updatedAt = draftData.updatedAt?.toDate
       ? draftData.updatedAt.toDate().toISOString()
       : draftData.updatedAt instanceof Date
-      ? draftData.updatedAt.toISOString()
-      : draftData.updatedAt || createdAt;
+        ? draftData.updatedAt.toISOString()
+        : draftData.updatedAt || createdAt;
 
     return NextResponse.json(
       {

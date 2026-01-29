@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 import { verifyAuth } from "@/lib/auth";
 import { adminDb } from "@/lib/firebase-admin";
 import { verifyCSRF } from "@/lib/csrf";
@@ -23,11 +23,13 @@ const QuizSettingsSchema = z.object({
   preventCopyPaste: z.boolean().optional(),
   fullscreenMode: z.boolean().optional(),
   disableRightClick: z.boolean().optional(),
-  antiCheat: z.object({
-    enabled: z.boolean().optional(),
-    tabChangeLimit: z.number().int().min(1).max(10).optional(),
-    autoSubmitOnDisqualification: z.boolean().optional(),
-  }).optional(),
+  antiCheat: z
+    .object({
+      enabled: z.boolean().optional(),
+      tabChangeLimit: z.number().int().min(1).max(10).optional(),
+      autoSubmitOnDisqualification: z.boolean().optional(),
+    })
+    .optional(),
 });
 
 export async function PUT(
@@ -175,7 +177,12 @@ export async function PUT(
         success: true,
         message: "Quiz settings updated successfully",
       },
-      { status: 200, headers: getSecurityHeaders({ rateLimitHeaders: rateLimitResult.headers }) }
+      {
+        status: 200,
+        headers: getSecurityHeaders({
+          rateLimitHeaders: rateLimitResult.headers,
+        }),
+      }
     );
   } catch (error) {
     let userId: string | undefined;
@@ -185,6 +192,9 @@ export async function PUT(
     } catch {
       // Ignore
     }
-    return handleApiError(error, { route: "/api/quizzes/[id]/settings", userId });
+    return handleApiError(error, {
+      route: "/api/quizzes/[id]/settings",
+      userId,
+    });
   }
 }

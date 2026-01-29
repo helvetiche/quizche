@@ -4,23 +4,23 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import PDFUploadModalFlashcard from "./PDFUploadModalFlashcard";
 
-interface GeneratedFlashcardSet {
+type GeneratedFlashcardSet = {
   title: string;
   description: string;
-  cards: Array<{
+  cards: {
     front: string;
     back: string;
-  }>;
-}
+  }[];
+};
 
-interface GenerateFlashcardButtonProps {
+type GenerateFlashcardButtonProps = {
   idToken: string;
   onFlashcardSetGenerated?: (flashcardSet: GeneratedFlashcardSet) => void;
   onSave?: (flashcardSet: GeneratedFlashcardSet) => void | Promise<void>;
   onEdit?: (flashcardSet: GeneratedFlashcardSet) => void;
   className?: string;
   variant?: "primary" | "secondary";
-}
+};
 
 const GenerateFlashcardButton = ({
   idToken,

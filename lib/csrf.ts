@@ -18,14 +18,11 @@ export const generateCSRFToken = async (userId: string): Promise<string> => {
   return token;
 };
 
-/**
- * Verify CSRF token for a user
- */
 export const verifyCSRFToken = async (
   userId: string,
   token: string | null
 ): Promise<boolean> => {
-  if (!token || token.length !== CSRF_TOKEN_LENGTH * 2) {
+  if (token?.length !== CSRF_TOKEN_LENGTH * 2) {
     return false;
   }
 
@@ -34,7 +31,6 @@ export const verifyCSRFToken = async (
     const key = `csrf:${userId}:${token}`;
     const stored = await redis.get(key);
 
-    // Upstash Redis returns numbers for numeric strings, so we need to handle both
     return stored === "1" || stored === 1;
   } catch (error) {
     console.error("CSRF verification error:", error);
@@ -73,13 +69,9 @@ export const revokeAllCSRFTokens = async (_userId: string): Promise<void> => {
   }
 };
 
-/**
- * Get CSRF token from request headers
- */
 export const getCSRFTokenFromRequest = (request: Request): string | null => {
   const token =
-    request.headers.get("X-CSRF-Token") || request.headers.get("x-csrf-token");
-  // Trim whitespace and return null if empty
+    request.headers.get("X-CSRF-Token") ?? request.headers.get("x-csrf-token");
   return token ? token.trim() : null;
 };
 

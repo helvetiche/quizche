@@ -8,29 +8,29 @@ import AuthGuard from "@/app/components/auth/AuthGuard";
 import DashboardLayout from "@/app/components/layout/DashboardLayout";
 import Loading from "@/app/components/ui/Loading";
 
-interface Question {
+type Question = {
   question: string;
   type: string;
   choices?: string[];
   answer: string;
-}
+};
 
-interface Quiz {
+type Quiz = {
   id: string;
   title: string;
   description?: string;
   questions: Question[];
   totalQuestions: number;
   showResults: boolean;
-}
+};
 
-interface Violation {
+type Violation = {
   type: string;
   timestamp: string;
   details?: string;
-}
+};
 
-interface QuizAttempt {
+type QuizAttempt = {
   id: string;
   quizId: string;
   quizTitle: string;
@@ -45,7 +45,7 @@ interface QuizAttempt {
   refreshDetected?: boolean;
   violations?: Violation[];
   disqualified?: boolean;
-}
+};
 
 export default function QuizAttemptDetailPage() {
   const params = useParams();
@@ -105,11 +105,14 @@ export default function QuizAttemptDetailPage() {
         setAttempt(foundAttempt);
 
         // Fetch quiz with answers (since student has completed it)
-        const quizResponse = await fetch(`/api/quizzes/${foundAttempt.quizId}`, {
-          headers: {
-            Authorization: `Bearer ${idToken}`,
-          },
-        });
+        const quizResponse = await fetch(
+          `/api/quizzes/${foundAttempt.quizId}`,
+          {
+            headers: {
+              Authorization: `Bearer ${idToken}`,
+            },
+          }
+        );
 
         if (!quizResponse.ok) {
           throw new Error("Failed to fetch quiz");
@@ -119,7 +122,9 @@ export default function QuizAttemptDetailPage() {
         setQuiz(quizData.quiz);
       } catch (err) {
         console.error("Error fetching attempt details:", err);
-        setError(err instanceof Error ? err.message : "Failed to load attempt details");
+        setError(
+          err instanceof Error ? err.message : "Failed to load attempt details"
+        );
       } finally {
         setLoading(false);
       }
@@ -194,7 +199,9 @@ export default function QuizAttemptDetailPage() {
             </div>
           ) : loading ? (
             <div className="flex items-center justify-center py-12">
-              <div className="text-black font-light">Loading attempt details...</div>
+              <div className="text-black font-light">
+                Loading attempt details...
+              </div>
             </div>
           ) : quiz && attempt ? (
             <div className="flex flex-col gap-8">
@@ -227,16 +234,13 @@ export default function QuizAttemptDetailPage() {
                 <div className="flex items-center gap-4 text-sm font-light text-gray-600">
                   <span>
                     Completed on{" "}
-                    {new Date(attempt.completedAt).toLocaleDateString(
-                      "en-US",
-                      {
-                        year: "numeric",
-                        month: "long",
-                        day: "numeric",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      }
-                    )}
+                    {new Date(attempt.completedAt).toLocaleDateString("en-US", {
+                      year: "numeric",
+                      month: "long",
+                      day: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
                   </span>
                   <span>•</span>
                   <span>Time spent: {formatTimeSpent(attempt.timeSpent)}</span>
@@ -251,10 +255,10 @@ export default function QuizAttemptDetailPage() {
                       attempt.percentage >= 90
                         ? "bg-green-500"
                         : attempt.percentage >= 70
-                        ? "bg-blue-500"
-                        : attempt.percentage >= 50
-                        ? "bg-yellow-500"
-                        : "bg-red-500"
+                          ? "bg-blue-500"
+                          : attempt.percentage >= 50
+                            ? "bg-yellow-500"
+                            : "bg-red-500"
                     }`}
                     style={{ width: `${attempt.percentage}%` }}
                   ></div>
@@ -294,18 +298,17 @@ export default function QuizAttemptDetailPage() {
                           Tab Changes: {attempt.tabChangeCount}
                         </span>
                       )}
-                    {attempt.timeAway !== undefined &&
-                      attempt.timeAway > 0 && (
-                        <span
-                          className={`px-3 py-1 border-2 text-sm font-light ${
-                            attempt.timeAway > 5
-                              ? "bg-red-100 text-red-800 border-red-600"
-                              : "bg-yellow-100 text-yellow-800 border-yellow-600"
-                          }`}
-                        >
-                          Time Away: {attempt.timeAway}s
-                        </span>
-                      )}
+                    {attempt.timeAway !== undefined && attempt.timeAway > 0 && (
+                      <span
+                        className={`px-3 py-1 border-2 text-sm font-light ${
+                          attempt.timeAway > 5
+                            ? "bg-red-100 text-red-800 border-red-600"
+                            : "bg-yellow-100 text-yellow-800 border-yellow-600"
+                        }`}
+                      >
+                        Time Away: {attempt.timeAway}s
+                      </span>
+                    )}
                     {attempt.violations && attempt.violations.length > 0 && (
                       <span className="px-3 py-1 bg-yellow-100 text-yellow-800 border-2 border-yellow-600 text-sm font-light">
                         {attempt.violations.length} Violation(s)
@@ -346,9 +349,8 @@ export default function QuizAttemptDetailPage() {
                       attempt.answers[index] || "(No answer)";
                     const correctAnswer = question.answer || "";
                     const isCorrect =
-                      correctAnswer &&
                       studentAnswer.toLowerCase().trim() ===
-                        correctAnswer.toLowerCase().trim();
+                      correctAnswer?.toLowerCase().trim();
 
                     return (
                       <div
@@ -376,9 +378,7 @@ export default function QuizAttemptDetailPage() {
                               </p>
                               <p
                                 className={`text-sm font-light ${
-                                  isCorrect
-                                    ? "text-green-600"
-                                    : "text-red-600"
+                                  isCorrect ? "text-green-600" : "text-red-600"
                                 }`}
                               >
                                 {studentAnswer}
@@ -404,17 +404,11 @@ export default function QuizAttemptDetailPage() {
                                   {question.choices.map(
                                     (choice, choiceIndex) => {
                                       const isCorrectAnswer =
-                                        correctAnswer &&
-                                        correctAnswer
-                                          .trim()
-                                          .toLowerCase() ===
-                                          choice.trim().toLowerCase();
+                                        correctAnswer?.trim().toLowerCase() ===
+                                        choice.trim().toLowerCase();
                                       const isStudentAnswer =
-                                        studentAnswer &&
-                                        studentAnswer
-                                          .trim()
-                                          .toLowerCase() ===
-                                          choice.trim().toLowerCase();
+                                        studentAnswer?.trim().toLowerCase() ===
+                                        choice.trim().toLowerCase();
 
                                       return (
                                         <div
@@ -423,8 +417,8 @@ export default function QuizAttemptDetailPage() {
                                             isCorrectAnswer
                                               ? "bg-green-100 text-green-800 border-green-600"
                                               : isStudentAnswer
-                                              ? "bg-red-100 text-red-800 border-red-600"
-                                              : "bg-white text-black border-gray-300"
+                                                ? "bg-red-100 text-red-800 border-red-600"
+                                                : "bg-white text-black border-gray-300"
                                           }`}
                                         >
                                           {choice}

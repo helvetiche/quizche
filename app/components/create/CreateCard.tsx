@@ -2,12 +2,12 @@
 
 import Link from "next/link";
 
-interface CreateCardProps {
+type CreateCardProps = {
   title: string;
   description: string;
   href: string;
   icon: React.ReactNode;
-}
+};
 
 const CreateCard = ({ title, description, href, icon }: CreateCardProps) => {
   return (

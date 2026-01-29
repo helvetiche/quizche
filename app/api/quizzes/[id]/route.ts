@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 import { verifyAuth } from "@/lib/auth";
 import { adminDb } from "@/lib/firebase-admin";
 import { verifyCSRF } from "@/lib/csrf";
@@ -6,7 +6,6 @@ import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 import {
   getSecurityHeaders,
   getErrorSecurityHeaders,
-  getPublicSecurityHeaders,
 } from "@/lib/security-headers";
 import {
   QuizDataSchema,
@@ -19,7 +18,7 @@ import { handleApiError } from "@/lib/error-handler";
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
-) {
+): Promise<NextResponse> {
   try {
     const user = await verifyAuth(request);
 
@@ -80,7 +79,7 @@ export async function GET(
       }
     } else if (user.role === "student") {
       // Check if quiz is active
-      if (!quizData?.isActive) {
+      if (quizData?.isActive !== true) {
         return NextResponse.json(
           { error: "Quiz is not available" },
           { status: 403, headers: getErrorSecurityHeaders() }
@@ -94,7 +93,7 @@ export async function GET(
         .get();
 
       const quizSectionIds = quizSectionsSnapshot.docs.map(
-        (doc) => doc.data().sectionId
+        (doc) => doc.data().sectionId as string
       );
 
       // If quiz has section assignments, check if student is in any of those sections
@@ -105,13 +104,13 @@ export async function GET(
           .get();
 
         const studentSectionIds = studentSectionsSnapshot.docs.map(
-          (doc) => doc.data().sectionId
+          (doc) => doc.data().sectionId as string
         );
         const hasAccess = quizSectionIds.some((sectionId) =>
           studentSectionIds.includes(sectionId)
         );
 
-        if (!hasAccess) {
+        if (hasAccess === false) {
           return NextResponse.json(
             { error: "Forbidden: You don't have access to this quiz" },
             { status: 403, headers: getErrorSecurityHeaders() }
@@ -121,12 +120,17 @@ export async function GET(
 
       // Check availability dates
       const now = new Date();
-      if (quizData?.availableDate) {
-        const availableDate = quizData.availableDate?.toDate
-          ? quizData.availableDate.toDate()
-          : quizData.availableDate instanceof Date
-          ? quizData.availableDate
-          : new Date(quizData.availableDate);
+      if (
+        quizData?.availableDate !== undefined &&
+        quizData?.availableDate !== null
+      ) {
+        const availableDateValue = quizData.availableDate;
+        const availableDate =
+          (availableDateValue as { toDate?: () => Date }).toDate !== undefined
+            ? (availableDateValue as { toDate: () => Date }).toDate()
+            : availableDateValue instanceof Date
+              ? availableDateValue
+              : new Date(availableDateValue as string | number | Date);
         if (now < availableDate) {
           return NextResponse.json(
             { error: "Quiz is not yet available" },
@@ -135,12 +139,14 @@ export async function GET(
         }
       }
 
-      if (quizData?.dueDate) {
-        const dueDate = quizData.dueDate?.toDate
-          ? quizData.dueDate.toDate()
-          : quizData.dueDate instanceof Date
-          ? quizData.dueDate
-          : new Date(quizData.dueDate);
+      if (quizData?.dueDate !== undefined && quizData?.dueDate !== null) {
+        const dueDateValue = quizData.dueDate;
+        const dueDate =
+          (dueDateValue as { toDate?: () => Date }).toDate !== undefined
+            ? (dueDateValue as { toDate: () => Date }).toDate()
+            : dueDateValue instanceof Date
+              ? dueDateValue
+              : new Date(dueDateValue as string | number | Date);
         if (now > dueDate) {
           return NextResponse.json(
             { error: "Quiz deadline has passed" },
@@ -150,29 +156,53 @@ export async function GET(
       }
     }
 
-    const createdAt = quizData?.createdAt?.toDate
-      ? quizData.createdAt.toDate().toISOString()
-      : quizData?.createdAt instanceof Date
-      ? quizData.createdAt.toISOString()
-      : quizData?.createdAt || new Date().toISOString();
+    const createdAtValue = quizData?.createdAt;
+    const createdAt =
+      createdAtValue !== undefined &&
+      createdAtValue !== null &&
+      (createdAtValue as { toDate?: () => Date }).toDate !== undefined
+        ? (createdAtValue as { toDate: () => Date }).toDate().toISOString()
+        : createdAtValue instanceof Date
+          ? createdAtValue.toISOString()
+          : createdAtValue !== undefined && createdAtValue !== null
+            ? String(createdAtValue)
+            : new Date().toISOString();
 
-    const updatedAt = quizData?.updatedAt?.toDate
-      ? quizData.updatedAt.toDate().toISOString()
-      : quizData?.updatedAt instanceof Date
-      ? quizData.updatedAt.toISOString()
-      : quizData?.updatedAt || createdAt;
+    const updatedAtValue = quizData?.updatedAt;
+    const updatedAt =
+      updatedAtValue !== undefined &&
+      updatedAtValue !== null &&
+      (updatedAtValue as { toDate?: () => Date }).toDate !== undefined
+        ? (updatedAtValue as { toDate: () => Date }).toDate().toISOString()
+        : updatedAtValue instanceof Date
+          ? updatedAtValue.toISOString()
+          : updatedAtValue !== undefined && updatedAtValue !== null
+            ? String(updatedAtValue)
+            : createdAt;
 
-    const availableDate = quizData?.availableDate?.toDate
-      ? quizData.availableDate.toDate().toISOString()
-      : quizData?.availableDate instanceof Date
-      ? quizData.availableDate.toISOString()
-      : quizData?.availableDate || null;
+    const availableDateValue = quizData?.availableDate;
+    const availableDate =
+      availableDateValue !== undefined &&
+      availableDateValue !== null &&
+      (availableDateValue as { toDate?: () => Date }).toDate !== undefined
+        ? (availableDateValue as { toDate: () => Date }).toDate().toISOString()
+        : availableDateValue instanceof Date
+          ? availableDateValue.toISOString()
+          : availableDateValue !== undefined && availableDateValue !== null
+            ? String(availableDateValue)
+            : null;
 
-    const dueDate = quizData?.dueDate?.toDate
-      ? quizData.dueDate.toDate().toISOString()
-      : quizData?.dueDate instanceof Date
-      ? quizData.dueDate.toISOString()
-      : quizData?.dueDate || null;
+    const dueDateValue = quizData?.dueDate;
+    const dueDate =
+      dueDateValue !== undefined &&
+      dueDateValue !== null &&
+      (dueDateValue as { toDate?: () => Date }).toDate !== undefined
+        ? (dueDateValue as { toDate: () => Date }).toDate().toISOString()
+        : dueDateValue instanceof Date
+          ? dueDateValue.toISOString()
+          : dueDateValue !== undefined && dueDateValue !== null
+            ? String(dueDateValue)
+            : null;
 
     // Get section IDs for this quiz
     const quizSectionsSnapshot = await adminDb
@@ -181,12 +211,15 @@ export async function GET(
       .get();
 
     const sectionIds = quizSectionsSnapshot.docs.map(
-      (doc) => doc.data().sectionId
+      (doc) => doc.data().sectionId as string
     );
 
     // For students, check if they've completed the quiz
     // If completed, include answers; otherwise, hide them
-    let questions = quizData?.questions || [];
+    let questions: Record<string, unknown>[] =
+      quizData?.questions !== undefined && Array.isArray(quizData.questions)
+        ? (quizData.questions as Record<string, unknown>[])
+        : [];
 
     if (user.role === "student") {
       // Check if student has completed this quiz
@@ -197,19 +230,27 @@ export async function GET(
         .limit(1)
         .get();
 
-      const hasCompleted = !attemptSnapshot.empty;
+      const hasCompleted = attemptSnapshot.empty === false;
 
-      if (!hasCompleted) {
+      if (hasCompleted === false) {
         // Hide answers if quiz not completed
-        questions = (quizData?.questions || []).map((q: any) => {
-          const questionData: any = {
+        const quizQuestions =
+          quizData?.questions !== undefined && Array.isArray(quizData.questions)
+            ? (quizData.questions as Record<string, unknown>[])
+            : [];
+        questions = quizQuestions.map((q) => {
+          const questionData: Record<string, unknown> = {
             question: q.question,
             type: q.type,
           };
-          if (q.type === "multiple_choice" && q.choices) {
+          if (
+            q.type === "multiple_choice" &&
+            q.choices !== undefined &&
+            q.choices !== null
+          ) {
             questionData.choices = q.choices;
           }
-          if (q.imageUrl) {
+          if (q.imageUrl !== undefined && q.imageUrl !== null) {
             questionData.imageUrl = q.imageUrl;
           }
           return questionData;
@@ -221,12 +262,12 @@ export async function GET(
     const quiz = {
       id: quizDoc.id,
       teacherId: quizData?.teacherId,
-      title: quizData?.title || "",
-      description: quizData?.description || "",
+      title: quizData?.title ?? "",
+      description: quizData?.description ?? "",
       questions,
-      totalQuestions: quizData?.totalQuestions || 0,
+      totalQuestions: quizData?.totalQuestions ?? 0,
       isActive: quizData?.isActive !== undefined ? quizData.isActive : true,
-      duration: quizData?.duration || null,
+      duration: quizData?.duration ?? null,
       availableDate,
       dueDate,
       allowRetake:
@@ -234,7 +275,7 @@ export async function GET(
       showResults:
         quizData?.showResults !== undefined ? quizData.showResults : true,
       sectionIds: user.role === "teacher" ? sectionIds : undefined,
-      antiCheat: quizData?.antiCheat || {
+      antiCheat: quizData?.antiCheat ?? {
         enabled: true,
         tabChangeLimit: 3,
         timeAwayThreshold: 5,
@@ -278,7 +319,7 @@ const QUESTION_TYPES = [
 
 type QuestionType = (typeof QUESTION_TYPES)[number];
 
-interface Question {
+type Question = {
   question: string;
   type: QuestionType;
   choices?: string[];
@@ -286,9 +327,9 @@ interface Question {
   imageUrl?: string;
   explanation?: string;
   choiceExplanations?: string[];
-}
+};
 
-interface QuizData {
+type QuizData = {
   title: string;
   description?: string;
   questions: Question[];
@@ -306,29 +347,37 @@ interface QuizData {
     autoSubmitOnDisqualification?: boolean;
   };
   sectionIds?: string[];
-}
+};
 
-const validateQuestion = (question: any): question is Question => {
-  if (!question || typeof question !== "object") return false;
-  if (!question.question || typeof question.question !== "string") return false;
-  if (!question.type || !QUESTION_TYPES.includes(question.type)) return false;
-  if (!question.answer || typeof question.answer !== "string") return false;
+const validateQuestion = (question: unknown): question is Question => {
+  if (
+    question === null ||
+    question === undefined ||
+    typeof question !== "object"
+  )
+    return false;
+  const q = question as Record<string, unknown>;
+  if (typeof q.question !== "string" || q.question.trim().length === 0)
+    return false;
+  if (
+    typeof q.type !== "string" ||
+    !QUESTION_TYPES.includes(q.type as QuestionType)
+  )
+    return false;
+  if (typeof q.answer !== "string" || q.answer.trim().length === 0)
+    return false;
 
-  if (question.type === "multiple_choice") {
-    if (
-      !question.choices ||
-      !Array.isArray(question.choices) ||
-      question.choices.length < 2
-    ) {
+  if (q.type === "multiple_choice") {
+    if (!Array.isArray(q.choices) || q.choices.length < 2) {
       return false;
     }
-    if (!question.choices.every((c: any) => typeof c === "string")) {
+    if (!q.choices.every((c) => typeof c === "string")) {
       return false;
     }
   }
 
-  if (question.type === "true_or_false") {
-    if (question.answer !== "true" && question.answer !== "false") {
+  if (q.type === "true_or_false") {
+    if (q.answer !== "true" && q.answer !== "false") {
       return false;
     }
   }
@@ -336,45 +385,39 @@ const validateQuestion = (question: any): question is Question => {
   return true;
 };
 
-const validateQuizData = (data: any): data is QuizData => {
-  if (!data || typeof data !== "object") return false;
-  if (
-    !data.title ||
-    typeof data.title !== "string" ||
-    data.title.trim().length === 0
-  ) {
+const validateQuizData = (data: unknown): data is QuizData => {
+  if (data === null || data === undefined || typeof data !== "object")
+    return false;
+  const d = data as Record<string, unknown>;
+  if (typeof d.title !== "string" || d.title.trim().length === 0) {
     return false;
   }
-  if (data.title.length > 200) return false;
+  if (d.title.length > 200) return false;
 
   if (
-    data.description &&
-    (typeof data.description !== "string" || data.description.length > 1000)
-  ) {
-    return false;
-  }
-
-  if (
-    !data.questions ||
-    !Array.isArray(data.questions) ||
-    data.questions.length === 0
+    d.description !== undefined &&
+    (typeof d.description !== "string" || d.description.length > 1000)
   ) {
     return false;
   }
 
-  if (data.questions.length > 100) return false;
+  if (!Array.isArray(d.questions) || d.questions.length === 0) {
+    return false;
+  }
 
-  return data.questions.every(validateQuestion);
+  if (d.questions.length > 100) return false;
+
+  return d.questions.every(validateQuestion);
 };
 
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
-) {
+): Promise<NextResponse> {
   try {
     const user = await verifyAuth(request);
 
-    if (!user) {
+    if (user === null || user === undefined) {
       return NextResponse.json(
         { error: "Unauthorized: Invalid or missing authentication token" },
         { status: 401, headers: getErrorSecurityHeaders() }
@@ -419,7 +462,7 @@ export async function PUT(
 
     // CSRF protection
     const csrfError = await verifyCSRF(request, user.uid);
-    if (csrfError) {
+    if (csrfError !== null && csrfError !== undefined) {
       return NextResponse.json(
         { error: csrfError.error },
         { status: csrfError.status, headers: csrfError.headers }
@@ -448,7 +491,7 @@ export async function PUT(
 
     // Validate input using Zod
     const validation = validateInput(QuizDataSchema, body);
-    if (!validation.success) {
+    if (validation.success === false) {
       return NextResponse.json(
         {
           error: "Invalid quiz data. Please check all fields.",
@@ -470,10 +513,12 @@ export async function PUT(
       // Only include choices for multiple_choice questions
       if (q.type === "multiple_choice" && q.choices) {
         questionData.choices = sanitizeStringArray(q.choices);
-        
+
         // Handle choice explanations for multiple choice
         if (q.choiceExplanations && Array.isArray(q.choiceExplanations)) {
-          questionData.choiceExplanations = sanitizeStringArray(q.choiceExplanations);
+          questionData.choiceExplanations = sanitizeStringArray(
+            q.choiceExplanations
+          );
         }
       }
 
@@ -482,7 +527,11 @@ export async function PUT(
       }
 
       // Handle explanation for identification and true_or_false
-      if ((q.type === "identification" || q.type === "true_or_false") && q.explanation && typeof q.explanation === "string") {
+      if (
+        (q.type === "identification" || q.type === "true_or_false") &&
+        q.explanation &&
+        typeof q.explanation === "string"
+      ) {
         questionData.explanation = sanitizeString(q.explanation);
       }
 
@@ -500,8 +549,8 @@ export async function PUT(
         validatedData.isActive !== undefined
           ? validatedData.isActive
           : quizData?.isActive !== undefined
-          ? quizData.isActive
-          : true,
+            ? quizData.isActive
+            : true,
       updatedAt: new Date(),
     };
 
@@ -524,7 +573,12 @@ export async function PUT(
         id,
         message: "Quiz updated successfully",
       },
-      { status: 200, headers: getSecurityHeaders({ rateLimitHeaders: rateLimitResult.headers }) }
+      {
+        status: 200,
+        headers: getSecurityHeaders({
+          rateLimitHeaders: rateLimitResult.headers,
+        }),
+      }
     );
   } catch (error) {
     // Try to get user for error context, but don't fail if auth fails

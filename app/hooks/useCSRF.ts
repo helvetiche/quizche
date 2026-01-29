@@ -53,11 +53,14 @@ export const useCSRF = (idToken: string | null) => {
       fetchToken();
 
       // Set up periodic refresh (check every 5 minutes)
-      const interval = setInterval(() => {
-        if (needsCSRFTokenRefresh() && idToken) {
-          fetchToken();
-        }
-      }, 5 * 60 * 1000); // 5 minutes
+      const interval = setInterval(
+        () => {
+          if (needsCSRFTokenRefresh() && idToken) {
+            fetchToken();
+          }
+        },
+        5 * 60 * 1000
+      ); // 5 minutes
 
       return () => clearInterval(interval);
     } else {

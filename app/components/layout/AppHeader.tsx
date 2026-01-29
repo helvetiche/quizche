@@ -1,9 +1,9 @@
 "use client";
 
-interface AppHeaderProps {
+type AppHeaderProps = {
   title: string;
   userEmail?: string;
-}
+};
 
 const AppHeader = ({ title, userEmail }: AppHeaderProps) => {
   return (

@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 import { verifyAuth } from "@/lib/auth";
 import { adminDb } from "@/lib/firebase-admin";
 import { verifyCSRF } from "@/lib/csrf";
@@ -20,11 +20,14 @@ const getConnectionId = (userId1: string, userId2: string): string => {
   return userId1 < userId2 ? `${userId1}_${userId2}` : `${userId2}_${userId1}`;
 };
 
-const getSortedUserIds = (userId1: string, userId2: string): [string, string] => {
+const getSortedUserIds = (
+  userId1: string,
+  userId2: string
+): [string, string] => {
   return userId1 < userId2 ? [userId1, userId2] : [userId2, userId1];
 };
 
-export async function GET(request: NextRequest) {
+export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
     const user = await verifyAuth(request);
 
@@ -64,30 +67,23 @@ export async function GET(request: NextRequest) {
 
     // Check cache first
     const cacheKey = getApiCacheKey("/api/connections", user.uid);
-    const cached = await cache.get<{ connections: any[]; users: any }>(cacheKey);
+    const cached = await cache.get<{ connections: any[]; users: any }>(
+      cacheKey
+    );
     if (cached) {
-      return NextResponse.json(
-        cached,
-        {
-          status: 200,
-          headers: getPublicSecurityHeaders({
-            rateLimitHeaders: rateLimitResult.headers,
-            cacheControl: "private, max-age=300",
-          }),
-        }
-      );
+      return NextResponse.json(cached, {
+        status: 200,
+        headers: getPublicSecurityHeaders({
+          rateLimitHeaders: rateLimitResult.headers,
+          cacheControl: "private, max-age=300",
+        }),
+      });
     }
 
     // Query connections where user is userId1 or userId2
     const [connectionsAsUser1, connectionsAsUser2] = await Promise.all([
-      adminDb
-        .collection("connections")
-        .where("userId1", "==", user.uid)
-        .get(),
-      adminDb
-        .collection("connections")
-        .where("userId2", "==", user.uid)
-        .get(),
+      adminDb.collection("connections").where("userId1", "==", user.uid).get(),
+      adminDb.collection("connections").where("userId2", "==", user.uid).get(),
     ]);
 
     const connections: any[] = [];
@@ -157,16 +153,13 @@ export async function GET(request: NextRequest) {
     // Cache the response
     await cache.set(cacheKey, result, 300); // 5 minutes
 
-    return NextResponse.json(
-      result,
-      {
-        status: 200,
-        headers: getPublicSecurityHeaders({
-          rateLimitHeaders: rateLimitResult.headers,
-          cacheControl: "private, max-age=300",
-        }),
-      }
-    );
+    return NextResponse.json(result, {
+      status: 200,
+      headers: getPublicSecurityHeaders({
+        rateLimitHeaders: rateLimitResult.headers,
+        cacheControl: "private, max-age=300",
+      }),
+    });
   } catch (error) {
     // Try to get user for error context, but don't fail if auth fails
     let userId: string | undefined;
@@ -180,7 +173,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-export async function POST(request: NextRequest) {
+export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
     const user = await verifyAuth(request);
 
@@ -232,7 +225,10 @@ export async function POST(request: NextRequest) {
     }
 
     // Verify target user exists and is a student
-    const targetUserDoc = await adminDb.collection("users").doc(targetUserId).get();
+    const targetUserDoc = await adminDb
+      .collection("users")
+      .doc(targetUserId)
+      .get();
     if (!targetUserDoc.exists) {
       return NextResponse.json(
         { error: "Target user not found" },
@@ -274,13 +270,10 @@ export async function POST(request: NextRequest) {
           );
         } else {
           // Auto-accept if the other user sent a request
-          await adminDb
-            .collection("connections")
-            .doc(connectionId)
-            .update({
-              status: "accepted",
-              updatedAt: new Date(),
-            });
+          await adminDb.collection("connections").doc(connectionId).update({
+            status: "accepted",
+            updatedAt: new Date(),
+          });
 
           // Invalidate cache
           await cache.delete(getApiCacheKey("/api/connections", user.uid));

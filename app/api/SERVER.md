@@ -22,7 +22,6 @@ This directory contains all server-side API routes for the QuizChe application.
 **MANDATORY for ALL routes:**
 
 1. **Authentication (401 Unauthorized)**
-
    - Extract `Authorization: Bearer <token>` header
    - Verify Firebase ID token using Firebase Admin SDK
    - Extract user ID and custom claims (role, tier)
@@ -80,13 +79,11 @@ All routes follow Next.js App Router conventions using `route.ts` files.
 Every route MUST include:
 
 1. **Authentication verification** (MANDATORY - 401 if failed)
-
    - Verify Firebase ID token
    - Extract user ID and custom claims
    - Reject if token is missing, invalid, or expired
 
 2. **Authorization check** (MANDATORY - 403 if failed)
-
    - Verify user role (student/teacher)
    - Verify user permissions for the operation
    - Check resource ownership

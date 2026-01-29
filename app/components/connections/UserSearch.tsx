@@ -4,18 +4,18 @@ import { useState, useEffect } from "react";
 import { getAuth } from "firebase/auth";
 import app from "@/lib/firebase";
 
-interface User {
+type User = {
   id: string;
   email: string;
   displayName: string;
   firstName: string;
   lastName: string;
-}
+};
 
-interface UserSearchProps {
+type UserSearchProps = {
   onSelectUser: (user: User) => void;
   excludeUserIds?: string[];
-}
+};
 
 const UserSearch = ({ onSelectUser, excludeUserIds = [] }: UserSearchProps) => {
   const [searchQuery, setSearchQuery] = useState("");

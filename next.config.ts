@@ -1,15 +1,12 @@
 import type { NextConfig } from "next";
 
-// eslint-disable-next-line @typescript-eslint/no-var-requires
 const withBundleAnalyzer = require("@next/bundle-analyzer")({
   enabled: process.env.ANALYZE === "true",
-});
+}) as (config: NextConfig) => NextConfig;
 
 const nextConfig: NextConfig = {
-  // Turbopack configuration for Next.js 16
   turbopack: {},
-  
-  // Image configuration for imgbb
+
   images: {
     remotePatterns: [
       {
@@ -22,8 +19,7 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  
-  // Security headers for all pages (CSP allows Firebase OAuth)
+
   async headers() {
     return [
       {
@@ -61,26 +57,24 @@ const nextConfig: NextConfig = {
           },
           {
             key: "Permissions-Policy",
-            value: "geolocation=(), microphone=(), camera=(), payment=(), usb=()",
+            value:
+              "geolocation=(), microphone=(), camera=(), payment=(), usb=()",
           },
         ],
       },
     ];
   },
-  
-  // Webpack config for non-Turbopack builds (fallback)
+
   webpack: (config, { isServer }) => {
     if (isServer) {
-      // Handle pdfjs-dist worker file for server-side rendering
       config.resolve.alias = {
         ...config.resolve.alias,
         canvas: false,
       };
-      
-      // Exclude canvas from server bundle
-      config.externals = [...(config.externals || []), "canvas"];
+
+      config.externals = [...(config.externals as string[]), "canvas"];
     }
-    
+
     return config;
   },
 };

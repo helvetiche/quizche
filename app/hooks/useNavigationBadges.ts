@@ -4,13 +4,13 @@ import { useState, useEffect, useCallback } from "react";
 import { getAuth } from "firebase/auth";
 import app from "@/lib/firebase";
 
-export interface BadgeCounts {
+export type BadgeCounts = {
   quizzes: number;
   sections: number;
   flashcards: number;
   history: number;
   connections: number;
-}
+};
 
 // Validate and sanitize count to prevent injection/overflow
 const sanitizeCount = (value: unknown): number => {
@@ -98,20 +98,21 @@ export const useNavigationBadges = (
         }
 
         if (userRole === "student") {
-          const [quizzesRes, flashcardsRes, connectionsRes] = await Promise.allSettled([
-            fetch("/api/student/quizzes", {
-              headers: { Authorization: `Bearer ${token}` },
-              signal: controller.signal,
-            }),
-            fetch("/api/flashcards", {
-              headers: { Authorization: `Bearer ${token}` },
-              signal: controller.signal,
-            }),
-            fetch("/api/connections", {
-              headers: { Authorization: `Bearer ${token}` },
-              signal: controller.signal,
-            }),
-          ]);
+          const [quizzesRes, flashcardsRes, connectionsRes] =
+            await Promise.allSettled([
+              fetch("/api/student/quizzes", {
+                headers: { Authorization: `Bearer ${token}` },
+                signal: controller.signal,
+              }),
+              fetch("/api/flashcards", {
+                headers: { Authorization: `Bearer ${token}` },
+                signal: controller.signal,
+              }),
+              fetch("/api/connections", {
+                headers: { Authorization: `Bearer ${token}` },
+                signal: controller.signal,
+              }),
+            ]);
 
           if (quizzesRes.status === "fulfilled" && quizzesRes.value.ok) {
             const data = await quizzesRes.value.json();
@@ -127,7 +128,10 @@ export const useNavigationBadges = (
             }
           }
 
-          if (connectionsRes.status === "fulfilled" && connectionsRes.value.ok) {
+          if (
+            connectionsRes.status === "fulfilled" &&
+            connectionsRes.value.ok
+          ) {
             const data = await connectionsRes.value.json();
             if (Array.isArray(data.connections)) {
               const pendingConnections = data.connections.filter(

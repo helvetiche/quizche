@@ -1,10 +1,10 @@
-interface PageContainerProps {
+type PageContainerProps = {
   children: React.ReactNode;
-}
+};
 
 const PageContainer = ({ children }: PageContainerProps) => {
   return (
-    <div 
+    <div
       className="flex min-h-screen items-center justify-center py-12 px-4"
       style={{
         background:

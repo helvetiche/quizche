@@ -4,13 +4,23 @@ import { useState, Suspense, useMemo } from "react";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
 import AuthGuard from "../../../components/auth/AuthGuard";
 import Loading from "../../../components/ui/Loading";
-import { QuizViewProvider, useQuizView, QuizView } from "../../../components/dashboard/teacher/quizzes/QuizViewContext";
+import {
+  QuizViewProvider,
+  useQuizView,
+  type QuizView,
+} from "../../../components/dashboard/teacher/quizzes/QuizViewContext";
 import QuizDetailView from "../../../components/dashboard/teacher/quizzes/QuizDetailView";
 import QuizSettingsView from "../../../components/dashboard/teacher/quizzes/QuizSettingsView";
 import QuizResultsView from "../../../components/dashboard/teacher/quizzes/QuizResultsView";
 import QuizLiveView from "../../../components/dashboard/teacher/quizzes/QuizLiveView";
 
-function QuizPageHeader({ userEmail, quizId }: { userEmail?: string; quizId: string }) {
+function QuizPageHeader({
+  userEmail,
+  quizId,
+}: {
+  userEmail?: string;
+  quizId: string;
+}) {
   const router = useRouter();
   const { currentView } = useQuizView();
 
@@ -24,10 +34,26 @@ function QuizPageHeader({ userEmail, quizId }: { userEmail?: string; quizId: str
 
   const getViewConfig = () => {
     switch (currentView.type) {
-      case "settings": return { title: "Quiz Settings", icon: "settings", color: "bg-amber-400" };
-      case "results": return { title: "Quiz Results", icon: "analytics", color: "bg-purple-400" };
-      case "live": return { title: "Live Session", icon: "play_circle", color: "bg-red-500" };
-      default: return { title: "Quiz Details", icon: "quiz", color: "bg-cyan-400" };
+      case "settings":
+        return {
+          title: "Quiz Settings",
+          icon: "settings",
+          color: "bg-amber-400",
+        };
+      case "results":
+        return {
+          title: "Quiz Results",
+          icon: "analytics",
+          color: "bg-purple-400",
+        };
+      case "live":
+        return {
+          title: "Live Session",
+          icon: "play_circle",
+          color: "bg-red-500",
+        };
+      default:
+        return { title: "Quiz Details", icon: "quiz", color: "bg-cyan-400" };
     }
   };
 
@@ -43,15 +69,25 @@ function QuizPageHeader({ userEmail, quizId }: { userEmail?: string; quizId: str
               onClick={handleBack}
               className="w-10 h-10 bg-amber-200 rounded-xl flex items-center justify-center border-2 border-gray-900 shadow-[2px_2px_0px_0px_rgba(17,24,39,1)] hover:shadow-[3px_3px_0px_0px_rgba(17,24,39,1)] hover:-translate-y-0.5 active:shadow-[1px_1px_0px_0px_rgba(17,24,39,1)] active:translate-y-0.5 transition-all"
             >
-              <span className="material-icons-outlined text-gray-900">arrow_back</span>
+              <span className="material-icons-outlined text-gray-900">
+                arrow_back
+              </span>
             </button>
             <div className="flex items-center gap-3">
-              <div className={`w-10 h-10 ${config.color} rounded-xl flex items-center justify-center border-2 border-gray-900 shadow-[2px_2px_0px_0px_rgba(17,24,39,1)]`}>
-                <span className="material-icons-outlined text-gray-900 text-xl">{config.icon}</span>
+              <div
+                className={`w-10 h-10 ${config.color} rounded-xl flex items-center justify-center border-2 border-gray-900 shadow-[2px_2px_0px_0px_rgba(17,24,39,1)]`}
+              >
+                <span className="material-icons-outlined text-gray-900 text-xl">
+                  {config.icon}
+                </span>
               </div>
               <div>
-                <h1 className="text-lg font-black text-gray-900">{config.title}</h1>
-                <p className="text-xs font-medium text-gray-600">Manage your assessment</p>
+                <h1 className="text-lg font-black text-gray-900">
+                  {config.title}
+                </h1>
+                <p className="text-xs font-medium text-gray-600">
+                  Manage your assessment
+                </p>
               </div>
             </div>
           </div>
@@ -72,13 +108,15 @@ function QuizPageHeader({ userEmail, quizId }: { userEmail?: string; quizId: str
               <span className="material-icons-outlined text-base">add</span>
               <span>New Quiz</span>
             </button>
-            
+
             {/* Mobile buttons */}
             <button
               onClick={() => router.push("/teacher?tab=quizzes")}
               className="sm:hidden w-10 h-10 bg-amber-200 rounded-xl flex items-center justify-center border-2 border-gray-900 shadow-[2px_2px_0px_0px_rgba(17,24,39,1)]"
             >
-              <span className="material-icons-outlined text-gray-900">home</span>
+              <span className="material-icons-outlined text-gray-900">
+                home
+              </span>
             </button>
             <button
               onClick={() => router.push("/teacher/composer")}
@@ -127,15 +165,18 @@ function QuizPageContent({ quizId }: { quizId: string }) {
 
   return (
     <main className="flex-1 py-8">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {content}
-      </div>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">{content}</div>
     </main>
   );
 }
 
-
-function QuizPageContentWrapper({ user, quizId }: { user: any; quizId: string }) {
+function QuizPageContentWrapper({
+  user,
+  quizId,
+}: {
+  user: any;
+  quizId: string;
+}) {
   const { currentView } = useQuizView();
 
   // QuizDetailView is a full-page fixed component, render it directly without wrapper
@@ -164,7 +205,10 @@ function QuizPageInner({ user, quizId }: { user: any; quizId: string }) {
   if (view) {
     const validViews = ["detail", "settings", "results", "live"];
     if (validViews.includes(view)) {
-      initialView = { type: view as "detail" | "settings" | "results" | "live", quizId };
+      initialView = {
+        type: view as "detail" | "settings" | "results" | "live",
+        quizId,
+      };
     }
   }
 

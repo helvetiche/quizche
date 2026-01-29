@@ -54,15 +54,13 @@ const containsSensitiveInfo = (message: string): boolean => {
   return sensitivePatterns.some((pattern) => pattern.test(message));
 };
 
-/**
- * Categorize error and determine appropriate response
- */
-const categorizeError = (error: unknown): {
+const categorizeError = (
+  error: unknown
+): {
   category: ErrorCategory;
   statusCode: number;
   clientMessage: string;
 } => {
-  // Handle ApiError instances
   if (error instanceof ApiError) {
     return {
       category: error.category,
@@ -71,11 +69,9 @@ const categorizeError = (error: unknown): {
     };
   }
 
-  // Handle Error instances
   if (error instanceof Error) {
     const message = error.message.toLowerCase();
 
-    // Validation errors
     if (
       message.includes("validation") ||
       message.includes("invalid") ||
@@ -89,7 +85,6 @@ const categorizeError = (error: unknown): {
       };
     }
 
-    // Authentication errors
     if (
       message.includes("unauthorized") ||
       message.includes("token") ||
@@ -103,7 +98,6 @@ const categorizeError = (error: unknown): {
       };
     }
 
-    // Authorization errors
     if (
       message.includes("forbidden") ||
       message.includes("permission") ||
@@ -112,11 +106,11 @@ const categorizeError = (error: unknown): {
       return {
         category: ErrorCategory.AUTHORIZATION,
         statusCode: 403,
-        clientMessage: "Forbidden: You do not have permission to perform this action",
+        clientMessage:
+          "Forbidden: You do not have permission to perform this action",
       };
     }
 
-    // Not found errors
     if (
       message.includes("not found") ||
       message.includes("does not exist") ||
@@ -129,8 +123,10 @@ const categorizeError = (error: unknown): {
       };
     }
 
-    // Rate limit errors
-    if (message.includes("rate limit") || message.includes("too many requests")) {
+    if (
+      message.includes("rate limit") ||
+      message.includes("too many requests")
+    ) {
       return {
         category: ErrorCategory.RATE_LIMIT,
         statusCode: 429,
@@ -139,7 +135,6 @@ const categorizeError = (error: unknown): {
     }
   }
 
-  // Default to server error
   return {
     category: ErrorCategory.SERVER,
     statusCode: 500,
@@ -147,10 +142,6 @@ const categorizeError = (error: unknown): {
   };
 };
 
-/**
- * Handle API errors and return safe error responses
- * Logs detailed error information server-side but returns generic messages to clients
- */
 export const handleApiError = (
   error: unknown,
   context?: {
@@ -159,10 +150,8 @@ export const handleApiError = (
     additionalInfo?: Record<string, unknown>;
   }
 ): NextResponse => {
-  // Categorize the error
   const { category, statusCode, clientMessage } = categorizeError(error);
 
-  // Log detailed error information server-side
   const errorDetails = {
     category,
     statusCode,
@@ -182,16 +171,13 @@ export const handleApiError = (
 
   console.error("API Error:", JSON.stringify(errorDetails, null, 2));
 
-  // Check if error message contains sensitive information
-  const errorMessage =
-    error instanceof Error ? error.message : String(error);
+  const errorMessage = error instanceof Error ? error.message : String(error);
   if (containsSensitiveInfo(errorMessage)) {
     console.warn(
       "Error message contains potentially sensitive information - sanitized in response"
     );
   }
 
-  // Return safe error response to client
   return NextResponse.json(
     {
       error: clientMessage,
@@ -203,11 +189,8 @@ export const handleApiError = (
   );
 };
 
-/**
- * Create a validation error response
- */
 export const createValidationError = (
-  message: string,
+  _message: string,
   details?: unknown
 ): NextResponse => {
   return NextResponse.json(
@@ -222,13 +205,22 @@ export const createValidationError = (
   );
 };
 
-/**
- * Create an authentication error response
- */
 export const createAuthError = (message?: string): NextResponse => {
+  const errorMsg = message ?? "Unauthorized: Invalid or missing authentication token";
+  if (errorMsg.length === 0) {
+    return NextResponse.json(
+      {
+        error: "Unauthorized: Invalid or missing authentication token",
+      },
+      {
+        status: 401,
+        headers: getErrorSecurityHeaders(),
+      }
+    );
+  }
   return NextResponse.json(
     {
-      error: message || "Unauthorized: Invalid or missing authentication token",
+      error: errorMsg,
     },
     {
       status: 401,
@@ -237,13 +229,11 @@ export const createAuthError = (message?: string): NextResponse => {
   );
 };
 
-/**
- * Create an authorization error response
- */
 export const createForbiddenError = (message?: string): NextResponse => {
+  const errorMsg = message ?? "Forbidden: You do not have permission to perform this action";
   return NextResponse.json(
     {
-      error: message || "Forbidden: You do not have permission to perform this action",
+      error: errorMsg,
     },
     {
       status: 403,
@@ -252,13 +242,11 @@ export const createForbiddenError = (message?: string): NextResponse => {
   );
 };
 
-/**
- * Create a not found error response
- */
 export const createNotFoundError = (resource?: string): NextResponse => {
+  const errorMsg = (resource !== null && resource !== undefined) ? `${resource} not found` : "Resource not found";
   return NextResponse.json(
     {
-      error: resource ? `${resource} not found` : "Resource not found",
+      error: errorMsg,
     },
     {
       status: 404,

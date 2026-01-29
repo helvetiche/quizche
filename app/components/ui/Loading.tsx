@@ -13,7 +13,7 @@ const Loading = () => {
   }, []);
 
   return (
-    <div 
+    <div
       className="flex min-h-screen items-center justify-center animate-fadeIn"
       style={{
         backgroundImage: `
@@ -27,25 +27,33 @@ const Loading = () => {
       <div className="flex flex-col items-center gap-5">
         {/* Traffic lights */}
         <div className="flex gap-3">
-          <div 
+          <div
             className={`w-8 h-8 rounded-full border-3 border-gray-900 transition-all duration-200 ${
-              activeLight === 0 ? "bg-red-500 shadow-[0_0_12px_rgba(239,68,68,0.7)]" : "bg-gray-300"
+              activeLight === 0
+                ? "bg-red-500 shadow-[0_0_12px_rgba(239,68,68,0.7)]"
+                : "bg-gray-300"
             }`}
           ></div>
-          <div 
+          <div
             className={`w-8 h-8 rounded-full border-3 border-gray-900 transition-all duration-200 ${
-              activeLight === 1 ? "bg-orange-500 shadow-[0_0_12px_rgba(249,115,22,0.7)]" : "bg-gray-300"
+              activeLight === 1
+                ? "bg-orange-500 shadow-[0_0_12px_rgba(249,115,22,0.7)]"
+                : "bg-gray-300"
             }`}
           ></div>
-          <div 
+          <div
             className={`w-8 h-8 rounded-full border-3 border-gray-900 transition-all duration-200 ${
-              activeLight === 2 ? "bg-green-500 shadow-[0_0_12px_rgba(34,197,94,0.7)]" : "bg-gray-300"
+              activeLight === 2
+                ? "bg-green-500 shadow-[0_0_12px_rgba(34,197,94,0.7)]"
+                : "bg-gray-300"
             }`}
           ></div>
         </div>
 
         {/* Loading text */}
-        <p className="text-sm font-bold text-gray-600">Preparing your materials...</p>
+        <p className="text-sm font-bold text-gray-600">
+          Preparing your materials...
+        </p>
       </div>
     </div>
   );

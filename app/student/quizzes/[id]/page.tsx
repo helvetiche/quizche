@@ -11,14 +11,14 @@ import QuizWarningModal from "../../../components/create/QuizWarningModal";
 import { useAntiCheat } from "../../../components/create/useAntiCheat";
 import Image from "next/image";
 
-interface Question {
+type Question = {
   question: string;
   type: string;
   choices?: string[];
   imageUrl?: string;
-}
+};
 
-interface Quiz {
+type Quiz = {
   id: string;
   title: string;
   description?: string;
@@ -34,7 +34,7 @@ interface Quiz {
     autoDisqualifyOnRefresh?: boolean;
     autoSubmitOnDisqualification?: boolean;
   };
-}
+};
 
 export default function TakeQuizPage() {
   const params = useParams();

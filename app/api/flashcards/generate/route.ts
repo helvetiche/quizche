@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 import { verifyAuth } from "@/lib/auth";
 import {
   extractTextFromPDF,
@@ -20,7 +20,7 @@ import { handleApiError } from "@/lib/error-handler";
 
 const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
 
-export async function POST(request: NextRequest) {
+export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
     const user = await verifyAuth(request);
 

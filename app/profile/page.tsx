@@ -25,7 +25,7 @@ export default function ProfileRedirectPage() {
           if (response.ok) {
             const data = await response.json();
             const role = data.profile?.role;
-            
+
             if (role === "teacher") {
               router.replace("/teacher");
             } else if (role === "student") {

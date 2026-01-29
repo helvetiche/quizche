@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 import { verifyAuth } from "@/lib/auth";
 import { adminDb } from "@/lib/firebase-admin";
 import { verifyCSRF } from "@/lib/csrf";
@@ -17,7 +17,7 @@ import {
 } from "@/lib/validation";
 import { handleApiError } from "@/lib/error-handler";
 
-export async function POST(request: NextRequest) {
+export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
     const user = await verifyAuth(request);
 
@@ -90,7 +90,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-export async function PUT(request: NextRequest) {
+export async function PUT(request: NextRequest): Promise<NextResponse> {
   try {
     const user = await verifyAuth(request);
 
@@ -156,13 +156,17 @@ export async function PUT(request: NextRequest) {
       updateData.firstName = sanitizeString(validatedData.firstName);
     }
     if (validatedData.middleName !== undefined) {
-      updateData.middleName = validatedData.middleName ? sanitizeString(validatedData.middleName) : "";
+      updateData.middleName = validatedData.middleName
+        ? sanitizeString(validatedData.middleName)
+        : "";
     }
     if (validatedData.lastName !== undefined) {
       updateData.lastName = sanitizeString(validatedData.lastName);
     }
     if (validatedData.nameExtension !== undefined) {
-      updateData.nameExtension = validatedData.nameExtension ? sanitizeString(validatedData.nameExtension) : "";
+      updateData.nameExtension = validatedData.nameExtension
+        ? sanitizeString(validatedData.nameExtension)
+        : "";
     }
     if (validatedData.age !== undefined) {
       updateData.age = validatedData.age;
@@ -171,7 +175,9 @@ export async function PUT(request: NextRequest) {
       updateData.school = sanitizeString(validatedData.school);
     }
     if (validatedData.profilePhotoUrl !== undefined) {
-      updateData.profilePhotoUrl = validatedData.profilePhotoUrl ? sanitizeString(validatedData.profilePhotoUrl) : null;
+      updateData.profilePhotoUrl = validatedData.profilePhotoUrl
+        ? sanitizeString(validatedData.profilePhotoUrl)
+        : null;
     }
 
     await userRef.update(updateData);
@@ -202,7 +208,7 @@ export async function PUT(request: NextRequest) {
   }
 }
 
-export async function GET(request: NextRequest) {
+export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
     const user = await verifyAuth(request);
 
@@ -235,18 +241,17 @@ export async function GET(request: NextRequest) {
 
     // Check cache first
     const cacheKey = getApiCacheKey("/api/users/profile", user.uid);
-    const cached = await cache.get<{ profile: Record<string, unknown> }>(cacheKey);
+    const cached = await cache.get<{ profile: Record<string, unknown> }>(
+      cacheKey
+    );
     if (cached) {
-      return NextResponse.json(
-        cached,
-        {
-          status: 200,
-          headers: getPublicSecurityHeaders({
-            rateLimitHeaders: rateLimitResult.headers,
-            cacheControl: "private, max-age=300",
-          }),
-        }
-      );
+      return NextResponse.json(cached, {
+        status: 200,
+        headers: getPublicSecurityHeaders({
+          rateLimitHeaders: rateLimitResult.headers,
+          cacheControl: "private, max-age=300",
+        }),
+      });
     }
 
     // Optimized: Only fetch needed fields (Firestore Admin SDK doesn't support .select(),
@@ -296,16 +301,13 @@ export async function GET(request: NextRequest) {
     // Cache the response
     await cache.set(cacheKey, profileData, 300); // 5 minutes
 
-    return NextResponse.json(
-      profileData,
-      {
-        status: 200,
-        headers: getPublicSecurityHeaders({
-          rateLimitHeaders: rateLimitResult.headers,
-          cacheControl: "private, max-age=300",
-        }),
-      }
-    );
+    return NextResponse.json(profileData, {
+      status: 200,
+      headers: getPublicSecurityHeaders({
+        rateLimitHeaders: rateLimitResult.headers,
+        cacheControl: "private, max-age=300",
+      }),
+    });
   } catch (error) {
     // Try to get user for error context, but don't fail if auth fails
     let userId: string | undefined;

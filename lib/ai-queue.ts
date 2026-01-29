@@ -5,15 +5,15 @@ import { getRedis } from "./redis";
  * Uses Redis to queue and process AI requests to prevent overload
  */
 
-export interface QueuedAIRequest {
+export type QueuedAIRequest = {
   id: string;
   userId: string;
   operation: "pdf_extraction" | "quiz_generation" | "flashcard_generation";
-  data: Record<string, any>;
+  data: Record<string, unknown>;
   createdAt: number;
   priority: "low" | "normal" | "high";
   retries: number;
-}
+};
 
 const QUEUE_KEY = "ai:queue";
 const PROCESSING_KEY = "ai:processing";
@@ -45,27 +45,18 @@ export const enqueueAIRequest = async (
   return id;
 };
 
-/**
- * Get priority score for sorting
- */
 const getPriorityScore = (priority: string, timestamp: number): number => {
-  const priorityMultiplier = {
+  const priorityMultiplier: Record<string, number> = {
     high: 1000000000000,
     normal: 1000000000,
     low: 1000000,
   };
-  return (
-    priorityMultiplier[priority as keyof typeof priorityMultiplier] + timestamp
-  );
+  return (priorityMultiplier[priority] ?? 1000000) + timestamp;
 };
 
-/**
- * Dequeue next AI request from queue
- */
 export const dequeueAIRequest = async (): Promise<QueuedAIRequest | null> => {
   const redis = getRedis();
 
-  // Get highest priority request
   const results = await redis.zrange(QUEUE_KEY, 0, 0);
   if (results.length === 0) {
     return null;
@@ -73,7 +64,6 @@ export const dequeueAIRequest = async (): Promise<QueuedAIRequest | null> => {
 
   const request = JSON.parse(results[0] as string) as QueuedAIRequest;
 
-  // Move to processing set
   await redis.zrem(QUEUE_KEY, results[0] as string);
   await redis.zadd(PROCESSING_KEY, {
     score: Date.now() + PROCESSING_TIMEOUT,
@@ -161,7 +151,7 @@ export const recoverStuckRequests = async (): Promise<number> => {
     const timeout = await redis.zscore(PROCESSING_KEY, item as string);
 
     // If timeout exceeded, move back to queue
-    if (timeout && Number(timeout) < now) {
+    if (timeout !== null && timeout !== undefined && Number(timeout) < now) {
       await redis.zrem(PROCESSING_KEY, item as string);
 
       // Retry if under max retries

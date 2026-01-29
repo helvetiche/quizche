@@ -6,14 +6,14 @@ import { auth } from "@/lib/firebase";
 import { uploadImageToImgbb } from "@/lib/imgbb";
 import Image from "next/image";
 
-interface ProfileData {
+type ProfileData = {
   firstName: string;
   lastName: string;
   age: number | null;
   school: string;
   profilePhotoUrl: string | null;
   profileCompleted: boolean;
-}
+};
 
 export default function ProfileContent() {
   const [idToken, setIdToken] = useState<string | null>(null);
@@ -30,7 +30,9 @@ export default function ProfileContent() {
     profileCompleted: false,
   });
   const [profilePhotoFile, setProfilePhotoFile] = useState<File | null>(null);
-  const [profilePhotoPreview, setProfilePhotoPreview] = useState<string | null>(null);
+  const [profilePhotoPreview, setProfilePhotoPreview] = useState<string | null>(
+    null
+  );
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
   useEffect(() => {
@@ -241,7 +243,9 @@ export default function ProfileContent() {
               <div className="w-4 h-4 bg-yellow-500 rounded-full border-2 border-gray-900"></div>
               <div className="w-4 h-4 bg-green-500 rounded-full border-2 border-gray-900"></div>
             </div>
-            <h2 className="text-2xl font-black text-gray-900 ml-4">Profile Settings</h2>
+            <h2 className="text-2xl font-black text-gray-900 ml-4">
+              Profile Settings
+            </h2>
           </div>
         </div>
         <div className="p-6">
@@ -263,7 +267,9 @@ export default function ProfileContent() {
       {success && (
         <div className="bg-lime-400 border-4 border-gray-900 p-4 shadow-[4px_4px_0px_0px_rgba(31,41,55,1)]">
           <div className="flex items-center gap-3">
-            <span className="material-icons-outlined text-gray-900">check_circle</span>
+            <span className="material-icons-outlined text-gray-900">
+              check_circle
+            </span>
             <p className="font-bold text-gray-900">{success}</p>
           </div>
         </div>
@@ -281,15 +287,21 @@ export default function ProfileContent() {
           {/* Profile Photo Card */}
           <div className="bg-white border-4 border-gray-900 shadow-[4px_4px_0px_0px_rgba(31,41,55,1)] p-6">
             <div className="flex items-center gap-2 mb-4">
-              <span className="material-icons-outlined text-gray-900">photo_camera</span>
-              <h3 className="text-lg font-black text-gray-900">Profile Picture</h3>
+              <span className="material-icons-outlined text-gray-900">
+                photo_camera
+              </span>
+              <h3 className="text-lg font-black text-gray-900">
+                Profile Picture
+              </h3>
             </div>
-            
+
             {profilePhotoPreview || profileData.profilePhotoUrl ? (
               <div className="flex flex-col sm:flex-row items-center gap-6">
                 <div className="relative w-32 h-32 rounded-full border-4 border-gray-900 overflow-hidden bg-amber-100 shadow-[4px_4px_0px_0px_rgba(31,41,55,1)]">
                   <Image
-                    src={profilePhotoPreview || profileData.profilePhotoUrl || ""}
+                    src={
+                      profilePhotoPreview || profileData.profilePhotoUrl || ""
+                    }
                     alt="Profile photo"
                     fill
                     className="object-cover"
@@ -323,14 +335,18 @@ export default function ProfileContent() {
                 {uploadingPhoto && (
                   <div className="flex items-center gap-2">
                     <div className="w-4 h-4 border-2 border-gray-900 border-t-transparent rounded-full animate-spin"></div>
-                    <p className="text-sm font-bold text-gray-600">Uploading...</p>
+                    <p className="text-sm font-bold text-gray-600">
+                      Uploading...
+                    </p>
                   </div>
                 )}
               </div>
             ) : (
               <div className="flex flex-col items-center gap-4 py-6">
                 <div className="w-24 h-24 bg-amber-200 rounded-full border-4 border-gray-900 flex items-center justify-center">
-                  <span className="material-icons-outlined text-gray-900 text-4xl">person</span>
+                  <span className="material-icons-outlined text-gray-900 text-4xl">
+                    person
+                  </span>
                 </div>
                 <label className="px-6 py-3 bg-gray-900 text-amber-100 font-bold border-3 border-gray-900 shadow-[4px_4px_0px_0px_rgba(31,41,55,1)] hover:shadow-[5px_5px_0px_0px_rgba(31,41,55,1)] active:shadow-[2px_2px_0px_0px_rgba(31,41,55,1)] transition-all cursor-pointer">
                   Choose Photo
@@ -356,14 +372,21 @@ export default function ProfileContent() {
           {/* Personal Info Card */}
           <div className="bg-white border-4 border-gray-900 shadow-[4px_4px_0px_0px_rgba(31,41,55,1)] p-6">
             <div className="flex items-center gap-2 mb-6">
-              <span className="material-icons-outlined text-gray-900">badge</span>
-              <h3 className="text-lg font-black text-gray-900">Personal Information</h3>
+              <span className="material-icons-outlined text-gray-900">
+                badge
+              </span>
+              <h3 className="text-lg font-black text-gray-900">
+                Personal Information
+              </h3>
             </div>
 
             <div className="flex flex-col gap-5">
               {/* First Name */}
               <div className="flex flex-col gap-2">
-                <label htmlFor="firstName" className="text-sm font-black text-gray-900">
+                <label
+                  htmlFor="firstName"
+                  className="text-sm font-black text-gray-900"
+                >
                   First Name <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -381,7 +404,10 @@ export default function ProfileContent() {
 
               {/* Last Name */}
               <div className="flex flex-col gap-2">
-                <label htmlFor="lastName" className="text-sm font-black text-gray-900">
+                <label
+                  htmlFor="lastName"
+                  className="text-sm font-black text-gray-900"
+                >
                   Last Name <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -399,7 +425,10 @@ export default function ProfileContent() {
 
               {/* Age */}
               <div className="flex flex-col gap-2">
-                <label htmlFor="age" className="text-sm font-black text-gray-900">
+                <label
+                  htmlFor="age"
+                  className="text-sm font-black text-gray-900"
+                >
                   Age <span className="text-red-500">*</span>
                 </label>
                 <input

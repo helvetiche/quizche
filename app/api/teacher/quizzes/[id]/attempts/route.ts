@@ -1,9 +1,8 @@
-import { NextRequest, NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 import { verifyAuth } from "@/lib/auth";
 import { adminDb } from "@/lib/firebase-admin";
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 import {
-  getSecurityHeaders,
   getErrorSecurityHeaders,
   getPublicSecurityHeaders,
 } from "@/lib/security-headers";
@@ -12,11 +11,11 @@ import { handleApiError } from "@/lib/error-handler";
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
-) {
+): Promise<NextResponse> {
   try {
     const user = await verifyAuth(request);
 
-    if (!user) {
+    if (user === null || user === undefined) {
       return NextResponse.json(
         { error: "Unauthorized: Invalid or missing authentication token" },
         { status: 401, headers: getErrorSecurityHeaders() }
@@ -40,7 +39,7 @@ export async function GET(
       window: RATE_LIMITS.history.window,
     });
 
-    if (!rateLimitResult.success) {
+    if (rateLimitResult.success === false) {
       return NextResponse.json(
         { error: "Rate limit exceeded. Please try again later." },
         {
@@ -52,7 +51,7 @@ export async function GET(
       );
     }
 
-    if (!id) {
+    if (id === null || id === undefined || id === "") {
       return NextResponse.json(
         { error: "Quiz ID is required" },
         { status: 400, headers: getErrorSecurityHeaders() }
@@ -62,7 +61,7 @@ export async function GET(
     // Verify quiz belongs to this teacher
     const quizDoc = await adminDb.collection("quizzes").doc(id).get();
 
-    if (!quizDoc.exists) {
+    if (quizDoc.exists === false) {
       return NextResponse.json(
         { error: "Quiz not found" },
         { status: 404, headers: getErrorSecurityHeaders() }
@@ -80,7 +79,11 @@ export async function GET(
 
     // Pagination support
     const url = new URL(request.url);
-    const limit = Math.min(Math.max(parseInt(url.searchParams.get("limit") || "50"), 1), 100);
+    const limitParam = url.searchParams.get("limit");
+    const limit = Math.min(
+      Math.max(parseInt(limitParam !== null ? limitParam : "50", 10), 1),
+      100
+    );
     const lastDocId = url.searchParams.get("lastDocId");
 
     // Get attempts for this quiz with pagination
@@ -90,9 +93,12 @@ export async function GET(
       .orderBy("completedAt", "desc")
       .limit(limit);
 
-    if (lastDocId) {
-      const lastDoc = await adminDb.collection("quizAttempts").doc(lastDocId).get();
-      if (lastDoc.exists) {
+    if (lastDocId !== null && lastDocId !== undefined && lastDocId !== "") {
+      const lastDoc = await adminDb
+        .collection("quizAttempts")
+        .doc(lastDocId)
+        .get();
+      if (lastDoc.exists === true) {
         attemptsQuery = attemptsQuery.startAfter(lastDoc);
       }
     }
@@ -101,11 +107,21 @@ export async function GET(
 
     // Collect user IDs from attempts that don't have denormalized data (legacy data)
     const userIdsToFetch = new Set<string>();
-    attemptsSnapshot.docs.forEach(doc => {
+    attemptsSnapshot.docs.forEach((doc) => {
       const attemptData = doc.data();
-      const userId = attemptData.userId;
+      const userId = attemptData.userId as string;
       // Only fetch user if denormalized data is missing (legacy attempts)
-      if (userId && (!attemptData.studentEmail || !attemptData.studentName)) {
+      if (
+        userId !== undefined &&
+        userId !== null &&
+        userId !== "" &&
+        (attemptData.studentEmail === undefined ||
+          attemptData.studentEmail === null ||
+          attemptData.studentEmail === "" ||
+          attemptData.studentName === undefined ||
+          attemptData.studentName === null ||
+          attemptData.studentName === "")
+      ) {
         userIdsToFetch.add(userId);
       }
     });
@@ -117,16 +133,23 @@ export async function GET(
       const batchSize = 10;
       for (let i = 0; i < userIdsArray.length; i += batchSize) {
         const batch = userIdsArray.slice(i, i + batchSize);
-        const userPromises = batch.map(userId =>
+        const userPromises = batch.map((userId) =>
           adminDb.collection("users").doc(userId).get()
         );
         const userDocs = await Promise.all(userPromises);
         userDocs.forEach((doc, index) => {
-          if (doc.exists) {
+          if (doc.exists === true) {
             const userData = doc.data();
+            const userDataObj = userData as Record<string, unknown>;
             userMap.set(batch[index], {
-              email: userData?.email || "Unknown",
-              displayName: userData?.displayName || "Unknown",
+              email:
+                typeof userDataObj.email === "string"
+                  ? userDataObj.email
+                  : "Unknown",
+              displayName:
+                typeof userDataObj.displayName === "string"
+                  ? userDataObj.displayName
+                  : "Unknown",
             });
           }
         });
@@ -136,47 +159,104 @@ export async function GET(
     // Build attempts with student info - prefer denormalized data, fallback to user lookup
     const attempts = attemptsSnapshot.docs.map((doc) => {
       const attemptData = doc.data();
+      const attemptDataObj = attemptData as Record<string, unknown>;
       // Use denormalized data if available (new attempts), otherwise use user lookup (legacy attempts)
-      const userInfo = attemptData.studentEmail && attemptData.studentName
-        ? {
-            email: attemptData.studentEmail,
-            displayName: attemptData.studentName,
-          }
-        : userMap.get(attemptData.userId) || {
-            email: attemptData.studentEmail || "Unknown",
-            displayName: attemptData.studentName || "Unknown",
-          };
+      const studentEmail =
+        typeof attemptDataObj.studentEmail === "string"
+          ? attemptDataObj.studentEmail
+          : undefined;
+      const studentName =
+        typeof attemptDataObj.studentName === "string"
+          ? attemptDataObj.studentName
+          : undefined;
+      const userId = attemptDataObj.userId as string;
+      const userInfo =
+        studentEmail !== undefined &&
+        studentEmail !== null &&
+        studentEmail !== "" &&
+        studentName !== undefined &&
+        studentName !== null &&
+        studentName !== ""
+          ? {
+              email: studentEmail,
+              displayName: studentName,
+            }
+          : (userMap.get(userId) ?? {
+              email: studentEmail ?? "Unknown",
+              displayName: studentName ?? "Unknown",
+            });
 
-      const completedAt = attemptData.completedAt?.toDate
-        ? attemptData.completedAt.toDate().toISOString()
-        : attemptData.completedAt instanceof Date
-          ? attemptData.completedAt.toISOString()
-          : attemptData.completedAt || new Date().toISOString();
+      const completedAtValue = attemptDataObj.completedAt;
+      const completedAt =
+        completedAtValue !== undefined &&
+        completedAtValue !== null &&
+        (completedAtValue as { toDate?: () => Date }).toDate !== undefined
+          ? (completedAtValue as { toDate: () => Date }).toDate().toISOString()
+          : completedAtValue instanceof Date
+            ? completedAtValue.toISOString()
+            : completedAtValue !== undefined && completedAtValue !== null
+              ? String(completedAtValue)
+              : new Date().toISOString();
 
       // Format violations if they exist
-      const violations = attemptData.violations || [];
-      const formattedViolations = violations.map((v: any) => ({
-        type: v.type,
-        timestamp: v.timestamp?.toDate?.()?.toISOString() || v.timestamp || new Date().toISOString(),
-        details: v.details,
-      }));
+      const violations = Array.isArray(attemptDataObj.violations)
+        ? (attemptDataObj.violations as Record<string, unknown>[])
+        : [];
+      const formattedViolations = violations.map((v) => {
+        const violationObj = v;
+        const timestampValue = violationObj.timestamp;
+        const timestamp =
+          timestampValue !== undefined &&
+          timestampValue !== null &&
+          (timestampValue as { toDate?: () => Date }).toDate !== undefined
+            ? (timestampValue as { toDate: () => Date }).toDate().toISOString()
+            : timestampValue !== undefined && timestampValue !== null
+              ? String(timestampValue)
+              : new Date().toISOString();
+        return {
+          type: violationObj.type,
+          timestamp,
+          details: violationObj.details,
+        };
+      });
 
       return {
         id: doc.id,
-        userId: attemptData.userId,
+        userId: userId,
         studentEmail: userInfo.email,
         studentName: userInfo.displayName,
-        answers: attemptData.answers || {},
-        score: attemptData.score || 0,
-        totalQuestions: attemptData.totalQuestions || 0,
-        percentage: attemptData.percentage || 0,
+        answers:
+          attemptDataObj.answers !== undefined &&
+          attemptDataObj.answers !== null &&
+          typeof attemptDataObj.answers === "object"
+            ? (attemptDataObj.answers as Record<string, unknown>)
+            : {},
+        score:
+          typeof attemptDataObj.score === "number" ? attemptDataObj.score : 0,
+        totalQuestions:
+          typeof attemptDataObj.totalQuestions === "number"
+            ? attemptDataObj.totalQuestions
+            : 0,
+        percentage:
+          typeof attemptDataObj.percentage === "number"
+            ? attemptDataObj.percentage
+            : 0,
         completedAt,
-        timeSpent: attemptData.timeSpent || 0,
-        tabChangeCount: attemptData.tabChangeCount || 0,
-        timeAway: attemptData.timeAway || 0,
-        refreshDetected: attemptData.refreshDetected || false,
+        timeSpent:
+          typeof attemptDataObj.timeSpent === "number"
+            ? attemptDataObj.timeSpent
+            : 0,
+        tabChangeCount:
+          typeof attemptDataObj.tabChangeCount === "number"
+            ? attemptDataObj.tabChangeCount
+            : 0,
+        timeAway:
+          typeof attemptDataObj.timeAway === "number"
+            ? attemptDataObj.timeAway
+            : 0,
+        refreshDetected: attemptDataObj.refreshDetected === true,
         violations: formattedViolations,
-        disqualified: attemptData.disqualified || false,
+        disqualified: attemptDataObj.disqualified === true,
       };
     });
 
@@ -189,7 +269,8 @@ export async function GET(
         pagination: {
           limit,
           hasMore,
-          lastDocId: hasMore && lastDoc ? lastDoc.id : null,
+          lastDocId:
+            hasMore === true && lastDoc !== undefined ? lastDoc.id : null,
         },
       },
       {
@@ -209,6 +290,9 @@ export async function GET(
     } catch {
       // Ignore auth errors in error handler
     }
-    return handleApiError(error, { route: "/api/teacher/quizzes/[id]/attempts", userId });
+    return handleApiError(error, {
+      route: "/api/teacher/quizzes/[id]/attempts",
+      userId,
+    });
   }
 }

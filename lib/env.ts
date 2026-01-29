@@ -90,19 +90,15 @@ export const env = cleanEnv(process.env, {
   }),
 });
 
-// Custom validation after cleanEnv
-const hasServiceAccountKey = env.FIREBASE_SERVICE_ACCOUNT_KEY && env.FIREBASE_SERVICE_ACCOUNT_KEY.length > 0;
-const hasIndividualFields = 
-  env.FIREBASE_ADMIN_PROJECT_ID &&
+const hasServiceAccountKey = env.FIREBASE_SERVICE_ACCOUNT_KEY.length > 0;
+const hasIndividualFields =
   env.FIREBASE_ADMIN_PROJECT_ID.length > 0 &&
-  env.FIREBASE_ADMIN_PRIVATE_KEY &&
   env.FIREBASE_ADMIN_PRIVATE_KEY.length > 0 &&
-  env.FIREBASE_ADMIN_CLIENT_EMAIL &&
   env.FIREBASE_ADMIN_CLIENT_EMAIL.length > 0;
 
 if (!hasServiceAccountKey && !hasIndividualFields) {
   throw new Error(
     "Firebase Admin configuration is incomplete. " +
-    "Please set either FIREBASE_SERVICE_ACCOUNT_KEY or all FIREBASE_ADMIN_* environment variables."
+      "Please set either FIREBASE_SERVICE_ACCOUNT_KEY or all FIREBASE_ADMIN_* environment variables."
   );
 }

@@ -1,8 +1,8 @@
-interface RoleButtonProps {
+type RoleButtonProps = {
   role: "student" | "teacher";
   onClick: () => void;
   loading: boolean;
-}
+};
 
 const RoleButton = ({ role, onClick, loading }: RoleButtonProps) => {
   const isTeacher = role === "teacher";

@@ -5,7 +5,7 @@ import { getAuth } from "firebase/auth";
 import app from "@/lib/firebase";
 import Modal from "@/components/Modal";
 
-interface Connection {
+type Connection = {
   id: string;
   otherUserId: string;
   status: "pending" | "accepted" | "blocked";
@@ -13,14 +13,14 @@ interface Connection {
     displayName: string;
     email: string;
   };
-}
+};
 
-interface ShareFlashcardModalProps {
+type ShareFlashcardModalProps = {
   flashcardId: string;
   isOpen: boolean;
   onClose: () => void;
   onShareSuccess?: () => void;
-}
+};
 
 const ShareFlashcardModal = ({
   flashcardId,
@@ -134,7 +134,9 @@ const ShareFlashcardModal = ({
             <div className="w-10 h-10 bg-amber-400 rounded-xl flex items-center justify-center border-2 border-gray-900 shadow-[2px_2px_0px_0px_rgba(17,24,39,1)]">
               <span className="material-icons text-gray-900">share</span>
             </div>
-            <h3 className="text-xl font-black text-gray-900">Share Flashcard</h3>
+            <h3 className="text-xl font-black text-gray-900">
+              Share Flashcard
+            </h3>
           </div>
           <button
             onClick={onClose}
@@ -149,7 +151,9 @@ const ShareFlashcardModal = ({
           {connections.length === 0 ? (
             <div className="py-8 text-center">
               <div className="w-16 h-16 bg-amber-200 rounded-full border-3 border-gray-900 flex items-center justify-center mx-auto mb-4">
-                <span className="material-icons-outlined text-gray-700 text-2xl">group_off</span>
+                <span className="material-icons-outlined text-gray-700 text-2xl">
+                  group_off
+                </span>
               </div>
               <p className="text-gray-900 font-bold mb-2">No connections yet</p>
               <p className="text-sm text-gray-600">
@@ -168,13 +172,17 @@ const ShareFlashcardModal = ({
                         : "bg-white border-gray-300 hover:border-gray-900"
                     }`}
                   >
-                    <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center ${
-                      selectedUserIds.includes(conn.otherUserId)
-                        ? "bg-amber-400 border-gray-900"
-                        : "bg-white border-gray-400"
-                    }`}>
+                    <div
+                      className={`w-5 h-5 rounded-md border-2 flex items-center justify-center ${
+                        selectedUserIds.includes(conn.otherUserId)
+                          ? "bg-amber-400 border-gray-900"
+                          : "bg-white border-gray-400"
+                      }`}
+                    >
                       {selectedUserIds.includes(conn.otherUserId) && (
-                        <span className="material-icons text-gray-900 text-sm">check</span>
+                        <span className="material-icons text-gray-900 text-sm">
+                          check
+                        </span>
                       )}
                     </div>
                     <div className="flex flex-col gap-0.5 flex-1">
@@ -197,7 +205,9 @@ const ShareFlashcardModal = ({
 
               {success && (
                 <div className="p-3 bg-green-100 border-2 border-green-500 rounded-xl mb-4">
-                  <p className="text-sm text-green-700 font-medium">{success}</p>
+                  <p className="text-sm text-green-700 font-medium">
+                    {success}
+                  </p>
                 </div>
               )}
 

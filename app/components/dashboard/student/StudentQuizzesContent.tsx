@@ -5,7 +5,7 @@ import Link from "next/link";
 import { getAuth } from "firebase/auth";
 import app from "@/lib/firebase";
 
-interface AssignedQuiz {
+type AssignedQuiz = {
   id: string;
   title: string;
   description?: string;
@@ -16,15 +16,19 @@ interface AssignedQuiz {
   allowRetake: boolean;
   showResults: boolean;
   createdAt: string;
-}
+};
 
-interface StudentQuizzesContentProps {
+type StudentQuizzesContentProps = {
   user: any;
-}
+};
 
-export default function StudentQuizzesContent({ user }: StudentQuizzesContentProps) {
+export default function StudentQuizzesContent({
+  user,
+}: StudentQuizzesContentProps) {
   const [assignedQuizzes, setAssignedQuizzes] = useState<AssignedQuiz[]>([]);
-  const [attemptedQuizIds, setAttemptedQuizIds] = useState<Set<string>>(new Set());
+  const [attemptedQuizIds, setAttemptedQuizIds] = useState<Set<string>>(
+    new Set()
+  );
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -99,8 +103,8 @@ export default function StudentQuizzesContent({ user }: StudentQuizzesContentPro
       ) : assignedQuizzes.length === 0 ? (
         <div className="bg-white border border-gray-200 rounded-lg p-8 text-center">
           <p className="text-gray-600 font-light">
-            No quizzes assigned yet. Your teacher will assign quizzes to
-            your sections.
+            No quizzes assigned yet. Your teacher will assign quizzes to your
+            sections.
           </p>
         </div>
       ) : (
@@ -135,16 +139,12 @@ export default function StudentQuizzesContent({ user }: StudentQuizzesContentPro
                   <div className="flex flex-col gap-2 text-sm font-light text-gray-600">
                     <div className="flex items-center justify-between">
                       <span>Questions:</span>
-                      <span className="text-black">
-                        {quiz.totalQuestions}
-                      </span>
+                      <span className="text-black">{quiz.totalQuestions}</span>
                     </div>
                     {quiz.duration && (
                       <div className="flex items-center justify-between">
                         <span>Duration:</span>
-                        <span className="text-black">
-                          {quiz.duration} min
-                        </span>
+                        <span className="text-black">{quiz.duration} min</span>
                       </div>
                     )}
                     {dueDate && (
@@ -172,10 +172,10 @@ export default function StudentQuizzesContent({ user }: StudentQuizzesContentPro
                       {hasTaken
                         ? "Already Taken"
                         : !isAvailable
-                        ? "Not Available Yet"
-                        : isOverdue
-                        ? "Overdue"
-                        : "Take Quiz"}
+                          ? "Not Available Yet"
+                          : isOverdue
+                            ? "Overdue"
+                            : "Take Quiz"}
                     </div>
                   ) : (
                     <Link

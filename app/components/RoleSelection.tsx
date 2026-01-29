@@ -5,14 +5,16 @@ import { useRouter } from "next/navigation";
 import { auth } from "@/lib/firebase";
 import ErrorMessage from "./ui/ErrorMessage";
 
-interface RoleSelectionProps {
+type RoleSelectionProps = {
   idToken: string;
-}
+};
 
 const RoleSelection = ({ idToken }: RoleSelectionProps) => {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const [selectedRole, setSelectedRole] = useState<"student" | "teacher" | null>(null);
+  const [selectedRole, setSelectedRole] = useState<
+    "student" | "teacher" | null
+  >(null);
   const [error, setError] = useState<string | null>(null);
 
   const handleRoleSelection = async (role: "student" | "teacher") => {
@@ -82,7 +84,9 @@ const RoleSelection = ({ idToken }: RoleSelectionProps) => {
         >
           {/* Icon */}
           <div className="w-14 h-14 bg-gray-900 border-3 border-gray-900 rounded-xl flex items-center justify-center mb-4">
-            <span className="material-icons-outlined text-amber-100 text-2xl">school</span>
+            <span className="material-icons-outlined text-amber-100 text-2xl">
+              school
+            </span>
           </div>
 
           {/* Content */}
@@ -110,7 +114,9 @@ const RoleSelection = ({ idToken }: RoleSelectionProps) => {
           </div>
 
           {/* CTA */}
-          <div className={`flex items-center gap-2 font-bold text-gray-900 ${loading && selectedRole === "teacher" ? "" : "group-hover:gap-3"} transition-all`}>
+          <div
+            className={`flex items-center gap-2 font-bold text-gray-900 ${loading && selectedRole === "teacher" ? "" : "group-hover:gap-3"} transition-all`}
+          >
             {loading && selectedRole === "teacher" ? (
               <>
                 <div className="w-5 h-5 border-3 border-gray-900 border-t-transparent rounded-full animate-spin"></div>
@@ -119,7 +125,9 @@ const RoleSelection = ({ idToken }: RoleSelectionProps) => {
             ) : (
               <>
                 <span>Continue as Teacher</span>
-                <span className="material-icons-outlined text-xl">arrow_forward</span>
+                <span className="material-icons-outlined text-xl">
+                  arrow_forward
+                </span>
               </>
             )}
           </div>
@@ -137,7 +145,9 @@ const RoleSelection = ({ idToken }: RoleSelectionProps) => {
         >
           {/* Icon */}
           <div className="w-14 h-14 bg-gray-900 border-3 border-gray-900 rounded-xl flex items-center justify-center mb-4">
-            <span className="material-icons-outlined text-amber-100 text-2xl">person</span>
+            <span className="material-icons-outlined text-amber-100 text-2xl">
+              person
+            </span>
           </div>
 
           {/* Content */}
@@ -149,7 +159,9 @@ const RoleSelection = ({ idToken }: RoleSelectionProps) => {
           </p>
 
           {/* CTA */}
-          <div className={`flex items-center gap-2 font-bold text-gray-900 ${loading && selectedRole === "student" ? "" : "group-hover:gap-3"} transition-all`}>
+          <div
+            className={`flex items-center gap-2 font-bold text-gray-900 ${loading && selectedRole === "student" ? "" : "group-hover:gap-3"} transition-all`}
+          >
             {loading && selectedRole === "student" ? (
               <>
                 <div className="w-5 h-5 border-3 border-gray-900 border-t-transparent rounded-full animate-spin"></div>
@@ -158,7 +170,9 @@ const RoleSelection = ({ idToken }: RoleSelectionProps) => {
             ) : (
               <>
                 <span>Continue as Student</span>
-                <span className="material-icons-outlined text-xl">arrow_forward</span>
+                <span className="material-icons-outlined text-xl">
+                  arrow_forward
+                </span>
               </>
             )}
           </div>

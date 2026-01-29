@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 import { verifyAuth } from "@/lib/auth";
 import { adminDb } from "@/lib/firebase-admin";
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
@@ -17,79 +17,76 @@ import {
 } from "@/lib/validation";
 import { handleApiError } from "@/lib/error-handler";
 
-interface Flashcard {
+type Flashcard = {
   front: string;
   back: string;
   frontImageUrl?: string;
   backImageUrl?: string;
-}
+};
 
-interface FlashcardSetData {
+type FlashcardSetData = {
   title: string;
   description?: string;
   cards: Flashcard[];
   isPublic?: boolean;
   coverImageUrl?: string;
-}
+};
 
-const validateFlashcardSet = (data: any): data is FlashcardSetData => {
-  if (!data || typeof data !== "object") return false;
+const _validateFlashcardSet = (data: unknown): data is FlashcardSetData => {
+  if (data === null || data === undefined || typeof data !== "object")
+    return false;
+  const obj = data as Record<string, unknown>;
+  if (typeof obj.title !== "string" || obj.title.trim().length === 0) {
+    return false;
+  }
+  if (obj.title.trim().length > 200) return false;
   if (
-    !data.title ||
-    typeof data.title !== "string" ||
-    data.title.trim().length === 0
+    obj.description !== undefined &&
+    (typeof obj.description !== "string" || obj.description.length > 500)
   ) {
     return false;
   }
-  if (data.title.trim().length > 200) return false;
-  if (
-    data.description &&
-    (typeof data.description !== "string" || data.description.length > 500)
-  ) {
+  if (!Array.isArray(obj.cards) || obj.cards.length === 0) {
     return false;
   }
-  if (!Array.isArray(data.cards) || data.cards.length === 0) {
-    return false;
-  }
-  if (data.cards.length > 500) return false; // Limit to 500 cards per set
-  if (
-    typeof data.isPublic !== "undefined" &&
-    typeof data.isPublic !== "boolean"
-  ) {
+  if (obj.cards.length > 500) return false; // Limit to 500 cards per set
+  if (obj.isPublic !== undefined && typeof obj.isPublic !== "boolean") {
     return false;
   }
   if (
-    data.coverImageUrl !== undefined &&
-    (typeof data.coverImageUrl !== "string" ||
-      data.coverImageUrl.trim().length === 0)
+    obj.coverImageUrl !== undefined &&
+    (typeof obj.coverImageUrl !== "string" ||
+      obj.coverImageUrl.trim().length === 0)
   ) {
     return false;
   }
-  return data.cards.every((card: any) => {
+  return obj.cards.every((card: unknown) => {
+    if (card === null || card === undefined || typeof card !== "object") {
+      return false;
+    }
+    const cardObj = card as Record<string, unknown>;
     if (
-      !card ||
-      typeof card !== "object" ||
-      typeof card.front !== "string" ||
-      typeof card.back !== "string" ||
-      card.front.trim().length === 0 ||
-      card.back.trim().length === 0 ||
-      card.front.trim().length > 1000 ||
-      card.back.trim().length > 1000
+      typeof cardObj.front !== "string" ||
+      typeof cardObj.back !== "string" ||
+      cardObj.front.trim().length === 0 ||
+      cardObj.back.trim().length === 0 ||
+      cardObj.front.trim().length > 1000 ||
+      cardObj.back.trim().length > 1000
     ) {
       return false;
     }
     // Validate image URLs if present
     if (
-      card.frontImageUrl !== undefined &&
-      (typeof card.frontImageUrl !== "string" ||
-        card.frontImageUrl.trim().length === 0)
+      cardObj.frontImageUrl !== undefined &&
+      (typeof cardObj.frontImageUrl !== "string" ||
+        cardObj.frontImageUrl.trim().length === 0)
     ) {
       return false;
     }
     if (
-      card.backImageUrl !== undefined &&
-      (typeof card.backImageUrl !== "string" ||
-        card.backImageUrl.trim().length === 0)
+      cardObj.backImageUrl !== undefined &&
+      (typeof cardObj.backImageUrl !== "string" ||
+        cardObj.backImageUrl.trim().length === 0)
     ) {
       return false;
     }
@@ -97,7 +94,7 @@ const validateFlashcardSet = (data: any): data is FlashcardSetData => {
   });
 };
 
-export async function GET(request: NextRequest) {
+export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
     const user = await verifyAuth(request);
 
@@ -129,15 +126,18 @@ export async function GET(request: NextRequest) {
     }
 
     const url = new URL(request.url);
-    const limit = parseInt(url.searchParams.get("limit") || "50");
+    const limitParam = url.searchParams.get("limit");
+    const limit = parseInt(limitParam !== null ? limitParam : "50", 10);
     const validatedLimit = Math.min(Math.max(limit, 1), 100);
 
     // Check cache first
     const cacheKey = getApiCacheKey("/api/flashcards", user.uid, {
       limit: validatedLimit.toString(),
     });
-    const cached = await cache.get<{ flashcards: any[] }>(cacheKey);
-    if (cached) {
+    const cached = await cache.get<{
+      flashcards: Record<string, unknown>[];
+    }>(cacheKey);
+    if (cached !== null && cached !== undefined) {
       return NextResponse.json(cached, {
         status: 200,
         headers: getPublicSecurityHeaders({
@@ -161,12 +161,12 @@ export async function GET(request: NextRequest) {
       return {
         id: doc.id,
         title: data.title,
-        description: data.description || "",
-        totalCards: data.totalCards || 0,
-        isPublic: data.isPublic || false,
-        coverImageUrl: data.coverImageUrl || undefined,
-        createdAt: data.createdAt?.toDate?.()?.toISOString() || data.createdAt,
-        updatedAt: data.updatedAt?.toDate?.()?.toISOString() || data.updatedAt,
+        description: data.description ?? "",
+        totalCards: data.totalCards ?? 0,
+        isPublic: data.isPublic ?? false,
+        coverImageUrl: data.coverImageUrl ?? undefined,
+        createdAt: data.createdAt?.toDate?.()?.toISOString() ?? data.createdAt,
+        updatedAt: data.updatedAt?.toDate?.()?.toISOString() ?? data.updatedAt,
         isShared: false,
         sharedBy: undefined,
       };
@@ -187,14 +187,21 @@ export async function GET(request: NextRequest) {
 
     sharedFlashcardsSnapshot.forEach((doc) => {
       const data = doc.data();
-      if (data.flashcardId && data.ownerId) {
-        sharedFlashcardIds.push(data.flashcardId);
-        ownerIds.add(data.ownerId);
-        ownerMap[data.flashcardId] = data.ownerId;
+      if (
+        data.flashcardId !== undefined &&
+        data.flashcardId !== null &&
+        data.ownerId !== undefined &&
+        data.ownerId !== null
+      ) {
+        const flashcardId = data.flashcardId as string;
+        const ownerId = data.ownerId as string;
+        sharedFlashcardIds.push(flashcardId);
+        ownerIds.add(ownerId);
+        ownerMap[flashcardId] = ownerId;
       }
     });
 
-    const sharedFlashcards: any[] = [];
+    const sharedFlashcards: Record<string, unknown>[] = [];
     if (sharedFlashcardIds.length > 0) {
       // Optimized: Use batch reads (Firestore allows up to 10 per batch)
       const flashcardBatches: Promise<any[]>[] = [];
@@ -312,7 +319,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-export async function POST(request: NextRequest) {
+export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
     const user = await verifyAuth(request);
 

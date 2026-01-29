@@ -4,12 +4,12 @@ import SignOutButton from "../ui/SignOutButton";
 import BottomNavigation from "../navigation/BottomNavigation";
 import { useNavigationBadges } from "@/app/hooks/useNavigationBadges";
 
-interface DashboardLayoutProps {
+type DashboardLayoutProps = {
   title: string;
   userEmail?: string;
   userRole?: "teacher" | "student" | null;
   children: React.ReactNode;
-}
+};
 
 const DashboardLayout = ({
   title,

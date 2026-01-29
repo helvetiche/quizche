@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 import { adminAuth } from "@/lib/firebase-admin";
 import {
   getSecurityHeaders,
@@ -7,14 +7,10 @@ import {
 import { AuthLoginSchema, validateInput } from "@/lib/validation";
 import { handleApiError } from "@/lib/error-handler";
 
-export async function POST(request: NextRequest) {
+export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
-    // Login endpoint should NOT require CSRF - it's the initial authentication point
-    // CSRF protection is meant for authenticated sessions, not for establishing them
+    const body = (await request.json()) as Record<string, unknown>;
 
-    const body = await request.json();
-
-    // Validate input using Zod
     const validation = validateInput(AuthLoginSchema, body);
     if (!validation.success) {
       return NextResponse.json(
@@ -29,9 +25,10 @@ export async function POST(request: NextRequest) {
     const { idToken } = validation.data;
 
     const decodedToken = await adminAuth.verifyIdToken(idToken);
-    const hasRole = decodedToken.role && decodedToken.role !== undefined;
-    const role = hasRole ? decodedToken.role : null;
-    const tier = decodedToken.tier || "free";
+    const hasRole =
+      decodedToken.role !== null && decodedToken.role !== undefined;
+    const role = hasRole ? (decodedToken.role as string) : null;
+    const tier = (decodedToken.tier as string) ?? "free";
 
     return NextResponse.json(
       {
@@ -39,8 +36,8 @@ export async function POST(request: NextRequest) {
         user: {
           uid: decodedToken.uid,
           email: decodedToken.email,
-          role: role,
-          tier: tier,
+          role,
+          tier,
         },
       },
       { status: 200, headers: getSecurityHeaders() }

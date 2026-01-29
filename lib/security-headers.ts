@@ -4,7 +4,7 @@
 
 import { env } from "./env";
 
-export interface SecurityHeadersOptions {
+export type SecurityHeadersOptions = {
   /**
    * Whether to include CORS headers
    */
@@ -21,7 +21,7 @@ export interface SecurityHeadersOptions {
    * Additional custom headers
    */
   additionalHeaders?: Record<string, string>;
-}
+};
 
 /**
  * Get comprehensive security headers for API responses
@@ -36,19 +36,12 @@ export const getSecurityHeaders = (
     additionalHeaders = {},
   } = options;
 
-  const appUrl = env.NEXT_PUBLIC_APP_URL;
-
   const headers: Record<string, string> = {
-    // Content Type
     "Content-Type": "application/json; charset=utf-8",
 
-    // Security Headers
     "X-Content-Type-Options": "nosniff",
-    // Note: X-Frame-Options removed for public pages to allow Firebase OAuth popups
-    // CSP frame-ancestors will handle this instead
     "X-XSS-Protection": "1; mode=block",
     "Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
-    // Enhanced CSP to support Firebase OAuth and Google services
     "Content-Security-Policy":
       "default-src 'self'; " +
       "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.googleapis.com https://apis.google.com https://*.gstatic.com https://*.firebaseapp.com; " +
@@ -62,13 +55,12 @@ export const getSecurityHeaders = (
     "Permissions-Policy":
       "geolocation=(), microphone=(), camera=(), payment=(), usb=()",
 
-    // Caching Headers
     "Cache-Control": cacheControl,
     Vary: "Accept, Authorization",
   };
 
-  // Add CORS headers if needed
   if (includeCORS) {
+    const appUrl = env.NEXT_PUBLIC_APP_URL;
     headers["Access-Control-Allow-Origin"] = appUrl;
     headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS";
     headers["Access-Control-Allow-Headers"] =
@@ -76,10 +68,7 @@ export const getSecurityHeaders = (
     headers["Access-Control-Max-Age"] = "86400";
   }
 
-  // Add rate limit headers
   Object.assign(headers, rateLimitHeaders);
-
-  // Add additional custom headers
   Object.assign(headers, additionalHeaders);
 
   return headers;
@@ -99,7 +88,7 @@ export const getPublicSecurityHeaders = (
     additionalHeaders = {},
   } = options;
 
-  const appUrl = env.NEXT_PUBLIC_APP_URL;
+  const _appUrl = env.NEXT_PUBLIC_APP_URL;
 
   const headers: Record<string, string> = {
     // Security Headers (Content-Type excluded for HTML pages)

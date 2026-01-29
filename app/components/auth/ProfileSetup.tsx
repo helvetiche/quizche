@@ -7,16 +7,18 @@ import { uploadImageToImgbb } from "@/lib/imgbb";
 import Image from "next/image";
 import TiltedCard from "@/components/TiltedCard";
 
-interface ProfileSetupProps {
+type ProfileSetupProps = {
   idToken: string;
-}
+};
 
 const ProfileSetup = ({ idToken }: ProfileSetupProps) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [profilePhotoFile, setProfilePhotoFile] = useState<File | null>(null);
-  const [profilePhotoPreview, setProfilePhotoPreview] = useState<string | null>(null);
+  const [profilePhotoPreview, setProfilePhotoPreview] = useState<string | null>(
+    null
+  );
   const [formData, setFormData] = useState({
     firstName: "",
     middleName: "",
@@ -160,7 +162,10 @@ const ProfileSetup = ({ idToken }: ProfileSetupProps) => {
       </div>
 
       {/* Form */}
-      <form onSubmit={handleSubmit} className="p-5 flex flex-col gap-3 flex-1 overflow-auto">
+      <form
+        onSubmit={handleSubmit}
+        className="p-5 flex flex-col gap-3 flex-1 overflow-auto"
+      >
         {/* Profile Photo */}
         <div className="flex justify-center mb-2">
           {profilePhotoPreview ? (
@@ -180,13 +185,17 @@ const ProfileSetup = ({ idToken }: ProfileSetupProps) => {
                 className="absolute -top-1 -right-1 w-6 h-6 bg-red-500 border-2 border-black rounded-full flex items-center justify-center shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:scale-110 transition-transform"
                 disabled={loading || uploadingPhoto}
               >
-                <span className="material-icons-outlined text-white text-xs">close</span>
+                <span className="material-icons-outlined text-white text-xs">
+                  close
+                </span>
               </button>
             </div>
           ) : (
             <label className="cursor-pointer group">
               <div className="w-16 h-16 rounded-full border-3 border-dashed border-gray-400 flex flex-col items-center justify-center bg-amber-50 group-hover:border-black group-hover:bg-amber-200 transition-all">
-                <span className="material-icons-outlined text-gray-400 text-lg group-hover:text-black transition-colors">add_a_photo</span>
+                <span className="material-icons-outlined text-gray-400 text-lg group-hover:text-black transition-colors">
+                  add_a_photo
+                </span>
               </div>
               <input
                 type="file"
@@ -221,7 +230,10 @@ const ProfileSetup = ({ idToken }: ProfileSetupProps) => {
             />
           </div>
           <div className="flex flex-col gap-1">
-            <label htmlFor="middleName" className="text-xs font-bold text-black">
+            <label
+              htmlFor="middleName"
+              className="text-xs font-bold text-black"
+            >
               Middle
             </label>
             <input
@@ -250,7 +262,10 @@ const ProfileSetup = ({ idToken }: ProfileSetupProps) => {
             />
           </div>
           <div className="flex flex-col gap-1">
-            <label htmlFor="nameExtension" className="text-xs font-bold text-black">
+            <label
+              htmlFor="nameExtension"
+              className="text-xs font-bold text-black"
+            >
               Suffix
             </label>
             <input
@@ -322,7 +337,9 @@ const ProfileSetup = ({ idToken }: ProfileSetupProps) => {
           ) : (
             <>
               <span>Get Started</span>
-              <span className="material-icons-outlined text-lg">arrow_forward</span>
+              <span className="material-icons-outlined text-lg">
+                arrow_forward
+              </span>
             </>
           )}
         </button>
@@ -335,14 +352,16 @@ const ProfileSetup = ({ idToken }: ProfileSetupProps) => {
       {/* Header */}
       <div className="text-center mb-8">
         <div className="inline-flex items-center gap-2 px-4 py-2 bg-amber-200 border-3 border-black rounded-full mb-6">
-          <span className="material-icons-outlined text-black text-lg">waving_hand</span>
+          <span className="material-icons-outlined text-black text-lg">
+            waving_hand
+          </span>
           <span className="font-bold text-black text-sm">Almost there</span>
         </div>
-        
+
         <h1 className="text-4xl md:text-5xl font-black text-black tracking-tight mb-3">
           Let's set up your profile
         </h1>
-        
+
         <p className="text-lg font-medium text-gray-700 max-w-lg mx-auto">
           Just a few details and you'll be ready to start your learning journey.
         </p>

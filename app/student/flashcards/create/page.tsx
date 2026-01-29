@@ -10,27 +10,31 @@ import FlashcardMaker from "../../../components/create/FlashcardMaker";
 import GenerateFlashcardButton from "../../../components/create/GenerateFlashcardButton";
 import Loading from "../../../components/ui/Loading";
 
-interface GeneratedFlashcardSetData {
+type GeneratedFlashcardSetData = {
   title: string;
   description: string;
-  cards: Array<{
+  cards: {
     front: string;
     back: string;
-  }>;
-}
+  }[];
+};
 
 export default function CreateFlashcardPage() {
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
   const [idToken, setIdToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [initialFlashcardData, setInitialFlashcardData] = useState<GeneratedFlashcardSetData | undefined>(undefined);
+  const [initialFlashcardData, setInitialFlashcardData] = useState<
+    GeneratedFlashcardSetData | undefined
+  >(undefined);
 
   const handleSuccess = () => {
     router.push("/student?tab=flashcards");
   };
 
-  const handleSaveFlashcardSet = async (flashcardSet: GeneratedFlashcardSetData) => {
+  const handleSaveFlashcardSet = async (
+    flashcardSet: GeneratedFlashcardSetData
+  ) => {
     if (!idToken) return;
 
     try {
@@ -103,7 +107,9 @@ export default function CreateFlashcardPage() {
         <div className="flex flex-col gap-8">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-3xl font-light text-black">Create Flashcard Set</h2>
+              <h2 className="text-3xl font-light text-black">
+                Create Flashcard Set
+              </h2>
               <p className="text-lg text-gray-600 mt-2">
                 Build your own flashcard sets for effective studying
               </p>
@@ -120,7 +126,11 @@ export default function CreateFlashcardPage() {
           </div>
 
           {idToken ? (
-            <FlashcardMaker onSuccess={handleSuccess} initialData={initialFlashcardData} idToken={idToken} />
+            <FlashcardMaker
+              onSuccess={handleSuccess}
+              initialData={initialFlashcardData}
+              idToken={idToken}
+            />
           ) : (
             <p className="text-lg text-black">Loading...</p>
           )}

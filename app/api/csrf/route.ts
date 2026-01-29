@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 import { verifyAuth } from "@/lib/auth";
 import { generateCSRFToken } from "@/lib/csrf";
 import {
@@ -11,7 +11,7 @@ import { handleApiError } from "@/lib/error-handler";
  * GET /api/csrf - Generate CSRF token for authenticated user
  * This endpoint should be called on page load to get a CSRF token
  */
-export async function GET(request: NextRequest) {
+export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
     const user = await verifyAuth(request);
 
@@ -28,10 +28,7 @@ export async function GET(request: NextRequest) {
     const headers = getSecurityHeaders();
     headers["X-CSRF-Token"] = token; // Include token in response header
 
-    return NextResponse.json(
-      { csrfToken: token },
-      { status: 200, headers }
-    );
+    return NextResponse.json({ csrfToken: token }, { status: 200, headers });
   } catch (error) {
     return handleApiError(error, { route: "/api/csrf" });
   }

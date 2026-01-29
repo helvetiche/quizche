@@ -51,7 +51,9 @@ export default function EditFlashcardPage() {
       >
         <div className="flex flex-col gap-8">
           <div className="flex items-center justify-between">
-            <h2 className="text-3xl font-light text-black">Edit Flashcard Set</h2>
+            <h2 className="text-3xl font-light text-black">
+              Edit Flashcard Set
+            </h2>
             <button
               onClick={() => router.back()}
               className="px-4 py-2 bg-gray-200 text-black font-light hover:bg-gray-300 transition-colors"

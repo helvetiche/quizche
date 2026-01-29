@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 import {
   getSecurityHeaders,
   getErrorSecurityHeaders,
@@ -11,9 +11,9 @@ import { handleApiError } from "@/lib/error-handler";
  * Tracks Core Web Vitals and other performance metrics
  */
 
-export async function POST(request: NextRequest) {
+export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
-    const body = await request.json();
+    const body = (await request.json()) as Record<string, unknown>;
 
     // Validate input using Zod
     const validation = validateInput(PerformanceMetricsSchema, body);
@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
     };
 
     // Log performance metrics (in production, send to monitoring service)
-    console.log("Performance metrics:", {
+    console.warn("Performance metrics:", {
       userId,
       page,
       vitals,

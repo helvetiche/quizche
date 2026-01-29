@@ -10,11 +10,11 @@ import PageContainer from "../layout/PageContainer";
 import MainLayout from "../layout/MainLayout";
 import PageTitle from "../layout/PageTitle";
 
-interface AuthGuardProps {
+type AuthGuardProps = {
   children: React.ReactNode;
   requiredRole: "teacher" | "student" | null;
   onAuthSuccess?: (user: any) => void;
-}
+};
 
 const AuthGuard = ({
   children,

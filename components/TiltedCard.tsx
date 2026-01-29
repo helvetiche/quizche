@@ -1,16 +1,16 @@
 "use client";
 
-import { useRef, useState, ReactNode } from 'react';
-import { motion, useMotionValue, useSpring } from 'motion/react';
-import './TiltedCard.css';
+import { useRef, useState, type ReactNode } from "react";
+import { motion, useMotionValue, useSpring } from "motion/react";
+import "./TiltedCard.css";
 
 const springValues = {
   damping: 30,
   stiffness: 100,
-  mass: 2
+  mass: 2,
 };
 
-interface TiltedCardProps {
+type TiltedCardProps = {
   imageSrc?: string;
   altText?: string;
   captionText?: string;
@@ -24,22 +24,22 @@ interface TiltedCardProps {
   showTooltip?: boolean;
   overlayContent?: ReactNode;
   displayOverlayContent?: boolean;
-}
+};
 
 export default function TiltedCard({
-  imageSrc = '',
-  altText = 'Tilted card image',
-  captionText = '',
-  containerHeight = '300px',
-  containerWidth = '100%',
-  imageHeight = '300px',
-  imageWidth = '300px',
+  imageSrc = "",
+  altText = "Tilted card image",
+  captionText = "",
+  containerHeight = "300px",
+  containerWidth = "100%",
+  imageHeight = "300px",
+  imageWidth = "300px",
   scaleOnHover = 1.1,
   rotateAmplitude = 14,
   showMobileWarning = true,
   showTooltip = true,
   overlayContent = null,
-  displayOverlayContent = false
+  displayOverlayContent = false,
 }: TiltedCardProps) {
   const ref = useRef<HTMLElement>(null);
 
@@ -52,12 +52,12 @@ export default function TiltedCard({
   const rotateFigcaption = useSpring(0, {
     stiffness: 350,
     damping: 30,
-    mass: 1
+    mass: 1,
   });
 
   const [lastY, setLastY] = useState(0);
 
-  function handleMouse(e: React.MouseEvent) {
+  function handleMouse(e: React.MouseEvent): void {
     if (!ref.current) return;
 
     const rect = ref.current.getBoundingClientRect();
@@ -78,12 +78,12 @@ export default function TiltedCard({
     setLastY(offsetY);
   }
 
-  function handleMouseEnter() {
+  function handleMouseEnter(): void {
     scale.set(scaleOnHover);
     opacity.set(1);
   }
 
-  function handleMouseLeave() {
+  function handleMouseLeave(): void {
     opacity.set(0);
     scale.set(1);
     rotateX.set(0);
@@ -97,14 +97,16 @@ export default function TiltedCard({
       className="tilted-card-figure"
       style={{
         height: containerHeight,
-        width: containerWidth
+        width: containerWidth,
       }}
       onMouseMove={handleMouse}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >
       {showMobileWarning && (
-        <div className="tilted-card-mobile-alert">This effect is not optimized for mobile. Check on desktop.</div>
+        <div className="tilted-card-mobile-alert">
+          This effect is not optimized for mobile. Check on desktop.
+        </div>
       )}
 
       <motion.div
@@ -114,7 +116,7 @@ export default function TiltedCard({
           height: imageHeight,
           rotateX,
           rotateY,
-          scale
+          scale,
         }}
       >
         {imageSrc && (
@@ -124,13 +126,15 @@ export default function TiltedCard({
             className="tilted-card-img"
             style={{
               width: imageWidth,
-              height: imageHeight
+              height: imageHeight,
             }}
           />
         )}
 
         {displayOverlayContent && overlayContent && (
-          <motion.div className="tilted-card-overlay">{overlayContent}</motion.div>
+          <motion.div className="tilted-card-overlay">
+            {overlayContent}
+          </motion.div>
         )}
       </motion.div>
 
@@ -141,7 +145,7 @@ export default function TiltedCard({
             x,
             y,
             opacity,
-            rotate: rotateFigcaption
+            rotate: rotateFigcaption,
           }}
         >
           {captionText}

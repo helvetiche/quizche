@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 import { verifyAuth } from "@/lib/auth";
 import { adminDb } from "@/lib/firebase-admin";
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
@@ -9,7 +9,7 @@ import {
 } from "@/lib/security-headers";
 import { handleApiError } from "@/lib/error-handler";
 
-export async function GET(request: NextRequest) {
+export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
     const user = await verifyAuth(request);
 
@@ -80,9 +80,10 @@ export async function GET(request: NextRequest) {
               : data.createdAt || new Date().toISOString(),
         };
       })
-      .filter((student) =>
-        student.email.toLowerCase().includes(searchTerm) ||
-        (student.displayName && student.displayName.toLowerCase().includes(searchTerm))
+      .filter(
+        (student) =>
+          student.email.toLowerCase().includes(searchTerm) ||
+          student.displayName?.toLowerCase().includes(searchTerm)
       )
       .slice(0, 10); // Limit results to 10
 
@@ -105,6 +106,9 @@ export async function GET(request: NextRequest) {
     } catch {
       // Ignore auth errors in error handler
     }
-    return handleApiError(error, { route: "/api/teacher/students/search", userId });
+    return handleApiError(error, {
+      route: "/api/teacher/students/search",
+      userId,
+    });
   }
 }

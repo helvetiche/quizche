@@ -7,9 +7,9 @@ import { useRouter } from "next/navigation";
 import GoogleIcon from "./ui/GoogleIcon";
 import ErrorMessage from "./ui/ErrorMessage";
 
-interface GoogleAuthButtonProps {
+type GoogleAuthButtonProps = {
   onLoginSuccess?: (role: string | null, idToken: string) => void;
-}
+};
 
 const GoogleAuthButton = ({ onLoginSuccess }: GoogleAuthButtonProps) => {
   const router = useRouter();
@@ -23,19 +23,27 @@ const GoogleAuthButton = ({ onLoginSuccess }: GoogleAuthButtonProps) => {
 
       // Verify Firebase is initialized
       if (!auth) {
-        throw new Error("Firebase authentication is not initialized. Please check your Firebase configuration.");
+        throw new Error(
+          "Firebase authentication is not initialized. Please check your Firebase configuration."
+        );
       }
 
       const provider = new GoogleAuthProvider();
       // Add additional scopes if needed
-      provider.addScope('email');
-      provider.addScope('profile');
-      
+      provider.addScope("email");
+      provider.addScope("profile");
+
       console.log("Attempting Firebase sign-in with popup...");
       console.log("Firebase config check:", {
-        apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY ? "✓ Set" : "✗ Missing",
-        authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN ? "✓ Set" : "✗ Missing",
-        projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ? "✓ Set" : "✗ Missing",
+        apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY
+          ? "✓ Set"
+          : "✗ Missing",
+        authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
+          ? "✓ Set"
+          : "✗ Missing",
+        projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID
+          ? "✓ Set"
+          : "✗ Missing",
       });
 
       const result = await signInWithPopup(auth, provider);
@@ -55,7 +63,10 @@ const GoogleAuthButton = ({ onLoginSuccess }: GoogleAuthButtonProps) => {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        const errorMessage = errorData.error || errorData.message || `Login failed with status ${response.status}`;
+        const errorMessage =
+          errorData.error ||
+          errorData.message ||
+          `Login failed with status ${response.status}`;
         console.error("Login API error:", errorMessage, errorData);
         throw new Error(errorMessage);
       }
@@ -72,10 +83,17 @@ const GoogleAuthButton = ({ onLoginSuccess }: GoogleAuthButtonProps) => {
       }
     } catch (err: any) {
       // Firebase Auth errors have a code property
-      const firebaseError = err as { code?: string; message?: string; customData?: any };
+      const firebaseError = err as {
+        code?: string;
+        message?: string;
+        customData?: any;
+      };
       const errorCode = firebaseError.code || "unknown";
-      const errorMessage = firebaseError.message || err?.message || "Failed to sign in with Google";
-      
+      const errorMessage =
+        firebaseError.message ||
+        err?.message ||
+        "Failed to sign in with Google";
+
       console.error("=== FIREBASE OAUTH ERROR ===");
       console.error("Error Code:", errorCode);
       console.error("Error Message:", errorMessage);
@@ -86,19 +104,22 @@ const GoogleAuthButton = ({ onLoginSuccess }: GoogleAuthButtonProps) => {
         authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
         projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
       });
-      
+
       // Provide user-friendly error messages based on Firebase error codes
       let userFriendlyMessage = errorMessage;
       if (errorCode === "auth/internal-error") {
-        userFriendlyMessage = "Firebase authentication error. Please check:\n1. Firebase project settings\n2. OAuth is enabled in Firebase Console\n3. Authorized domains include this site\n4. Browser console for details";
+        userFriendlyMessage =
+          "Firebase authentication error. Please check:\n1. Firebase project settings\n2. OAuth is enabled in Firebase Console\n3. Authorized domains include this site\n4. Browser console for details";
       } else if (errorCode === "auth/popup-closed-by-user") {
         userFriendlyMessage = "Sign-in popup was closed. Please try again.";
       } else if (errorCode === "auth/network-request-failed") {
-        userFriendlyMessage = "Network error. Please check your internet connection.";
+        userFriendlyMessage =
+          "Network error. Please check your internet connection.";
       } else if (errorCode === "auth/unauthorized-domain") {
-        userFriendlyMessage = "This domain is not authorized. Please contact support.";
+        userFriendlyMessage =
+          "This domain is not authorized. Please contact support.";
       }
-      
+
       setError(`${errorCode}: ${userFriendlyMessage}`);
     } finally {
       setLoading(false);

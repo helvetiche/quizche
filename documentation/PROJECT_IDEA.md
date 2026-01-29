@@ -276,32 +276,26 @@ QuizChe is a comprehensive quiz and flashcard generation platform designed for e
 ### Database Query Optimization Strategies
 
 1. **Denormalization:**
-
    - Store frequently accessed data (role, tier, quiz title, teacher ID) directly in documents
    - Reduces read operations and improves query performance
 
 2. **Composite Indexes:**
-
    - Create indexes for common query patterns (userId + completedAt, quizId + completedAt)
    - Prevents full collection scans
 
 3. **Subcollections vs Collections:**
-
    - Use subcollections (`quizzes/{quizId}/attempts`) when data is only accessed in context of parent
    - Use top-level collections when data needs cross-entity queries
 
 4. **Pagination:**
-
    - Always use `limit()` and `startAfter()` for list queries
    - Default page size: 20-50 documents per query
 
 5. **Field Selection:**
-
    - Use `select()` to fetch only needed fields
    - Reduces bandwidth and read costs
 
 6. **Caching Strategy:**
-
    - Cache frequently accessed data (user profiles, quiz metadata) client-side
    - Use Firestore offline persistence for better UX
 
@@ -359,14 +353,12 @@ QuizChe is a comprehensive quiz and flashcard generation platform designed for e
 **Implementation Requirements:**
 
 1. **Firebase ID Token Verification**
-
    - Extract `Authorization` header: `Bearer <token>`
    - Verify token using Firebase Admin SDK
    - Token must be valid, not expired, and not revoked
    - Extract user ID (`uid`) from verified token
 
 2. **Custom Claims Extraction**
-
    - Extract `role` claim (student/teacher)
    - Extract `tier` claim (free/premium/pro)
    - Verify claims are present and valid
@@ -412,21 +404,18 @@ async function verifyAuth(request: Request) {
 **Authorization Checks Required:**
 
 1. **Role-Based Authorization**
-
    - Teachers can create/edit/delete quizzes
    - Students CANNOT create quizzes
    - Students can only submit quiz attempts
    - Both roles can create flashcards
 
 2. **Resource Ownership Authorization**
-
    - Users can only access their own profile
    - Users can only view their own quiz history
    - Teachers can only modify their own quizzes
    - Users can only modify their own flashcards
 
 3. **Tier-Based Authorization**
-
    - Free tier: Limited quiz creation per day
    - Premium tier: Unlimited quiz creation
    - Check tier before allowing premium features
@@ -505,14 +494,12 @@ if (quiz.data()?.isActive === false && user.role === "student") {
 **Every API route MUST follow this pipeline:**
 
 1. **Authentication Check**
-
    - Verify Firebase ID token on EVERY request
    - Extract user ID and custom claims
    - Reject unauthorized requests immediately (401)
    - **MANDATORY:** No route can skip authentication (except explicitly public routes)
 
 2. **Authorization Check**
-
    - Verify user role (student/teacher) from custom claims
    - Verify user permissions for the requested operation
    - Check resource ownership (users can only access their own data)
@@ -521,25 +508,21 @@ if (quiz.data()?.isActive === false && user.role === "student") {
    - **MANDATORY:** Authorization check MUST happen after authentication
 
 3. **Rate Limiting**
-
    - Apply rate limits based on route type and user tier
    - Use Upstash Redis for distributed rate limiting
    - Return 429 if limit exceeded
 
 4. **CSRF Protection**
-
    - Verify CSRF token for all mutating operations (POST, PUT, DELETE, PATCH)
    - Reject requests with invalid or missing CSRF tokens
 
 5. **Input Validation & Sanitization**
-
    - Validate ALL input data using schema validation (Zod/Joi)
    - Sanitize all string inputs to prevent XSS
    - Validate file uploads (type, size, content)
    - Reject invalid or malformed requests
 
 6. **Business Logic Execution**
-
    - Execute server-side business logic
    - Perform database operations using Firebase Admin SDK
    - Apply data transformations and calculations
@@ -580,29 +563,24 @@ if (quiz.data()?.isActive === false && user.role === "student") {
    ```
 
 2. **Include authentication middleware:**
-
    - Verify Firebase ID token
    - Extract user information
    - Check authorization
 
 3. **Validate all inputs:**
-
    - Use schema validation library (Zod recommended)
    - Reject invalid requests with 400 status
 
 4. **Apply rate limiting:**
-
    - Use Upstash Redis for distributed rate limiting
    - Return appropriate rate limit headers
 
 5. **Handle errors securely:**
-
    - Never expose internal errors to client
    - Log errors server-side
    - Return generic error messages
 
 6. **Return proper HTTP status codes:**
-
    - 200: Success
    - 201: Created
    - 400: Bad Request (validation errors)

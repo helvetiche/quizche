@@ -3,16 +3,16 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import PDFUploadModal from "./PDFUploadModal";
-import { GeneratedQuizData } from "./QuizForm";
+import { type GeneratedQuizData } from "./QuizForm";
 
-interface GenerateQuizButtonProps {
+type GenerateQuizButtonProps = {
   idToken: string;
   onQuizGenerated?: (quiz: GeneratedQuizData) => void;
   onSave?: (quiz: GeneratedQuizData) => void | Promise<void>;
   onEdit?: (quiz: GeneratedQuizData) => void;
   className?: string;
   variant?: "primary" | "secondary";
-}
+};
 
 const GenerateQuizButton = ({
   idToken,

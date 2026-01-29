@@ -14,7 +14,7 @@ export const COST_THRESHOLDS = {
   },
 } as const;
 
-export interface CostAlert {
+export type CostAlert = {
   type: "warning" | "critical";
   service: "gemini" | "firestore" | "imgbb" | "total";
   period: "daily" | "monthly";
@@ -22,18 +22,14 @@ export interface CostAlert {
   threshold: number;
   date: string;
   timestamp: Date;
-}
+};
 
-/**
- * Check daily costs and generate alerts if thresholds are exceeded
- */
 export const checkDailyCosts = async (): Promise<CostAlert[]> => {
   const alerts: CostAlert[] = [];
   const today = new Date().toISOString().split("T")[0];
 
   try {
-    // Get today's cost summary for each service
-    const services: Array<"gemini" | "firestore" | "imgbb"> = [
+    const services: ("gemini" | "firestore" | "imgbb")[] = [
       "gemini",
       "firestore",
       "imgbb",
@@ -48,12 +44,11 @@ export const checkDailyCosts = async (): Promise<CostAlert[]> => {
 
       const dailyCostDoc = await dailyCostRef.get();
       const cost = dailyCostDoc.exists
-        ? (dailyCostDoc.data()?.totalAmount as number) || 0
+        ? ((dailyCostDoc.data()?.totalAmount as number) ?? 0)
         : 0;
 
       totalDailyCost += cost;
 
-      // Check thresholds
       if (cost >= COST_THRESHOLDS.daily.critical) {
         alerts.push({
           type: "critical",
@@ -77,7 +72,6 @@ export const checkDailyCosts = async (): Promise<CostAlert[]> => {
       }
     }
 
-    // Check total daily cost
     if (totalDailyCost >= COST_THRESHOLDS.daily.critical) {
       alerts.push({
         type: "critical",
@@ -100,7 +94,6 @@ export const checkDailyCosts = async (): Promise<CostAlert[]> => {
       });
     }
 
-    // Store alerts in database
     if (alerts.length > 0) {
       const batch = adminDb.batch();
       alerts.forEach((alert) => {
@@ -109,7 +102,6 @@ export const checkDailyCosts = async (): Promise<CostAlert[]> => {
       });
       await batch.commit();
 
-      // Log alerts
       console.warn(`Cost alerts generated: ${alerts.length}`, alerts);
     }
 
@@ -120,9 +112,6 @@ export const checkDailyCosts = async (): Promise<CostAlert[]> => {
   }
 };
 
-/**
- * Check monthly costs and generate alerts if thresholds are exceeded
- */
 export const checkMonthlyCosts = async (): Promise<CostAlert[]> => {
   const alerts: CostAlert[] = [];
   const now = new Date();
@@ -131,8 +120,7 @@ export const checkMonthlyCosts = async (): Promise<CostAlert[]> => {
     .split("T")[0];
 
   try {
-    // Get monthly cost summary for each service
-    const services: Array<"gemini" | "firestore" | "imgbb"> = [
+    const services: ("gemini" | "firestore" | "imgbb")[] = [
       "gemini",
       "firestore",
       "imgbb",
@@ -141,7 +129,6 @@ export const checkMonthlyCosts = async (): Promise<CostAlert[]> => {
     let totalMonthlyCost = 0;
 
     for (const service of services) {
-      // Sum all daily summaries for this month
       const monthlyCostDocs = await adminDb
         .collection("costDailySummary")
         .where("service", "==", service)
@@ -150,12 +137,11 @@ export const checkMonthlyCosts = async (): Promise<CostAlert[]> => {
 
       let monthlyCost = 0;
       monthlyCostDocs.forEach((doc) => {
-        monthlyCost += (doc.data()?.totalAmount as number) || 0;
+        monthlyCost += (doc.data()?.totalAmount as number) ?? 0;
       });
 
       totalMonthlyCost += monthlyCost;
 
-      // Check thresholds
       if (monthlyCost >= COST_THRESHOLDS.monthly.critical) {
         alerts.push({
           type: "critical",
@@ -179,7 +165,6 @@ export const checkMonthlyCosts = async (): Promise<CostAlert[]> => {
       }
     }
 
-    // Check total monthly cost
     if (totalMonthlyCost >= COST_THRESHOLDS.monthly.critical) {
       alerts.push({
         type: "critical",
@@ -202,7 +187,6 @@ export const checkMonthlyCosts = async (): Promise<CostAlert[]> => {
       });
     }
 
-    // Store alerts in database
     if (alerts.length > 0) {
       const batch = adminDb.batch();
       alerts.forEach((alert) => {
@@ -211,7 +195,6 @@ export const checkMonthlyCosts = async (): Promise<CostAlert[]> => {
       });
       await batch.commit();
 
-      // Log alerts
       console.warn(`Monthly cost alerts generated: ${alerts.length}`, alerts);
     }
 
@@ -225,9 +208,7 @@ export const checkMonthlyCosts = async (): Promise<CostAlert[]> => {
 /**
  * Get recent cost alerts
  */
-export const getRecentAlerts = async (
-  limit: number = 50
-): Promise<CostAlert[]> => {
+export const getRecentAlerts = async (limit = 50): Promise<CostAlert[]> => {
   try {
     const alertsSnapshot = await adminDb
       .collection("costAlerts")

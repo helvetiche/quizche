@@ -3,11 +3,11 @@
 import { useState } from "react";
 import Modal from "@/components/Modal";
 
-interface QuizWarningModalProps {
+type QuizWarningModalProps = {
   isOpen: boolean;
   onAccept: () => void;
   onCancel: () => void;
-}
+};
 
 const QuizWarningModal = ({
   isOpen,

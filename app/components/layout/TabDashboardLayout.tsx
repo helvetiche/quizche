@@ -9,15 +9,20 @@ import TabNavigation from "../navigation/TabNavigation";
 import PDFUploadModal from "../create/PDFUploadModal";
 import ProfileModal from "../dashboard/shared/ProfileModal";
 import { useNavigationBadges } from "@/app/hooks/useNavigationBadges";
-import { TabProvider, DashboardTab, TeacherTab, StudentTab } from "../dashboard/TabContext";
+import {
+  TabProvider,
+  type DashboardTab,
+  type TeacherTab,
+  type StudentTab,
+} from "../dashboard/TabContext";
 
-interface TabDashboardLayoutProps {
+type TabDashboardLayoutProps = {
   title: string;
   userEmail?: string;
   userRole: "teacher" | "student";
   children: React.ReactNode;
   initialTab?: DashboardTab;
-}
+};
 
 function TabDashboardLayoutInner({
   title,
@@ -30,7 +35,12 @@ function TabDashboardLayoutInner({
   const [isAIModalOpen, setIsAIModalOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [idToken, setIdToken] = useState<string | null>(null);
-  const [userInfo, setUserInfo] = useState<{ displayName: string | null; photoURL: string | null; fullName: string | null; tier: string | null }>({
+  const [userInfo, setUserInfo] = useState<{
+    displayName: string | null;
+    photoURL: string | null;
+    fullName: string | null;
+    tier: string | null;
+  }>({
     displayName: null,
     photoURL: null,
     fullName: null,
@@ -56,18 +66,18 @@ function TabDashboardLayoutInner({
         try {
           const token = await currentUser.getIdToken();
           setIdToken(token);
-          
+
           // Get custom claims for tier
           const tokenResult = await currentUser.getIdTokenResult();
-          const tier = tokenResult.claims.tier as string || "free";
-          
+          const tier = (tokenResult.claims.tier as string) || "free";
+
           setUserInfo({
             displayName: currentUser.displayName,
             photoURL: currentUser.photoURL,
             fullName: null,
             tier: tier,
           });
-          
+
           // Fetch full name from profile API
           try {
             const profileResponse = await fetch("/api/profile", {
@@ -76,7 +86,7 @@ function TabDashboardLayoutInner({
             if (profileResponse.ok) {
               const profileData = await profileResponse.json();
               if (profileData.profile?.fullName) {
-                setUserInfo(prev => ({
+                setUserInfo((prev) => ({
                   ...prev,
                   fullName: profileData.profile.fullName,
                 }));
@@ -101,8 +111,11 @@ function TabDashboardLayoutInner({
     setIsAIModalOpen(true);
   };
 
-  const handleProfileUpdate = (profileData: { fullName: string; photoUrl: string | null }) => {
-    setUserInfo(prev => ({
+  const handleProfileUpdate = (profileData: {
+    fullName: string;
+    photoUrl: string | null;
+  }) => {
+    setUserInfo((prev) => ({
       ...prev,
       fullName: profileData.fullName,
       photoURL: profileData.photoUrl,
@@ -111,7 +124,7 @@ function TabDashboardLayoutInner({
 
   const handleAISave = async (quiz: any) => {
     if (!idToken) return;
-    
+
     try {
       const quizData = {
         title: quiz.title.trim(),
@@ -123,7 +136,11 @@ function TabDashboardLayoutInner({
             type: q.type,
             answer: q.answer.trim(),
           };
-          if (q.type === "multiple_choice" && q.choices && Array.isArray(q.choices)) {
+          if (
+            q.type === "multiple_choice" &&
+            q.choices &&
+            Array.isArray(q.choices)
+          ) {
             const filteredChoices = q.choices
               .filter((c: string) => c.trim().length > 0)
               .map((c: string) => c.trim());
@@ -153,12 +170,16 @@ function TabDashboardLayoutInner({
       window.location.href = `/teacher/quiz/${data.id}`;
     } catch (error) {
       console.error("Error creating quiz:", error);
-      alert(error instanceof Error ? error.message : "Failed to create quiz. Please try again.");
+      alert(
+        error instanceof Error
+          ? error.message
+          : "Failed to create quiz. Please try again."
+      );
     }
   };
 
   return (
-    <div 
+    <div
       className="min-h-screen pb-28 relative"
       onMouseMove={handleMouseMove}
       style={{
@@ -173,10 +194,10 @@ function TabDashboardLayoutInner({
       }}
     >
       {/* Amber Vignette Effect */}
-      <div 
+      <div
         className="fixed inset-0 pointer-events-none z-30"
         style={{
-          background: `radial-gradient(ellipse at center, transparent 40%, rgba(251, 191, 36, 0.15) 70%, rgba(251, 191, 36, 0.35) 100%)`
+          background: `radial-gradient(ellipse at center, transparent 40%, rgba(251, 191, 36, 0.15) 70%, rgba(251, 191, 36, 0.35) 100%)`,
         }}
       />
 
@@ -185,10 +206,15 @@ function TabDashboardLayoutInner({
         <div className="fixed right-8 top-40 flex-col gap-4 hidden xl:flex z-40">
           {progressData.map((item, index) => {
             const circumference = 2 * Math.PI * 36;
-            const strokeDashoffset = circumference - (item.value / 100) * circumference;
-            
+            const strokeDashoffset =
+              circumference - (item.value / 100) * circumference;
+
             return (
-              <div key={index} className="w-18 h-18 relative" style={{ width: '72px', height: '72px' }}>
+              <div
+                key={index}
+                className="w-18 h-18 relative"
+                style={{ width: "72px", height: "72px" }}
+              >
                 <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
                   {/* Outer border */}
                   <circle
@@ -232,7 +258,9 @@ function TabDashboardLayoutInner({
                 </svg>
                 {item.icon && (
                   <div className="absolute inset-0 flex items-center justify-center">
-                    <span className="material-icons text-gray-900 text-base">{item.icon}</span>
+                    <span className="material-icons text-gray-900 text-base">
+                      {item.icon}
+                    </span>
                   </div>
                 )}
                 {/* Badge */}
@@ -253,14 +281,16 @@ function TabDashboardLayoutInner({
             <div className="relative">
               <div className="w-12 h-12 rounded-full border-3 border-gray-900 overflow-hidden bg-amber-200 flex-shrink-0">
                 {userInfo.photoURL ? (
-                  <img 
-                    src={userInfo.photoURL} 
-                    alt="Profile" 
+                  <img
+                    src={userInfo.photoURL}
+                    alt="Profile"
                     className="w-full h-full object-cover"
                   />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center">
-                    <span className="material-icons-outlined text-gray-900 text-2xl">person</span>
+                    <span className="material-icons-outlined text-gray-900 text-2xl">
+                      person
+                    </span>
                   </div>
                 )}
               </div>
@@ -270,7 +300,10 @@ function TabDashboardLayoutInner({
             {/* Name and Role */}
             <div className="flex flex-col">
               <span className="font-black text-gray-900 text-sm leading-tight">
-                {userInfo.fullName || userInfo.displayName || userEmail?.split("@")[0] || "User"}
+                {userInfo.fullName ||
+                  userInfo.displayName ||
+                  userEmail?.split("@")[0] ||
+                  "User"}
               </span>
               <div className="flex items-center gap-1.5">
                 <span className="text-xs font-medium text-gray-600">
@@ -301,11 +334,17 @@ function TabDashboardLayoutInner({
       <div className="absolute top-8 right-8 w-16 h-16 flex items-center justify-center z-20">
         <span className="text-gray-900 text-8xl font-black">+</span>
       </div>
-      
+
       {/* Main Content */}
-      <main className="relative z-10 container mx-auto px-6 py-8">{children}</main>
-      
-      <TabNavigation userRole={userRole} badges={badges} onAIClick={handleAIClick} />
+      <main className="relative z-10 container mx-auto px-6 py-8">
+        {children}
+      </main>
+
+      <TabNavigation
+        userRole={userRole}
+        badges={badges}
+        onAIClick={handleAIClick}
+      />
 
       {/* AI PDF Upload Modal */}
       {idToken && (
@@ -337,17 +376,29 @@ export default function TabDashboardLayout({
 }: TabDashboardLayoutProps) {
   const searchParams = useSearchParams();
   const tabFromUrl = searchParams.get("tab");
-  
+
   // Validate and use tab from URL if valid
   let effectiveInitialTab: DashboardTab = initialTab;
-  
+
   if (tabFromUrl) {
     const validTeacherTabs: TeacherTab[] = ["home", "quizzes", "sections"];
-    const validStudentTabs: StudentTab[] = ["home", "quizzes", "flashcards", "history", "connections"];
-    
-    if (userRole === "teacher" && validTeacherTabs.includes(tabFromUrl as TeacherTab)) {
+    const validStudentTabs: StudentTab[] = [
+      "home",
+      "quizzes",
+      "flashcards",
+      "history",
+      "connections",
+    ];
+
+    if (
+      userRole === "teacher" &&
+      validTeacherTabs.includes(tabFromUrl as TeacherTab)
+    ) {
       effectiveInitialTab = tabFromUrl as TeacherTab;
-    } else if (userRole === "student" && validStudentTabs.includes(tabFromUrl as StudentTab)) {
+    } else if (
+      userRole === "student" &&
+      validStudentTabs.includes(tabFromUrl as StudentTab)
+    ) {
       effectiveInitialTab = tabFromUrl as StudentTab;
     }
   }

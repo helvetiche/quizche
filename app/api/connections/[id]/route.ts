@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 import { verifyAuth } from "@/lib/auth";
 import { adminDb } from "@/lib/firebase-admin";
 import { verifyCSRF } from "@/lib/csrf";
@@ -9,7 +9,6 @@ import {
 import { ConnectionActionSchema, validateInput } from "@/lib/validation";
 import cache, { getApiCacheKey } from "@/lib/cache";
 import { handleApiError } from "@/lib/error-handler";
-
 
 export async function PUT(
   request: NextRequest,
@@ -58,10 +57,7 @@ export async function PUT(
 
     const { action } = validation.data;
 
-    const connectionDoc = await adminDb
-      .collection("connections")
-      .doc(id)
-      .get();
+    const connectionDoc = await adminDb.collection("connections").doc(id).get();
 
     if (!connectionDoc.exists) {
       return NextResponse.json(
@@ -184,10 +180,7 @@ export async function DELETE(
 
     const { id } = await params;
 
-    const connectionDoc = await adminDb
-      .collection("connections")
-      .doc(id)
-      .get();
+    const connectionDoc = await adminDb.collection("connections").doc(id).get();
 
     if (!connectionDoc.exists) {
       return NextResponse.json(

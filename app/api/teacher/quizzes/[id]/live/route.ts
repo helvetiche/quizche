@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 import { verifyAuth } from "@/lib/auth";
 import { adminDb } from "@/lib/firebase-admin";
 import {
@@ -52,7 +52,10 @@ export async function GET(
 
     if (quizData?.teacherId !== user.uid) {
       return NextResponse.json(
-        { error: "Forbidden: You can only view live sessions for your own quizzes" },
+        {
+          error:
+            "Forbidden: You can only view live sessions for your own quizzes",
+        },
         { status: 403, headers: getErrorSecurityHeaders() }
       );
     }
@@ -73,7 +76,8 @@ export async function GET(
         studentEmail: data.studentEmail || "",
         studentName: data.studentName || "",
         startedAt: data.startedAt?.toDate?.()?.toISOString() || data.startedAt,
-        lastActivity: data.lastActivity?.toDate?.()?.toISOString() || data.lastActivity,
+        lastActivity:
+          data.lastActivity?.toDate?.()?.toISOString() || data.lastActivity,
         tabChangeCount: data.tabChangeCount || 0,
         timeAway: data.timeAway || 0,
         violations: data.violations || [],
@@ -100,6 +104,9 @@ export async function GET(
     } catch {
       // Ignore auth errors in error handler
     }
-    return handleApiError(error, { route: "/api/teacher/quizzes/[id]/live", userId });
+    return handleApiError(error, {
+      route: "/api/teacher/quizzes/[id]/live",
+      userId,
+    });
   }
 }

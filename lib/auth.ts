@@ -1,19 +1,19 @@
-import { NextRequest } from "next/server";
+import { type NextRequest } from "next/server";
 import { adminAuth } from "./firebase-admin";
 
-export interface AuthUser {
+export type AuthUser = {
   uid: string;
   role: string | null;
   tier: string;
   email?: string;
-}
+};
 
 export const verifyAuth = async (
   request: NextRequest
 ): Promise<AuthUser | null> => {
   const authHeader = request.headers.get("Authorization");
 
-  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+  if (authHeader === null || authHeader === undefined || !authHeader.startsWith("Bearer ")) {
     return null;
   }
 
@@ -21,11 +21,12 @@ export const verifyAuth = async (
 
   try {
     const decodedToken = await adminAuth.verifyIdToken(token);
-    const hasRole = decodedToken.role && decodedToken.role !== undefined;
+    const hasRole =
+      decodedToken.role !== null && decodedToken.role !== undefined;
     return {
       uid: decodedToken.uid,
-      role: hasRole ? decodedToken.role : null,
-      tier: decodedToken.tier || "free",
+      role: hasRole ? (decodedToken.role as string) : null,
+      tier: (decodedToken.tier as string) ?? "free",
       email: decodedToken.email,
     };
   } catch (error) {

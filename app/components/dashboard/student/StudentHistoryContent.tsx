@@ -5,13 +5,13 @@ import { useRouter } from "next/navigation";
 import { getAuth } from "firebase/auth";
 import app from "@/lib/firebase";
 
-interface Violation {
+type Violation = {
   type: string;
   timestamp: string;
   details?: string;
-}
+};
 
-interface QuizAttempt {
+type QuizAttempt = {
   id: string;
   quizId: string;
   quizTitle: string;
@@ -27,9 +27,9 @@ interface QuizAttempt {
   refreshDetected?: boolean;
   violations?: Violation[];
   disqualified?: boolean;
-}
+};
 
-interface HistoryData {
+type HistoryData = {
   attempts: QuizAttempt[];
   stats: {
     totalQuizzes: number;
@@ -41,19 +41,21 @@ interface HistoryData {
     limit: number;
     hasMore: boolean;
   };
-}
+};
 
-interface StudentHistoryContentProps {
+type StudentHistoryContentProps = {
   user: any;
-}
+};
 
-export default function StudentHistoryContent({ user }: StudentHistoryContentProps) {
+export default function StudentHistoryContent({
+  user,
+}: StudentHistoryContentProps) {
   const router = useRouter();
   const [history, setHistory] = useState<HistoryData | null>(null);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
 
-  const fetchHistory = async (page: number = 1) => {
+  const fetchHistory = async (page = 1) => {
     if (!user) return;
 
     try {
@@ -238,10 +240,10 @@ export default function StudentHistoryContent({ user }: StudentHistoryContentPro
                         attempt.percentage >= 90
                           ? "bg-green-500"
                           : attempt.percentage >= 70
-                          ? "bg-blue-500"
-                          : attempt.percentage >= 50
-                          ? "bg-yellow-500"
-                          : "bg-red-500"
+                            ? "bg-blue-500"
+                            : attempt.percentage >= 50
+                              ? "bg-yellow-500"
+                              : "bg-red-500"
                       }`}
                       style={{ width: `${attempt.percentage}%` }}
                     ></div>
@@ -269,8 +271,8 @@ export default function StudentHistoryContent({ user }: StudentHistoryContentPro
               No quiz attempts yet
             </h3>
             <p className="mt-2 text-gray-500">
-              You haven't taken any quizzes yet. Start by scanning a QR code
-              to access a quiz!
+              You haven't taken any quizzes yet. Start by scanning a QR code to
+              access a quiz!
             </p>
           </div>
         )}

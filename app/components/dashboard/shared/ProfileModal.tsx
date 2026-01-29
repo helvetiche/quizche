@@ -7,20 +7,23 @@ import { uploadImageToImgbb } from "@/lib/imgbb";
 import { gsap } from "gsap";
 import Image from "next/image";
 
-interface ProfileData {
+type ProfileData = {
   firstName: string;
   lastName: string;
   age: number | null;
   school: string;
   profilePhotoUrl: string | null;
   profileCompleted: boolean;
-}
+};
 
-interface ProfileModalProps {
+type ProfileModalProps = {
   isOpen: boolean;
   onClose: () => void;
-  onProfileUpdate?: (profileData: { fullName: string; photoUrl: string | null }) => void;
-}
+  onProfileUpdate?: (profileData: {
+    fullName: string;
+    photoUrl: string | null;
+  }) => void;
+};
 
 // Reusable animated modal hook (same pattern as sections)
 function useAnimatedModal(isOpen: boolean, onClose: () => void) {
@@ -42,13 +45,26 @@ function useAnimatedModal(isOpen: boolean, onClose: () => void) {
     if (prevIsOpen.current && !isOpen && isVisible && !isClosing) {
       setIsClosing(true);
       if (modalRef.current && backdropRef.current) {
-        gsap.to(modalRef.current, { opacity: 0, y: 50, scale: 0.95, filter: "blur(8px)", duration: 0.3, ease: "power2.in" });
+        gsap.to(modalRef.current, {
+          opacity: 0,
+          y: 50,
+          scale: 0.95,
+          filter: "blur(8px)",
+          duration: 0.3,
+          ease: "power2.in",
+        });
         gsap.to(backdropRef.current, {
-          opacity: 0, duration: 0.3, ease: "power2.in",
-          onComplete: () => { setIsVisible(false); setIsClosing(false); }
+          opacity: 0,
+          duration: 0.3,
+          ease: "power2.in",
+          onComplete: () => {
+            setIsVisible(false);
+            setIsClosing(false);
+          },
         });
       } else {
-        setIsVisible(false); setIsClosing(false);
+        setIsVisible(false);
+        setIsClosing(false);
       }
     }
     prevIsOpen.current = isOpen;
@@ -57,10 +73,23 @@ function useAnimatedModal(isOpen: boolean, onClose: () => void) {
   // Run entrance animation
   useEffect(() => {
     if (isVisible && !isClosing && modalRef.current && backdropRef.current) {
-      gsap.fromTo(backdropRef.current, { opacity: 0 }, { opacity: 1, duration: 0.3, ease: "power2.out" });
-      gsap.fromTo(modalRef.current,
+      gsap.fromTo(
+        backdropRef.current,
+        { opacity: 0 },
+        { opacity: 1, duration: 0.3, ease: "power2.out" }
+      );
+      gsap.fromTo(
+        modalRef.current,
         { opacity: 0, y: 100, scale: 0.9, filter: "blur(10px)" },
-        { opacity: 1, y: 0, scale: 1, filter: "blur(0px)", duration: 0.5, ease: "power3.out", delay: 0.1 }
+        {
+          opacity: 1,
+          y: 0,
+          scale: 1,
+          filter: "blur(0px)",
+          duration: 0.5,
+          ease: "power3.out",
+          delay: 0.1,
+        }
       );
     }
   }, [isVisible, isClosing]);
@@ -69,22 +98,41 @@ function useAnimatedModal(isOpen: boolean, onClose: () => void) {
     if (isClosing) return;
     setIsClosing(true);
     if (modalRef.current && backdropRef.current) {
-      gsap.to(modalRef.current, { opacity: 0, y: 50, scale: 0.95, filter: "blur(8px)", duration: 0.3, ease: "power2.in" });
+      gsap.to(modalRef.current, {
+        opacity: 0,
+        y: 50,
+        scale: 0.95,
+        filter: "blur(8px)",
+        duration: 0.3,
+        ease: "power2.in",
+      });
       gsap.to(backdropRef.current, {
-        opacity: 0, duration: 0.3, ease: "power2.in",
-        onComplete: () => { setIsVisible(false); setIsClosing(false); onClose(); }
+        opacity: 0,
+        duration: 0.3,
+        ease: "power2.in",
+        onComplete: () => {
+          setIsVisible(false);
+          setIsClosing(false);
+          onClose();
+        },
       });
     } else {
-      setIsVisible(false); setIsClosing(false); onClose();
+      setIsVisible(false);
+      setIsClosing(false);
+      onClose();
     }
   };
 
   return { modalRef, backdropRef, isVisible, isClosing, handleClose };
 }
 
-
-export default function ProfileModal({ isOpen, onClose, onProfileUpdate }: ProfileModalProps) {
-  const { modalRef, backdropRef, isVisible, isClosing, handleClose } = useAnimatedModal(isOpen, onClose);
+export default function ProfileModal({
+  isOpen,
+  onClose,
+  onProfileUpdate,
+}: ProfileModalProps) {
+  const { modalRef, backdropRef, isVisible, isClosing, handleClose } =
+    useAnimatedModal(isOpen, onClose);
   const [idToken, setIdToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -99,7 +147,9 @@ export default function ProfileModal({ isOpen, onClose, onProfileUpdate }: Profi
     profileCompleted: false,
   });
   const [profilePhotoFile, setProfilePhotoFile] = useState<File | null>(null);
-  const [profilePhotoPreview, setProfilePhotoPreview] = useState<string | null>(null);
+  const [profilePhotoPreview, setProfilePhotoPreview] = useState<string | null>(
+    null
+  );
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
   useEffect(() => {
@@ -178,7 +228,6 @@ export default function ProfileModal({ isOpen, onClose, onProfileUpdate }: Profi
     setProfileData((prev) => ({ ...prev, profilePhotoUrl: null }));
   };
 
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -208,7 +257,9 @@ export default function ProfileModal({ isOpen, onClose, onProfileUpdate }: Profi
           if (profilePhotoPreview) URL.revokeObjectURL(profilePhotoPreview);
         } catch (error) {
           console.error("Error uploading photo:", error);
-          throw new Error(`Failed to upload profile photo. ${error instanceof Error ? error.message : "Please try again."}`);
+          throw new Error(
+            `Failed to upload profile photo. ${error instanceof Error ? error.message : "Please try again."}`
+          );
         } finally {
           setUploadingPhoto(false);
         }
@@ -269,11 +320,17 @@ export default function ProfileModal({ isOpen, onClose, onProfileUpdate }: Profi
 
   if (!isVisible) return null;
 
-
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-      <div ref={backdropRef} className="absolute inset-0 bg-black/50" onClick={() => !saving && !uploadingPhoto && handleClose()} />
-      <div ref={modalRef} className="relative bg-amber-100 border-4 border-gray-900 rounded-2xl shadow-[8px_8px_0px_0px_rgba(31,41,55,1)] w-full max-w-lg max-h-[90vh] overflow-hidden flex flex-col">
+      <div
+        ref={backdropRef}
+        className="absolute inset-0 bg-black/50"
+        onClick={() => !saving && !uploadingPhoto && handleClose()}
+      />
+      <div
+        ref={modalRef}
+        className="relative bg-amber-100 border-4 border-gray-900 rounded-2xl shadow-[8px_8px_0px_0px_rgba(31,41,55,1)] w-full max-w-lg max-h-[90vh] overflow-hidden flex flex-col"
+      >
         {/* Header - Amber themed */}
         <div className="bg-amber-200 border-b-4 border-gray-900 px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -282,14 +339,18 @@ export default function ProfileModal({ isOpen, onClose, onProfileUpdate }: Profi
               <div className="w-4 h-4 bg-yellow-500 rounded-full border-2 border-gray-900"></div>
               <div className="w-4 h-4 bg-green-500 rounded-full border-2 border-gray-900"></div>
             </div>
-            <h3 className="text-xl font-black text-gray-900 ml-2">Edit Profile</h3>
+            <h3 className="text-xl font-black text-gray-900 ml-2">
+              Edit Profile
+            </h3>
           </div>
           <button
             onClick={handleClose}
             disabled={saving || uploadingPhoto}
             className="w-8 h-8 bg-amber-100 border-2 border-gray-900 rounded-full flex items-center justify-center hover:bg-amber-300 transition-colors disabled:opacity-50"
           >
-            <span className="material-icons-outlined text-gray-900 text-lg">close</span>
+            <span className="material-icons-outlined text-gray-900 text-lg">
+              close
+            </span>
           </button>
         </div>
 
@@ -298,7 +359,9 @@ export default function ProfileModal({ isOpen, onClose, onProfileUpdate }: Profi
           {/* Error Message */}
           {error && (
             <div className="bg-red-400 border-3 border-gray-900 rounded-xl p-3 flex items-center gap-2">
-              <span className="material-icons-outlined text-gray-900">error</span>
+              <span className="material-icons-outlined text-gray-900">
+                error
+              </span>
               <p className="font-bold text-gray-900 text-sm">{error}</p>
             </div>
           )}
@@ -306,7 +369,9 @@ export default function ProfileModal({ isOpen, onClose, onProfileUpdate }: Profi
           {/* Success Message */}
           {success && (
             <div className="bg-lime-400 border-3 border-gray-900 rounded-xl p-3 flex items-center gap-2">
-              <span className="material-icons-outlined text-gray-900">check_circle</span>
+              <span className="material-icons-outlined text-gray-900">
+                check_circle
+              </span>
               <p className="font-bold text-gray-900 text-sm">{success}</p>
             </div>
           )}
@@ -348,15 +413,21 @@ export default function ProfileModal({ isOpen, onClose, onProfileUpdate }: Profi
               {/* Profile Photo Section */}
               <div className="bg-white border-3 border-gray-900 rounded-xl p-4">
                 <div className="flex items-center gap-2 mb-3">
-                  <span className="material-icons-outlined text-gray-900 text-lg">photo_camera</span>
+                  <span className="material-icons-outlined text-gray-900 text-lg">
+                    photo_camera
+                  </span>
                   <h4 className="font-black text-gray-900">Profile Picture</h4>
                 </div>
-                
+
                 <div className="flex items-center gap-4">
                   <div className="relative w-20 h-20 rounded-full border-3 border-gray-900 overflow-hidden bg-amber-100 shadow-[3px_3px_0px_0px_rgba(31,41,55,1)] flex-shrink-0">
                     {profilePhotoPreview || profileData.profilePhotoUrl ? (
                       <Image
-                        src={profilePhotoPreview || profileData.profilePhotoUrl || ""}
+                        src={
+                          profilePhotoPreview ||
+                          profileData.profilePhotoUrl ||
+                          ""
+                        }
                         alt="Profile photo"
                         fill
                         className="object-cover"
@@ -364,14 +435,18 @@ export default function ProfileModal({ isOpen, onClose, onProfileUpdate }: Profi
                       />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center bg-amber-200">
-                        <span className="material-icons-outlined text-gray-900 text-3xl">person</span>
+                        <span className="material-icons-outlined text-gray-900 text-3xl">
+                          person
+                        </span>
                       </div>
                     )}
                   </div>
-                  
+
                   <div className="flex flex-col gap-2 flex-1">
                     <label className="px-3 py-2 bg-amber-200 text-gray-900 font-bold text-sm border-2 border-gray-900 rounded-lg shadow-[2px_2px_0px_0px_rgba(31,41,55,1)] hover:shadow-[3px_3px_0px_0px_rgba(31,41,55,1)] active:shadow-[1px_1px_0px_0px_rgba(31,41,55,1)] transition-all cursor-pointer text-center">
-                      {profilePhotoPreview || profileData.profilePhotoUrl ? "Change" : "Upload"}
+                      {profilePhotoPreview || profileData.profilePhotoUrl
+                        ? "Change"
+                        : "Upload"}
                       <input
                         type="file"
                         accept="image/*"
@@ -397,24 +472,32 @@ export default function ProfileModal({ isOpen, onClose, onProfileUpdate }: Profi
                     {uploadingPhoto && (
                       <div className="flex items-center gap-2">
                         <div className="w-4 h-4 border-2 border-gray-900 border-t-transparent rounded-full animate-spin"></div>
-                        <span className="text-xs font-bold text-gray-600">Uploading...</span>
+                        <span className="text-xs font-bold text-gray-600">
+                          Uploading...
+                        </span>
                       </div>
                     )}
                   </div>
                 </div>
               </div>
 
-
               {/* Personal Info Section */}
               <div className="bg-white border-3 border-gray-900 rounded-xl p-4">
                 <div className="flex items-center gap-2 mb-4">
-                  <span className="material-icons-outlined text-gray-900 text-lg">badge</span>
-                  <h4 className="font-black text-gray-900">Personal Information</h4>
+                  <span className="material-icons-outlined text-gray-900 text-lg">
+                    badge
+                  </span>
+                  <h4 className="font-black text-gray-900">
+                    Personal Information
+                  </h4>
                 </div>
 
                 <div className="flex flex-col gap-4">
                   <div className="flex flex-col gap-1.5">
-                    <label htmlFor="firstName" className="text-sm font-black text-gray-900">
+                    <label
+                      htmlFor="firstName"
+                      className="text-sm font-black text-gray-900"
+                    >
                       First Name <span className="text-red-500">*</span>
                     </label>
                     <input
@@ -431,7 +514,10 @@ export default function ProfileModal({ isOpen, onClose, onProfileUpdate }: Profi
                   </div>
 
                   <div className="flex flex-col gap-1.5">
-                    <label htmlFor="lastName" className="text-sm font-black text-gray-900">
+                    <label
+                      htmlFor="lastName"
+                      className="text-sm font-black text-gray-900"
+                    >
                       Last Name <span className="text-red-500">*</span>
                     </label>
                     <input
@@ -448,7 +534,10 @@ export default function ProfileModal({ isOpen, onClose, onProfileUpdate }: Profi
                   </div>
 
                   <div className="flex flex-col gap-1.5">
-                    <label htmlFor="age" className="text-sm font-black text-gray-900">
+                    <label
+                      htmlFor="age"
+                      className="text-sm font-black text-gray-900"
+                    >
                       Age <span className="text-red-500">*</span>
                     </label>
                     <input
@@ -467,8 +556,14 @@ export default function ProfileModal({ isOpen, onClose, onProfileUpdate }: Profi
                   </div>
 
                   <div className="flex flex-col gap-1.5">
-                    <label htmlFor="school" className="text-sm font-black text-gray-900">
-                      School <span className="text-gray-400 font-medium">(optional)</span>
+                    <label
+                      htmlFor="school"
+                      className="text-sm font-black text-gray-900"
+                    >
+                      School{" "}
+                      <span className="text-gray-400 font-medium">
+                        (optional)
+                      </span>
                     </label>
                     <input
                       id="school"

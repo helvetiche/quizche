@@ -6,9 +6,9 @@ import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { useQuizView } from "./QuizViewContext";
 import TiltedCard from "@/components/TiltedCard";
-import Masonry, { MasonryItem } from "@/components/Masonry";
+import Masonry, { type MasonryItem } from "@/components/Masonry";
 
-interface Quiz {
+type Quiz = {
   id: string;
   title: string;
   description: string;
@@ -18,16 +18,16 @@ interface Quiz {
   updatedAt: string;
   deadline?: string;
   duration?: number | null;
-}
+};
 
-interface Draft {
+type Draft = {
   id: string;
   title: string;
   description: string;
   totalQuestions: number;
   createdAt: string;
   updatedAt: string;
-}
+};
 
 export default function QuizListView() {
   const router = useRouter();
@@ -46,7 +46,11 @@ export default function QuizListView() {
   const [showDrafts, setShowDrafts] = useState(true);
   const [showQuizzes, setShowQuizzes] = useState(true);
   const [draftPage, setDraftPage] = useState(1);
-  const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; quizId: string; quizTitle: string }>({
+  const [deleteModal, setDeleteModal] = useState<{
+    isOpen: boolean;
+    quizId: string;
+    quizTitle: string;
+  }>({
     isOpen: false,
     quizId: "",
     quizTitle: "",
@@ -138,9 +142,10 @@ export default function QuizListView() {
 
   // Filter quizzes based on search and filter
   const filteredQuizzes = quizzes.filter((quiz) => {
-    const matchesSearch = quiz.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    const matchesSearch =
+      quiz.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       quiz.description?.toLowerCase().includes(searchQuery.toLowerCase());
-    
+
     if (activeFilter === "all") return matchesSearch;
     if (activeFilter === "active") return matchesSearch && quiz.isActive;
     if (activeFilter === "inactive") return matchesSearch && !quiz.isActive;
@@ -180,27 +185,31 @@ export default function QuizListView() {
   const getDeadlineProgress = (createdAt: string, deadline?: string) => {
     const now = new Date();
     const created = new Date(createdAt);
-    const deadlineDate = deadline ? new Date(deadline) : new Date(created.getTime() + 7 * 24 * 60 * 60 * 1000);
-    
+    const deadlineDate = deadline
+      ? new Date(deadline)
+      : new Date(created.getTime() + 7 * 24 * 60 * 60 * 1000);
+
     const totalDuration = deadlineDate.getTime() - created.getTime();
     const elapsed = now.getTime() - created.getTime();
     const remaining = Math.max(0, 100 - (elapsed / totalDuration) * 100);
-    
+
     return Math.min(100, Math.max(0, remaining));
   };
 
   const getTimeRemainingText = (createdAt: string, deadline?: string) => {
     const now = new Date();
     const created = new Date(createdAt);
-    const deadlineDate = deadline ? new Date(deadline) : new Date(created.getTime() + 7 * 24 * 60 * 60 * 1000);
-    
+    const deadlineDate = deadline
+      ? new Date(deadline)
+      : new Date(created.getTime() + 7 * 24 * 60 * 60 * 1000);
+
     const diff = deadlineDate.getTime() - now.getTime();
-    
+
     if (diff <= 0) return "Expired";
-    
+
     const days = Math.floor(diff / (1000 * 60 * 60 * 24));
     const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-    
+
     if (days > 0) return `${days}d ${hours}h left`;
     if (hours > 0) return `${hours}h left`;
     return "< 1h left";
@@ -218,7 +227,11 @@ export default function QuizListView() {
     router.push(`/teacher/composer?edit=${quizId}`);
   };
 
-  const handleDeleteClick = (quizId: string, quizTitle: string, e: React.MouseEvent) => {
+  const handleDeleteClick = (
+    quizId: string,
+    quizTitle: string,
+    e: React.MouseEvent
+  ) => {
     e.stopPropagation();
     setDeleteModal({ isOpen: true, quizId, quizTitle });
   };
@@ -257,14 +270,16 @@ export default function QuizListView() {
     setDeletingDraft(draftId);
     try {
       const { apiDelete } = await import("@/app/lib/api");
-      const response = await apiDelete(`/api/quizzes/drafts/${draftId}`, { idToken });
+      const response = await apiDelete(`/api/quizzes/drafts/${draftId}`, {
+        idToken,
+      });
       const data = await response.json();
 
       if (!response.ok) {
         throw new Error(data.error || "Failed to delete draft");
       }
 
-      setDrafts(drafts.filter(d => d.id !== draftId));
+      setDrafts(drafts.filter((d) => d.id !== draftId));
     } catch (err) {
       console.error("Error deleting draft:", err);
       alert(err instanceof Error ? err.message : "Failed to delete draft");
@@ -287,8 +302,10 @@ export default function QuizListView() {
 
   // Filter drafts based on search
   const filteredDrafts = drafts.filter((draft) => {
-    return draft.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      draft.description?.toLowerCase().includes(searchQuery.toLowerCase());
+    return (
+      draft.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      draft.description?.toLowerCase().includes(searchQuery.toLowerCase())
+    );
   });
 
   // Drafts pagination
@@ -317,14 +334,17 @@ export default function QuizListView() {
             <p className="w-5 h-5 bg-green-500 rounded-full border-2 border-gray-800"></p>
           </div>
           <p className="text-lg font-medium text-gray-700">
-            Create, manage, and track your assessments. Your teaching toolkit starts here.
+            Create, manage, and track your assessments. Your teaching toolkit
+            starts here.
           </p>
         </div>
 
         {/* Search Bar */}
         <form onSubmit={handleSearch}>
           <div className="flex items-center bg-amber-100 border-3 border-gray-900 rounded-full shadow-[4px_4px_0px_0px_rgba(31,41,55,1)]">
-            <span className="material-icons-outlined text-gray-900 text-xl pl-4">search</span>
+            <span className="material-icons-outlined text-gray-900 text-xl pl-4">
+              search
+            </span>
             <input
               type="text"
               value={searchQuery}
@@ -338,14 +358,18 @@ export default function QuizListView() {
                 onClick={() => setSearchQuery("")}
                 className="pr-2"
               >
-                <span className="material-icons-outlined text-gray-500 hover:text-gray-900 transition-colors text-xl">close</span>
+                <span className="material-icons-outlined text-gray-500 hover:text-gray-900 transition-colors text-xl">
+                  close
+                </span>
               </button>
             )}
             <button
               type="button"
               onClick={() => setShowFilters(!showFilters)}
               className={`mr-2 w-9 h-9 rounded-full flex items-center justify-center transition-colors ${
-                showFilters ? "bg-gray-900 text-amber-100" : "bg-transparent text-gray-900 hover:bg-amber-200"
+                showFilters
+                  ? "bg-gray-900 text-amber-100"
+                  : "bg-transparent text-gray-900 hover:bg-amber-200"
               }`}
             >
               <span className="material-icons-outlined text-lg">tune</span>
@@ -354,7 +378,7 @@ export default function QuizListView() {
         </form>
 
         {/* Filter Pills */}
-        <div 
+        <div
           className={`flex justify-end overflow-hidden transition-all duration-300 ease-out ${
             showFilters ? "max-h-20 opacity-100" : "max-h-0 opacity-0"
           }`}
@@ -371,7 +395,9 @@ export default function QuizListView() {
                     : "bg-amber-200 text-gray-900 hover:bg-amber-300 border-2 border-gray-900"
                 }`}
               >
-                <span className="material-icons-outlined text-base">{filter.icon}</span>
+                <span className="material-icons-outlined text-base">
+                  {filter.icon}
+                </span>
                 <span>{filter.label}</span>
               </button>
             ))}
@@ -379,8 +405,7 @@ export default function QuizListView() {
         </div>
 
         {/* Action Buttons */}
-        <div className="flex justify-center gap-3">
-        </div>
+        <div className="flex justify-center gap-3"></div>
       </div>
 
       {/* Drafts Section */}
@@ -399,68 +424,81 @@ export default function QuizListView() {
                 {filteredDrafts.length}
               </span>
             </button>
-            <p className="text-sm text-gray-600 mt-1 ml-7">Unfinished quizzes waiting to be completed</p>
+            <p className="text-sm text-gray-600 mt-1 ml-7">
+              Unfinished quizzes waiting to be completed
+            </p>
           </div>
 
           {showDrafts && (
             <div className="relative">
-            {/* Vertical Pagination - Left Side */}
-            {!loadingDrafts && filteredDrafts.length > 0 && (
-              <div className="absolute -left-16 top-0 flex-col gap-2 hidden xl:flex z-10">
-                {/* Up Button */}
-                <button
-                  onClick={() => setDraftPage(p => Math.max(1, p - 1))}
-                  disabled={draftPage === 1}
-                  className={`w-10 h-10 rounded-full border-3 border-gray-900 flex items-center justify-center transition-all ${
-                    draftPage === 1
-                      ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                      : "bg-sky-100 text-gray-900 hover:bg-sky-200 shadow-[3px_3px_0px_0px_rgba(17,24,39,1)] hover:shadow-[4px_4px_0px_0px_rgba(17,24,39,1)]"
-                  }`}
-                >
-                  <span className="material-icons-outlined text-lg">expand_less</span>
-                </button>
-
-                {/* Page Numbers */}
-                {Array.from({ length: Math.max(1, totalDraftPages) }, (_, i) => i + 1).map((page) => (
+              {/* Vertical Pagination - Left Side */}
+              {!loadingDrafts && filteredDrafts.length > 0 && (
+                <div className="absolute -left-16 top-0 flex-col gap-2 hidden xl:flex z-10">
+                  {/* Up Button */}
                   <button
-                    key={page}
-                    onClick={() => setDraftPage(page)}
-                    className={`w-10 h-10 rounded-full border-3 border-gray-900 flex items-center justify-center font-bold transition-all ${
-                      draftPage === page
-                        ? "bg-gray-900 text-sky-100"
+                    onClick={() => setDraftPage((p) => Math.max(1, p - 1))}
+                    disabled={draftPage === 1}
+                    className={`w-10 h-10 rounded-full border-3 border-gray-900 flex items-center justify-center transition-all ${
+                      draftPage === 1
+                        ? "bg-gray-200 text-gray-400 cursor-not-allowed"
                         : "bg-sky-100 text-gray-900 hover:bg-sky-200 shadow-[3px_3px_0px_0px_rgba(17,24,39,1)] hover:shadow-[4px_4px_0px_0px_rgba(17,24,39,1)]"
                     }`}
                   >
-                    {page}
+                    <span className="material-icons-outlined text-lg">
+                      expand_less
+                    </span>
                   </button>
-                ))}
 
-                {/* Down Button */}
-                <button
-                  onClick={() => setDraftPage(p => Math.min(totalDraftPages, p + 1))}
-                  disabled={draftPage === totalDraftPages || totalDraftPages <= 1}
-                  className={`w-10 h-10 rounded-full border-3 border-gray-900 flex items-center justify-center transition-all ${
-                    draftPage === totalDraftPages || totalDraftPages <= 1
-                      ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                      : "bg-sky-100 text-gray-900 hover:bg-sky-200 shadow-[3px_3px_0px_0px_rgba(17,24,39,1)] hover:shadow-[4px_4px_0px_0px_rgba(17,24,39,1)]"
-                  }`}
-                >
-                  <span className="material-icons-outlined text-lg">expand_more</span>
-                </button>
-              </div>
-            )}
-            {loadingDrafts ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                {[...Array(3)].map((_, i) => (
-                  <div 
-                    key={i} 
-                    className="bg-sky-200 border-3 border-gray-900 rounded-2xl shadow-[4px_4px_0px_0px_rgba(17,24,39,1)] overflow-hidden animate-pulse"
-                    style={{ height: '240px' }}
+                  {/* Page Numbers */}
+                  {Array.from(
+                    { length: Math.max(1, totalDraftPages) },
+                    (_, i) => i + 1
+                  ).map((page) => (
+                    <button
+                      key={page}
+                      onClick={() => setDraftPage(page)}
+                      className={`w-10 h-10 rounded-full border-3 border-gray-900 flex items-center justify-center font-bold transition-all ${
+                        draftPage === page
+                          ? "bg-gray-900 text-sky-100"
+                          : "bg-sky-100 text-gray-900 hover:bg-sky-200 shadow-[3px_3px_0px_0px_rgba(17,24,39,1)] hover:shadow-[4px_4px_0px_0px_rgba(17,24,39,1)]"
+                      }`}
+                    >
+                      {page}
+                    </button>
+                  ))}
+
+                  {/* Down Button */}
+                  <button
+                    onClick={() =>
+                      setDraftPage((p) => Math.min(totalDraftPages, p + 1))
+                    }
+                    disabled={
+                      draftPage === totalDraftPages || totalDraftPages <= 1
+                    }
+                    className={`w-10 h-10 rounded-full border-3 border-gray-900 flex items-center justify-center transition-all ${
+                      draftPage === totalDraftPages || totalDraftPages <= 1
+                        ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                        : "bg-sky-100 text-gray-900 hover:bg-sky-200 shadow-[3px_3px_0px_0px_rgba(17,24,39,1)] hover:shadow-[4px_4px_0px_0px_rgba(17,24,39,1)]"
+                    }`}
                   >
-                    <div className="flex items-center justify-between px-3 py-2.5 border-b-2 border-gray-900">
-                      <div className="flex gap-1.5">
-                        <div className="w-4 h-4 bg-gray-300 rounded-full border-2 border-gray-900"></div>
-                        <div className="w-4 h-4 bg-gray-300 rounded-full border-2 border-gray-900"></div>
+                    <span className="material-icons-outlined text-lg">
+                      expand_more
+                    </span>
+                  </button>
+                </div>
+              )}
+              {loadingDrafts ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                  {[...Array(3)].map((_, i) => (
+                    <div
+                      key={i}
+                      className="bg-sky-200 border-3 border-gray-900 rounded-2xl shadow-[4px_4px_0px_0px_rgba(17,24,39,1)] overflow-hidden animate-pulse"
+                      style={{ height: "240px" }}
+                    >
+                      <div className="flex items-center justify-between px-3 py-2.5 border-b-2 border-gray-900">
+                        <div className="flex gap-1.5">
+                          <div className="w-4 h-4 bg-gray-300 rounded-full border-2 border-gray-900"></div>
+                          <div className="w-4 h-4 bg-gray-300 rounded-full border-2 border-gray-900"></div>
                           <div className="w-4 h-4 bg-gray-300 rounded-full border-2 border-gray-900"></div>
                         </div>
                         <div className="w-16 h-5 bg-gray-300 rounded-full border-2 border-gray-900"></div>
@@ -477,13 +515,14 @@ export default function QuizListView() {
                 <>
                   <Masonry
                     items={paginatedDrafts.map((draft): MasonryItem => {
-                      const hasDescription = draft.description && draft.description.length > 0;
-                      
+                      const hasDescription =
+                        draft.description && draft.description.length > 0;
+
                       return {
                         id: draft.id,
                         height: hasDescription ? 240 : 200,
                         content: (
-                          <div 
+                          <div
                             onClick={() => handleContinueDraft(draft.id)}
                             className="cursor-pointer h-full group"
                           >
@@ -510,54 +549,80 @@ export default function QuizListView() {
                                   {/* Header Right - Draft badge & Question Count */}
                                   <div className="absolute top-2 right-3 flex items-center gap-2 z-10">
                                     <div className="flex items-center gap-1 px-2 py-0.5 bg-sky-300 border-2 border-black rounded-full">
-                                      <span className="material-icons-outlined text-black text-xs">edit_note</span>
-                                      <span className="font-bold text-black text-xs">Draft</span>
+                                      <span className="material-icons-outlined text-black text-xs">
+                                        edit_note
+                                      </span>
+                                      <span className="font-bold text-black text-xs">
+                                        Draft
+                                      </span>
                                     </div>
                                     <div className="flex items-center gap-1 px-2 py-0.5 bg-sky-300 border-2 border-black rounded-full">
-                                      <span className="material-icons-outlined text-black text-xs">help_outline</span>
-                                      <span className="font-bold text-black text-xs">{draft.totalQuestions}</span>
+                                      <span className="material-icons-outlined text-black text-xs">
+                                        help_outline
+                                      </span>
+                                      <span className="font-bold text-black text-xs">
+                                        {draft.totalQuestions}
+                                      </span>
                                     </div>
                                   </div>
                                   {/* Separator Line */}
                                   <div className="absolute top-11 left-0 right-0 h-0.5 bg-black z-10"></div>
-                                  
+
                                   {/* Content */}
                                   <div className="pt-14 px-4 pb-2 text-left flex-1">
-                                    <h3 className="text-base font-black text-gray-900 mb-1">{draft.title || "Untitled Draft"}</h3>
+                                    <h3 className="text-base font-black text-gray-900 mb-1">
+                                      {draft.title || "Untitled Draft"}
+                                    </h3>
                                     {draft.description && (
-                                      <p className="text-sm font-medium text-gray-700 line-clamp-2" style={{ fontFamily: "'Google Sans Mono', monospace" }}>{draft.description}</p>
+                                      <p
+                                        className="text-sm font-medium text-gray-700 line-clamp-2"
+                                        style={{
+                                          fontFamily:
+                                            "'Google Sans Mono', monospace",
+                                        }}
+                                      >
+                                        {draft.description}
+                                      </p>
                                     )}
                                   </div>
-                                  
+
                                   {/* Last Updated */}
                                   <div className="px-4 pb-3">
                                     <div className="flex items-center justify-between mb-1">
-                                      <span className="text-xs font-bold text-gray-600">Last edited</span>
-                                      <span className="text-xs font-bold text-gray-900">{formatTimeAgo(draft.updatedAt)}</span>
+                                      <span className="text-xs font-bold text-gray-600">
+                                        Last edited
+                                      </span>
+                                      <span className="text-xs font-bold text-gray-900">
+                                        {formatTimeAgo(draft.updatedAt)}
+                                      </span>
                                     </div>
                                     <div className="h-2 bg-sky-300 rounded-full border border-black overflow-hidden">
                                       <div className="h-full bg-sky-500 w-full"></div>
                                     </div>
                                   </div>
-                                  
+
                                   {/* Hover Overlay */}
                                   <div className="absolute inset-0 bg-gradient-to-t from-sky-300/95 via-sky-200/80 to-sky-100/60 opacity-0 group-hover/draft:opacity-100 transition-opacity duration-300 rounded-2xl flex items-end justify-end p-4 z-20">
-                                    <button 
+                                    <button
                                       className="px-4 py-2 bg-sky-100 border-3 border-black rounded-full flex items-center justify-center gap-2 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-0.5 active:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] active:translate-y-0.5 transition-all transform translate-y-4 group-hover/draft:translate-y-0"
                                       onClick={(e) => {
                                         e.stopPropagation();
                                         handleContinueDraft(draft.id);
                                       }}
                                     >
-                                      <span className="material-icons-outlined text-black text-lg">edit</span>
-                                      <span className="font-bold text-black text-sm">Continue</span>
+                                      <span className="material-icons-outlined text-black text-lg">
+                                        edit
+                                      </span>
+                                      <span className="font-bold text-black text-sm">
+                                        Continue
+                                      </span>
                                     </button>
                                   </div>
                                 </div>
                               }
                             />
                           </div>
-                        )
+                        ),
                       };
                     })}
                     animateFrom="bottom"
@@ -573,7 +638,9 @@ export default function QuizListView() {
                       <div className="flex items-center gap-2">
                         {/* Previous Button */}
                         <button
-                          onClick={() => setDraftPage(p => Math.max(1, p - 1))}
+                          onClick={() =>
+                            setDraftPage((p) => Math.max(1, p - 1))
+                          }
                           disabled={draftPage === 1}
                           className={`w-10 h-10 rounded-full border-3 border-gray-900 flex items-center justify-center transition-all ${
                             draftPage === 1
@@ -581,11 +648,16 @@ export default function QuizListView() {
                               : "bg-sky-100 text-gray-900 hover:bg-sky-200 shadow-[3px_3px_0px_0px_rgba(17,24,39,1)] hover:shadow-[4px_4px_0px_0px_rgba(17,24,39,1)]"
                           }`}
                         >
-                          <span className="material-icons-outlined text-lg">chevron_left</span>
+                          <span className="material-icons-outlined text-lg">
+                            chevron_left
+                          </span>
                         </button>
 
                         {/* Page Numbers */}
-                        {Array.from({ length: Math.max(1, totalDraftPages) }, (_, i) => i + 1).map((page) => (
+                        {Array.from(
+                          { length: Math.max(1, totalDraftPages) },
+                          (_, i) => i + 1
+                        ).map((page) => (
                           <button
                             key={page}
                             onClick={() => setDraftPage(page)}
@@ -601,15 +673,25 @@ export default function QuizListView() {
 
                         {/* Next Button */}
                         <button
-                          onClick={() => setDraftPage(p => Math.min(totalDraftPages, p + 1))}
-                          disabled={draftPage === totalDraftPages || totalDraftPages <= 1}
+                          onClick={() =>
+                            setDraftPage((p) =>
+                              Math.min(totalDraftPages, p + 1)
+                            )
+                          }
+                          disabled={
+                            draftPage === totalDraftPages ||
+                            totalDraftPages <= 1
+                          }
                           className={`w-10 h-10 rounded-full border-3 border-gray-900 flex items-center justify-center transition-all ${
-                            draftPage === totalDraftPages || totalDraftPages <= 1
+                            draftPage === totalDraftPages ||
+                            totalDraftPages <= 1
                               ? "bg-gray-200 text-gray-400 cursor-not-allowed"
                               : "bg-sky-100 text-gray-900 hover:bg-sky-200 shadow-[3px_3px_0px_0px_rgba(17,24,39,1)] hover:shadow-[4px_4px_0px_0px_rgba(17,24,39,1)]"
                           }`}
                         >
-                          <span className="material-icons-outlined text-lg">chevron_right</span>
+                          <span className="material-icons-outlined text-lg">
+                            chevron_right
+                          </span>
                         </button>
                       </div>
                     </div>
@@ -628,7 +710,7 @@ export default function QuizListView() {
           {!loading && filteredQuizzes.length > 0 && showQuizzes && (
             <div className="absolute -left-16 top-0 flex-col gap-2 hidden xl:flex">
               <button
-                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                 disabled={currentPage === 1}
                 className={`w-10 h-10 rounded-full border-3 border-gray-900 flex items-center justify-center transition-all ${
                   currentPage === 1
@@ -636,10 +718,15 @@ export default function QuizListView() {
                     : "bg-amber-100 text-gray-900 hover:bg-amber-200 shadow-[3px_3px_0px_0px_rgba(17,24,39,1)] hover:shadow-[4px_4px_0px_0px_rgba(17,24,39,1)]"
                 }`}
               >
-                <span className="material-icons-outlined text-lg">expand_less</span>
+                <span className="material-icons-outlined text-lg">
+                  expand_less
+                </span>
               </button>
 
-              {Array.from({ length: Math.max(1, totalPages) }, (_, i) => i + 1).map((page) => (
+              {Array.from(
+                { length: Math.max(1, totalPages) },
+                (_, i) => i + 1
+              ).map((page) => (
                 <button
                   key={page}
                   onClick={() => setCurrentPage(page)}
@@ -654,7 +741,9 @@ export default function QuizListView() {
               ))}
 
               <button
-                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                onClick={() =>
+                  setCurrentPage((p) => Math.min(totalPages, p + 1))
+                }
                 disabled={currentPage === totalPages || totalPages <= 1}
                 className={`w-10 h-10 rounded-full border-3 border-gray-900 flex items-center justify-center transition-all ${
                   currentPage === totalPages || totalPages <= 1
@@ -662,7 +751,9 @@ export default function QuizListView() {
                     : "bg-amber-100 text-gray-900 hover:bg-amber-200 shadow-[3px_3px_0px_0px_rgba(17,24,39,1)] hover:shadow-[4px_4px_0px_0px_rgba(17,24,39,1)]"
                 }`}
               >
-                <span className="material-icons-outlined text-lg">expand_more</span>
+                <span className="material-icons-outlined text-lg">
+                  expand_more
+                </span>
               </button>
             </div>
           )}
@@ -681,88 +772,110 @@ export default function QuizListView() {
                 {filteredQuizzes.length}
               </span>
             </button>
-            <p className="text-sm text-gray-600 mt-1 ml-7">Published quizzes ready for your students</p>
+            <p className="text-sm text-gray-600 mt-1 ml-7">
+              Published quizzes ready for your students
+            </p>
           </div>
 
           {showQuizzes && (
             <div>
-            {loading ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                {[...Array(6)].map((_, i) => (
-                  <div 
-                    key={i} 
-                    className="bg-amber-100 border-3 border-gray-900 rounded-2xl shadow-[4px_4px_0px_0px_rgba(17,24,39,1)] overflow-hidden animate-pulse"
-                    style={{ height: '240px' }}
-                  >
-                    <div className="flex items-center justify-between px-3 py-2.5 border-b-2 border-gray-900">
-                      <div className="flex gap-1.5">
-                        <div className="w-4 h-4 bg-gray-300 rounded-full border-2 border-gray-900"></div>
-                        <div className="w-4 h-4 bg-gray-300 rounded-full border-2 border-gray-900"></div>
-                        <div className="w-4 h-4 bg-gray-300 rounded-full border-2 border-gray-900"></div>
+              {loading ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                  {[...Array(6)].map((_, i) => (
+                    <div
+                      key={i}
+                      className="bg-amber-100 border-3 border-gray-900 rounded-2xl shadow-[4px_4px_0px_0px_rgba(17,24,39,1)] overflow-hidden animate-pulse"
+                      style={{ height: "240px" }}
+                    >
+                      <div className="flex items-center justify-between px-3 py-2.5 border-b-2 border-gray-900">
+                        <div className="flex gap-1.5">
+                          <div className="w-4 h-4 bg-gray-300 rounded-full border-2 border-gray-900"></div>
+                          <div className="w-4 h-4 bg-gray-300 rounded-full border-2 border-gray-900"></div>
+                          <div className="w-4 h-4 bg-gray-300 rounded-full border-2 border-gray-900"></div>
+                        </div>
+                        <div className="w-16 h-5 bg-gray-300 rounded-full border-2 border-gray-900"></div>
                       </div>
-                      <div className="w-16 h-5 bg-gray-300 rounded-full border-2 border-gray-900"></div>
+                      <div className="p-4 flex flex-col gap-3">
+                        <div className="h-5 bg-gray-300 rounded-full border-2 border-gray-900 w-3/4"></div>
+                        <div className="h-4 bg-gray-200 rounded-full border-2 border-gray-900 w-full"></div>
+                        <div className="h-4 bg-gray-200 rounded-full border-2 border-gray-900 w-2/3"></div>
+                      </div>
+                      <div className="px-4 pb-3 mt-auto">
+                        <div className="h-2 bg-gray-200 rounded-full border border-gray-900 w-full"></div>
+                      </div>
                     </div>
-                    <div className="p-4 flex flex-col gap-3">
-                      <div className="h-5 bg-gray-300 rounded-full border-2 border-gray-900 w-3/4"></div>
-                      <div className="h-4 bg-gray-200 rounded-full border-2 border-gray-900 w-full"></div>
-                      <div className="h-4 bg-gray-200 rounded-full border-2 border-gray-900 w-2/3"></div>
-                    </div>
-                    <div className="px-4 pb-3 mt-auto">
-                      <div className="h-2 bg-gray-200 rounded-full border border-gray-900 w-full"></div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : error ? (
-              <div className="bg-red-400 border-4 border-gray-900 rounded-2xl p-8 shadow-[4px_4px_0px_0px_rgba(31,41,55,1)] flex flex-col items-center justify-center gap-4">
-                <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center border-3 border-gray-900">
-                  <span className="material-icons-outlined text-red-500 text-3xl">error</span>
+                  ))}
                 </div>
-                <p className="text-lg font-bold text-gray-900">{error}</p>
-                <button
-                  onClick={() => window.location.reload()}
-                  className="px-6 py-3 bg-white text-gray-900 font-bold border-3 border-gray-900 rounded-full shadow-[3px_3px_0px_0px_rgba(31,41,55,1)] hover:shadow-[4px_4px_0px_0px_rgba(31,41,55,1)] transition-all"
-                >
-                  Retry
-                </button>
-              </div>
-            ) : filteredQuizzes.length === 0 ? (
-              <div className="bg-amber-200 border-4 border-gray-900 rounded-2xl p-12 shadow-[4px_4px_0px_0px_rgba(31,41,55,1)] flex flex-col items-center justify-center gap-4">
-                <div className="w-20 h-20 bg-cyan-400 rounded-full flex items-center justify-center border-3 border-gray-900">
-                  <span className="material-icons-outlined text-gray-900 text-4xl">quiz</span>
-                </div>
-                <p className="text-xl font-black text-gray-900 text-center">
-                  {searchQuery ? "No quizzes found" : "No quizzes yet"}
-                </p>
-                <p className="text-base font-medium text-gray-700 text-center">
-                  {searchQuery ? "Try adjusting your search or filters." : "Create your first quiz to get started!"}
-                </p>
-                {!searchQuery && (
-                  <button
-                    onClick={goToCreate}
-                    className="mt-2 px-5 py-3 bg-amber-100 text-gray-900 font-bold border-3 border-gray-900 rounded-full shadow-[4px_4px_0px_0px_rgba(31,41,55,1)] hover:shadow-[5px_5px_0px_0px_rgba(31,41,55,1)] transition-all flex items-center gap-2"
-                  >
-                    <span className="w-6 h-6 bg-gray-900 rounded-full flex items-center justify-center">
-                      <span className="material-icons-outlined text-amber-100 text-sm">add</span>
+              ) : error ? (
+                <div className="bg-red-400 border-4 border-gray-900 rounded-2xl p-8 shadow-[4px_4px_0px_0px_rgba(31,41,55,1)] flex flex-col items-center justify-center gap-4">
+                  <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center border-3 border-gray-900">
+                    <span className="material-icons-outlined text-red-500 text-3xl">
+                      error
                     </span>
-                    <span>Create Quiz</span>
+                  </div>
+                  <p className="text-lg font-bold text-gray-900">{error}</p>
+                  <button
+                    onClick={() => window.location.reload()}
+                    className="px-6 py-3 bg-white text-gray-900 font-bold border-3 border-gray-900 rounded-full shadow-[3px_3px_0px_0px_rgba(31,41,55,1)] hover:shadow-[4px_4px_0px_0px_rgba(31,41,55,1)] transition-all"
+                  >
+                    Retry
                   </button>
-                )}
-              </div>
-            ) : (
-              <>
-                <Masonry
-                  items={paginatedQuizzes.map((quiz): MasonryItem => {
-                    const hasDescription = quiz.description && quiz.description.length > 0;
-                    const deadlineProgress = getDeadlineProgress(quiz.createdAt, quiz.deadline);
-                    const timeRemaining = getTimeRemainingText(quiz.createdAt, quiz.deadline);
-                    const progressBarColor = deadlineProgress > 50 ? "bg-green-500" : deadlineProgress > 20 ? "bg-yellow-500" : "bg-red-500";
-                    
-                    return {
-                      id: quiz.id,
-                      height: hasDescription ? 240 : 200,
-                      content: (
-                          <div 
+                </div>
+              ) : filteredQuizzes.length === 0 ? (
+                <div className="bg-amber-200 border-4 border-gray-900 rounded-2xl p-12 shadow-[4px_4px_0px_0px_rgba(31,41,55,1)] flex flex-col items-center justify-center gap-4">
+                  <div className="w-20 h-20 bg-cyan-400 rounded-full flex items-center justify-center border-3 border-gray-900">
+                    <span className="material-icons-outlined text-gray-900 text-4xl">
+                      quiz
+                    </span>
+                  </div>
+                  <p className="text-xl font-black text-gray-900 text-center">
+                    {searchQuery ? "No quizzes found" : "No quizzes yet"}
+                  </p>
+                  <p className="text-base font-medium text-gray-700 text-center">
+                    {searchQuery
+                      ? "Try adjusting your search or filters."
+                      : "Create your first quiz to get started!"}
+                  </p>
+                  {!searchQuery && (
+                    <button
+                      onClick={goToCreate}
+                      className="mt-2 px-5 py-3 bg-amber-100 text-gray-900 font-bold border-3 border-gray-900 rounded-full shadow-[4px_4px_0px_0px_rgba(31,41,55,1)] hover:shadow-[5px_5px_0px_0px_rgba(31,41,55,1)] transition-all flex items-center gap-2"
+                    >
+                      <span className="w-6 h-6 bg-gray-900 rounded-full flex items-center justify-center">
+                        <span className="material-icons-outlined text-amber-100 text-sm">
+                          add
+                        </span>
+                      </span>
+                      <span>Create Quiz</span>
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <>
+                  <Masonry
+                    items={paginatedQuizzes.map((quiz): MasonryItem => {
+                      const hasDescription =
+                        quiz.description && quiz.description.length > 0;
+                      const deadlineProgress = getDeadlineProgress(
+                        quiz.createdAt,
+                        quiz.deadline
+                      );
+                      const timeRemaining = getTimeRemainingText(
+                        quiz.createdAt,
+                        quiz.deadline
+                      );
+                      const progressBarColor =
+                        deadlineProgress > 50
+                          ? "bg-green-500"
+                          : deadlineProgress > 20
+                            ? "bg-yellow-500"
+                            : "bg-red-500";
+
+                      return {
+                        id: quiz.id,
+                        height: hasDescription ? 240 : 200,
+                        content: (
+                          <div
                             onClick={() => goToDetail(quiz.id)}
                             className="cursor-pointer h-full group"
                           >
@@ -789,44 +902,70 @@ export default function QuizListView() {
                                   {/* Header Right - Duration & Question Count */}
                                   <div className="absolute top-2 right-3 flex items-center gap-2 z-10">
                                     <div className="flex items-center gap-1 px-2 py-0.5 bg-amber-200 border-2 border-black rounded-full">
-                                      <span className="material-icons-outlined text-black text-xs">schedule</span>
-                                      <span className="font-bold text-black text-xs">{quiz.duration ? `${quiz.duration}m` : "∞"}</span>
+                                      <span className="material-icons-outlined text-black text-xs">
+                                        schedule
+                                      </span>
+                                      <span className="font-bold text-black text-xs">
+                                        {quiz.duration
+                                          ? `${quiz.duration}m`
+                                          : "∞"}
+                                      </span>
                                     </div>
                                     <div className="flex items-center gap-1 px-2 py-0.5 bg-amber-200 border-2 border-black rounded-full">
-                                      <span className="material-icons-outlined text-black text-xs">help_outline</span>
-                                      <span className="font-bold text-black text-xs">{quiz.totalQuestions}</span>
+                                      <span className="material-icons-outlined text-black text-xs">
+                                        help_outline
+                                      </span>
+                                      <span className="font-bold text-black text-xs">
+                                        {quiz.totalQuestions}
+                                      </span>
                                     </div>
                                   </div>
                                   {/* Separator Line */}
                                   <div className="absolute top-11 left-0 right-0 h-0.5 bg-black z-10"></div>
-                                  
+
                                   {/* Content */}
                                   <div className="pt-14 px-4 pb-2 text-left flex-1">
-                                    <h3 className="text-base font-black text-gray-900 mb-1">{quiz.title}</h3>
+                                    <h3 className="text-base font-black text-gray-900 mb-1">
+                                      {quiz.title}
+                                    </h3>
                                     {quiz.description && (
-                                      <p className="text-sm font-medium text-gray-700 line-clamp-2" style={{ fontFamily: "'Google Sans Mono', monospace" }}>{quiz.description}</p>
+                                      <p
+                                        className="text-sm font-medium text-gray-700 line-clamp-2"
+                                        style={{
+                                          fontFamily:
+                                            "'Google Sans Mono', monospace",
+                                        }}
+                                      >
+                                        {quiz.description}
+                                      </p>
                                     )}
                                   </div>
-                                  
+
                                   {/* Deadline Progress Bar */}
                                   <div className="px-4 pb-3">
                                     <div className="flex items-center justify-between mb-1">
-                                      <span className="text-xs font-bold text-gray-600">Deadline</span>
-                                      <span className="text-xs font-bold text-gray-900">{timeRemaining}</span>
+                                      <span className="text-xs font-bold text-gray-600">
+                                        Deadline
+                                      </span>
+                                      <span className="text-xs font-bold text-gray-900">
+                                        {timeRemaining}
+                                      </span>
                                     </div>
                                     <div className="h-2 bg-gray-200 rounded-full border border-black overflow-hidden">
-                                      <div 
+                                      <div
                                         className={`h-full ${progressBarColor} transition-all duration-300`}
-                                        style={{ width: `${deadlineProgress}%` }}
+                                        style={{
+                                          width: `${deadlineProgress}%`,
+                                        }}
                                       ></div>
                                     </div>
                                   </div>
-                                  
+
                                   {/* Hover Overlay */}
                                   <div className="absolute inset-0 bg-gradient-to-t from-amber-100/95 via-amber-50/70 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-2xl flex items-end justify-end p-4 z-20">
                                     <div className="flex gap-2 transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300">
                                       {/* View Button */}
-                                      <button 
+                                      <button
                                         className="w-11 h-11 bg-amber-100 border-3 border-black rounded-full flex items-center justify-center shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-0.5 active:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] active:translate-y-0.5 transition-all"
                                         onClick={(e) => {
                                           e.stopPropagation();
@@ -834,10 +973,12 @@ export default function QuizListView() {
                                         }}
                                         title="View"
                                       >
-                                        <span className="material-icons-outlined text-black text-lg">visibility</span>
+                                        <span className="material-icons-outlined text-black text-lg">
+                                          visibility
+                                        </span>
                                       </button>
                                       {/* Edit Button */}
-                                      <button 
+                                      <button
                                         className="w-11 h-11 bg-amber-100 border-3 border-black rounded-full flex items-center justify-center shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-0.5 active:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] active:translate-y-0.5 transition-all"
                                         onClick={(e) => {
                                           e.stopPropagation();
@@ -845,15 +986,25 @@ export default function QuizListView() {
                                         }}
                                         title="Edit"
                                       >
-                                        <span className="material-icons-outlined text-black text-lg">edit</span>
+                                        <span className="material-icons-outlined text-black text-lg">
+                                          edit
+                                        </span>
                                       </button>
                                       {/* Delete Button */}
-                                      <button 
+                                      <button
                                         className="w-11 h-11 bg-amber-100 border-3 border-black rounded-full flex items-center justify-center shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-0.5 active:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] active:translate-y-0.5 transition-all"
-                                        onClick={(e) => handleDeleteClick(quiz.id, quiz.title, e)}
+                                        onClick={(e) =>
+                                          handleDeleteClick(
+                                            quiz.id,
+                                            quiz.title,
+                                            e
+                                          )
+                                        }
                                         title="Delete"
                                       >
-                                        <span className="material-icons-outlined text-black text-lg">delete</span>
+                                        <span className="material-icons-outlined text-black text-lg">
+                                          delete
+                                        </span>
                                       </button>
                                     </div>
                                   </div>
@@ -861,7 +1012,7 @@ export default function QuizListView() {
                               }
                             />
                           </div>
-                        )
+                        ),
                       };
                     })}
                     animateFrom="bottom"
@@ -876,7 +1027,9 @@ export default function QuizListView() {
                     <div className="flex flex-col items-center gap-2 mt-8 xl:hidden">
                       <div className="flex items-center gap-2">
                         <button
-                          onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                          onClick={() =>
+                            setCurrentPage((p) => Math.max(1, p - 1))
+                          }
                           disabled={currentPage === 1}
                           className={`w-10 h-10 rounded-full border-3 border-gray-900 flex items-center justify-center transition-all ${
                             currentPage === 1
@@ -884,10 +1037,15 @@ export default function QuizListView() {
                               : "bg-amber-100 text-gray-900 hover:bg-amber-200 shadow-[3px_3px_0px_0px_rgba(17,24,39,1)] hover:shadow-[4px_4px_0px_0px_rgba(17,24,39,1)]"
                           }`}
                         >
-                          <span className="material-icons-outlined text-lg">chevron_left</span>
+                          <span className="material-icons-outlined text-lg">
+                            chevron_left
+                          </span>
                         </button>
 
-                        {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                        {Array.from(
+                          { length: totalPages },
+                          (_, i) => i + 1
+                        ).map((page) => (
                           <button
                             key={page}
                             onClick={() => setCurrentPage(page)}
@@ -902,7 +1060,9 @@ export default function QuizListView() {
                         ))}
 
                         <button
-                          onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                          onClick={() =>
+                            setCurrentPage((p) => Math.min(totalPages, p + 1))
+                          }
                           disabled={currentPage === totalPages}
                           className={`w-10 h-10 rounded-full border-3 border-gray-900 flex items-center justify-center transition-all ${
                             currentPage === totalPages
@@ -910,7 +1070,9 @@ export default function QuizListView() {
                               : "bg-amber-100 text-gray-900 hover:bg-amber-200 shadow-[3px_3px_0px_0px_rgba(17,24,39,1)] hover:shadow-[4px_4px_0px_0px_rgba(17,24,39,1)]"
                           }`}
                         >
-                          <span className="material-icons-outlined text-lg">chevron_right</span>
+                          <span className="material-icons-outlined text-lg">
+                            chevron_right
+                          </span>
                         </button>
                       </div>
                     </div>

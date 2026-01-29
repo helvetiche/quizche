@@ -5,24 +5,24 @@ import { getAuth } from "firebase/auth";
 import app from "@/lib/firebase";
 import { useTabContext } from "../TabContext";
 
-interface QuizAttempt {
+type QuizAttempt = {
   id: string;
   quizTitle: string;
   score: number;
   totalQuestions: number;
   percentage: number;
   completedAt: string;
-}
+};
 
-interface DashboardStats {
+type DashboardStats = {
   totalQuizzes: number;
   averageScore: number;
   recentAttempts: QuizAttempt[];
-}
+};
 
-interface StudentHomeContentProps {
+type StudentHomeContentProps = {
   user: any;
-}
+};
 
 export default function StudentHomeContent({ user }: StudentHomeContentProps) {
   const { setActiveTab } = useTabContext();
@@ -182,9 +182,7 @@ export default function StudentHomeContent({ user }: StudentHomeContentProps) {
 
       {/* Quick Actions */}
       <div>
-        <h2 className="text-2xl font-light text-black mb-6">
-          Quick Actions
-        </h2>
+        <h2 className="text-2xl font-light text-black mb-6">Quick Actions</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {navigationCards.map((card) => (
             <button

@@ -1,21 +1,19 @@
-import { NextRequest, NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 import { verifyAuth } from "@/lib/auth";
 import { adminDb } from "@/lib/firebase-admin";
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 import cache, { getApiCacheKey } from "@/lib/cache";
 import {
-  getSecurityHeaders,
   getErrorSecurityHeaders,
   getPublicSecurityHeaders,
 } from "@/lib/security-headers";
 import { handleApiError } from "@/lib/error-handler";
 
-
-export async function GET(request: NextRequest) {
+export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
     const user = await verifyAuth(request);
 
-    if (!user) {
+    if (user === null || user === undefined) {
       return NextResponse.json(
         { error: "Unauthorized: Invalid or missing authentication token" },
         { status: 401, headers: getErrorSecurityHeaders() }
@@ -30,8 +28,10 @@ export async function GET(request: NextRequest) {
     }
 
     const url = new URL(request.url);
-    const query = url.searchParams.get("q") || "";
-    const limit = parseInt(url.searchParams.get("limit") || "20");
+    const queryParam = url.searchParams.get("q");
+    const query = queryParam !== null ? queryParam : "";
+    const limitParam = url.searchParams.get("limit");
+    const limit = parseInt(limitParam !== null ? limitParam : "20", 10);
     const validatedLimit = Math.min(Math.max(limit, 1), 50);
 
     // Rate limiting
@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
       window: RATE_LIMITS.general.window,
     });
 
-    if (!rateLimitResult.success) {
+    if (rateLimitResult.success === false) {
       return NextResponse.json(
         { error: "Rate limit exceeded. Please try again later." },
         {
@@ -59,8 +59,10 @@ export async function GET(request: NextRequest) {
       q: query,
       limit: validatedLimit.toString(),
     });
-    const cached = await cache.get<{ users: any[] }>(cacheKey);
-    if (cached) {
+    const cached = await cache.get<{ users: Record<string, unknown>[] }>(
+      cacheKey
+    );
+    if (cached !== null && cached !== undefined) {
       return NextResponse.json(cached, {
         status: 200,
         headers: getPublicSecurityHeaders({
@@ -70,7 +72,7 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    if (!query || query.trim().length === 0) {
+    if (query === null || query === undefined || query.trim().length === 0) {
       return NextResponse.json(
         { error: "Search query is required" },
         { status: 400, headers: getErrorSecurityHeaders() }
@@ -88,24 +90,24 @@ export async function GET(request: NextRequest) {
 
     // Get all existing connections for this user
     const [connectionsAsUser1, connectionsAsUser2] = await Promise.all([
-      adminDb
-        .collection("connections")
-        .where("userId1", "==", user.uid)
-        .get(),
-      adminDb
-        .collection("connections")
-        .where("userId2", "==", user.uid)
-        .get(),
+      adminDb.collection("connections").where("userId1", "==", user.uid).get(),
+      adminDb.collection("connections").where("userId2", "==", user.uid).get(),
     ]);
 
     const connectedUserIds = new Set<string>();
     connectionsAsUser1.forEach((doc) => {
       const data = doc.data();
-      connectedUserIds.add(data.userId2);
+      const userId2 = data.userId2 as string;
+      if (userId2 !== undefined && userId2 !== null) {
+        connectedUserIds.add(userId2);
+      }
     });
     connectionsAsUser2.forEach((doc) => {
       const data = doc.data();
-      connectedUserIds.add(data.userId1);
+      const userId1 = data.userId1 as string;
+      if (userId1 !== undefined && userId1 !== null) {
+        connectedUserIds.add(userId1);
+      }
     });
 
     // Search users by email or displayName
@@ -119,23 +121,27 @@ export async function GET(request: NextRequest) {
         .where("role", "==", "student")
         .limit(100) // Fetch up to 100 students to filter
         .get();
-    } catch (error: any) {
+    } catch (error: unknown) {
       // If index doesn't exist, try without role filter (less efficient but works)
       console.warn("Index error, fetching all users:", error);
-      usersSnapshot = await adminDb
-        .collection("users")
-        .limit(100)
-        .get();
+      usersSnapshot = await adminDb.collection("users").limit(100).get();
     }
 
-    const matchingUsers: any[] = [];
+    const matchingUsers: {
+      id: string;
+      email: string;
+      displayName: string;
+      firstName: string;
+      lastName: string;
+    }[] = [];
 
     usersSnapshot.forEach((doc) => {
       const data = doc.data();
       const userId = doc.id;
+      const userData = data as Record<string, unknown>;
 
       // Skip if not a student (if we didn't filter by role)
-      if (data?.role !== "student") {
+      if (userData.role !== "student") {
         return;
       }
 
@@ -144,14 +150,19 @@ export async function GET(request: NextRequest) {
         return;
       }
 
-      const email = (data?.email || "").toLowerCase();
-      const displayName = (
-        data?.displayName ||
-        data?.firstName ||
-        ""
+      const email = (
+        typeof userData.email === "string" ? userData.email : ""
       ).toLowerCase();
-      const firstName = (data?.firstName || "").toLowerCase();
-      const lastName = (data?.lastName || "").toLowerCase();
+      const displayNameValue = userData.displayName ?? userData.firstName ?? "";
+      const displayName = (
+        typeof displayNameValue === "string" ? displayNameValue : ""
+      ).toLowerCase();
+      const firstName = (
+        typeof userData.firstName === "string" ? userData.firstName : ""
+      ).toLowerCase();
+      const lastName = (
+        typeof userData.lastName === "string" ? userData.lastName : ""
+      ).toLowerCase();
       const fullName = `${firstName} ${lastName}`.trim().toLowerCase();
 
       // Check if search term matches email, displayName, firstName, lastName, or full name
@@ -162,15 +173,20 @@ export async function GET(request: NextRequest) {
         lastName.includes(searchTerm) ||
         fullName.includes(searchTerm)
       ) {
+        const emailValue =
+          typeof userData.email === "string" ? userData.email : "";
+        const displayNameFinal =
+          typeof userData.displayName === "string"
+            ? userData.displayName
+            : `${typeof userData.firstName === "string" ? userData.firstName : ""} ${typeof userData.lastName === "string" ? userData.lastName : ""}`.trim();
         matchingUsers.push({
           id: userId,
-          email: data?.email || "",
-          displayName:
-            data?.displayName ||
-            `${data?.firstName || ""} ${data?.lastName || ""}`.trim() ||
-            "",
-          firstName: data?.firstName || "",
-          lastName: data?.lastName || "",
+          email: emailValue,
+          displayName: displayNameFinal !== "" ? displayNameFinal : "",
+          firstName:
+            typeof userData.firstName === "string" ? userData.firstName : "",
+          lastName:
+            typeof userData.lastName === "string" ? userData.lastName : "",
         });
       }
     });

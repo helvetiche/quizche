@@ -2,36 +2,36 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 
-interface Violation {
+type Violation = {
   type: "tab_change" | "time_away" | "refresh";
   timestamp: Date;
   details?: string;
-}
+};
 
-interface AntiCheatConfig {
+type AntiCheatConfig = {
   enabled?: boolean;
   tabChangeLimit?: number;
   timeAwayThreshold?: number;
   autoDisqualifyOnRefresh?: boolean;
   autoSubmitOnDisqualification?: boolean;
-}
+};
 
-interface UseAntiCheatOptions {
+type UseAntiCheatOptions = {
   quizId: string;
   userId: string;
   sessionId: string | null;
   enabled: boolean;
   idToken: string | null;
   config?: AntiCheatConfig;
-}
+};
 
-interface UseAntiCheatReturn {
+type UseAntiCheatReturn = {
   tabChangeCount: number;
   timeAway: number;
   isDisqualified: boolean;
   violations: Violation[];
   refreshDetected: boolean;
-}
+};
 
 const DEFAULT_TAB_CHANGE_LIMIT = 3;
 const DEFAULT_TIME_AWAY_THRESHOLD = 5; // seconds
@@ -45,9 +45,11 @@ export const useAntiCheat = ({
   config,
 }: UseAntiCheatOptions): UseAntiCheatReturn => {
   const TAB_CHANGE_LIMIT = config?.tabChangeLimit ?? DEFAULT_TAB_CHANGE_LIMIT;
-  const TIME_AWAY_THRESHOLD = config?.timeAwayThreshold ?? DEFAULT_TIME_AWAY_THRESHOLD;
+  const TIME_AWAY_THRESHOLD =
+    config?.timeAwayThreshold ?? DEFAULT_TIME_AWAY_THRESHOLD;
   const AUTO_DISQUALIFY_ON_REFRESH = config?.autoDisqualifyOnRefresh !== false; // Default true
-  const AUTO_SUBMIT_ON_DISQUALIFICATION = config?.autoSubmitOnDisqualification !== false; // Default true
+  const AUTO_SUBMIT_ON_DISQUALIFICATION =
+    config?.autoSubmitOnDisqualification !== false; // Default true
   const [tabChangeCount, setTabChangeCount] = useState(0);
   const [timeAway, setTimeAway] = useState(0);
   const [isDisqualified, setIsDisqualified] = useState(false);
@@ -69,7 +71,7 @@ export const useAntiCheat = ({
       // Update violations state
       setViolations((prev) => {
         const newViolations = [...prev, violation];
-        
+
         // Update session via API
         if (sessionId && enabled && idToken) {
           import("../../lib/api").then(({ apiPut }) => {
@@ -91,7 +93,7 @@ export const useAntiCheat = ({
             });
           });
         }
-        
+
         return newViolations;
       });
     },
@@ -116,7 +118,15 @@ export const useAntiCheat = ({
         });
       });
     }
-  }, [sessionId, enabled, tabChangeCount, timeAway, isDisqualified, idToken, quizId]);
+  }, [
+    sessionId,
+    enabled,
+    tabChangeCount,
+    timeAway,
+    isDisqualified,
+    idToken,
+    quizId,
+  ]);
 
   // Tab visibility detection
   useEffect(() => {
@@ -254,7 +264,15 @@ export const useAntiCheat = ({
     return () => {
       window.removeEventListener("beforeunload", handleBeforeUnload);
     };
-  }, [enabled, quizId, userId, addViolation, sessionId, idToken, AUTO_DISQUALIFY_ON_REFRESH]);
+  }, [
+    enabled,
+    quizId,
+    userId,
+    addViolation,
+    sessionId,
+    idToken,
+    AUTO_DISQUALIFY_ON_REFRESH,
+  ]);
 
   // Periodic session updates (every 3 seconds)
   useEffect(() => {

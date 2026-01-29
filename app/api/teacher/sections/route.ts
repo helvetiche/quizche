@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 import { verifyAuth } from "@/lib/auth";
 import { adminDb } from "@/lib/firebase-admin";
 import { verifyCSRF } from "@/lib/csrf";
@@ -14,7 +14,7 @@ import {
 } from "@/lib/validation";
 import { handleApiError } from "@/lib/error-handler";
 
-export async function GET(request: NextRequest) {
+export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
     const user = await verifyAuth(request);
 
@@ -34,7 +34,10 @@ export async function GET(request: NextRequest) {
 
     // Pagination support
     const url = new URL(request.url);
-    const limit = Math.min(Math.max(parseInt(url.searchParams.get("limit") || "50"), 1), 100);
+    const limit = Math.min(
+      Math.max(parseInt(url.searchParams.get("limit") || "50"), 1),
+      100
+    );
     const lastDocId = url.searchParams.get("lastDocId");
 
     // Get sections created by this teacher with pagination
@@ -54,10 +57,10 @@ export async function GET(request: NextRequest) {
     const sectionsSnapshot = await sectionsQuery.get();
 
     // Collect all section IDs and student IDs for batch queries
-    const sectionIds = sectionsSnapshot.docs.map(doc => doc.id);
-    
+    const sectionIds = sectionsSnapshot.docs.map((doc) => doc.id);
+
     // Get all section_students relationships in batch
-    const sectionStudentsPromises = sectionIds.map(sectionId =>
+    const sectionStudentsPromises = sectionIds.map((sectionId) =>
       adminDb
         .collection("section_students")
         .where("sectionId", "==", sectionId)
@@ -67,8 +70,8 @@ export async function GET(request: NextRequest) {
 
     // Collect all unique student IDs
     const studentIdsSet = new Set<string>();
-    sectionStudentsSnapshots.forEach(snapshot => {
-      snapshot.docs.forEach(doc => {
+    sectionStudentsSnapshots.forEach((snapshot) => {
+      snapshot.docs.forEach((doc) => {
         const studentId = doc.data().studentId;
         if (studentId) studentIdsSet.add(studentId);
       });
@@ -83,11 +86,11 @@ export async function GET(request: NextRequest) {
       const batchSize = 10;
       for (let i = 0; i < studentIds.length; i += batchSize) {
         const batch = studentIds.slice(i, i + batchSize);
-        const userPromises = batch.map(studentId =>
+        const userPromises = batch.map((studentId) =>
           adminDb.collection("users").doc(studentId).get()
         );
         const userDocs = await Promise.all(userPromises);
-        userDocs.forEach(doc => {
+        userDocs.forEach((doc) => {
           if (doc.exists) {
             const userData = doc.data();
             userMap.set(doc.id, {
@@ -105,7 +108,7 @@ export async function GET(request: NextRequest) {
     const sectionStudentsMap = new Map<string, string[]>();
     sectionStudentsSnapshots.forEach((snapshot, index) => {
       const sectionId = sectionIds[index];
-      const studentIds = snapshot.docs.map(doc => doc.data().studentId);
+      const studentIds = snapshot.docs.map((doc) => doc.data().studentId);
       sectionStudentsMap.set(sectionId, studentIds);
     });
 
@@ -114,7 +117,7 @@ export async function GET(request: NextRequest) {
       const sectionData = doc.data();
       const sectionStudentIds = sectionStudentsMap.get(doc.id) || [];
       const students = sectionStudentIds
-        .map(studentId => userMap.get(studentId))
+        .map((studentId) => userMap.get(studentId))
         .filter(Boolean);
 
       const createdAt = sectionData.createdAt?.toDate
@@ -169,7 +172,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-export async function POST(request: NextRequest) {
+export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
     const user = await verifyAuth(request);
 
@@ -221,7 +224,7 @@ export async function POST(request: NextRequest) {
         adminDb.collection("users").doc(studentId).get()
       );
       const studentDocs = await Promise.all(studentPromises);
-      
+
       for (let j = 0; j < studentDocs.length; j++) {
         const studentDoc = studentDocs[j];
         if (!studentDoc.exists || studentDoc.data()?.role !== "student") {
@@ -236,14 +239,16 @@ export async function POST(request: NextRequest) {
     // Use transaction for atomic section creation
     const sectionData = {
       name: sanitizeString(validatedData.name),
-      description: validatedData.description ? sanitizeString(validatedData.description) : "",
+      description: validatedData.description
+        ? sanitizeString(validatedData.description)
+        : "",
       teacherId: user.uid,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
 
     const sectionRef = adminDb.collection("sections").doc();
-    
+
     // Use batch write for better performance and atomicity
     const batch = adminDb.batch();
     batch.set(sectionRef, sectionData);

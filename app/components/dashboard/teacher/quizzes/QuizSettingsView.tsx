@@ -5,7 +5,7 @@ import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { useQuizView } from "./QuizViewContext";
 
-interface Quiz {
+type Quiz = {
   id: string;
   title: string;
   isActive: boolean;
@@ -22,17 +22,17 @@ interface Quiz {
     autoDisqualifyOnRefresh?: boolean;
     autoSubmitOnDisqualification?: boolean;
   };
-}
+};
 
-interface Section {
+type Section = {
   id: string;
   name: string;
   description?: string;
-}
+};
 
-interface QuizSettingsViewProps {
+type QuizSettingsViewProps = {
   quizId: string;
-}
+};
 
 export default function QuizSettingsView({ quizId }: QuizSettingsViewProps) {
   const { goToDetail } = useQuizView();
@@ -56,7 +56,8 @@ export default function QuizSettingsView({ quizId }: QuizSettingsViewProps) {
   const [tabChangeLimit, setTabChangeLimit] = useState(3);
   const [timeAwayThreshold, setTimeAwayThreshold] = useState(5);
   const [autoDisqualifyOnRefresh, setAutoDisqualifyOnRefresh] = useState(true);
-  const [autoSubmitOnDisqualification, setAutoSubmitOnDisqualification] = useState(true);
+  const [autoSubmitOnDisqualification, setAutoSubmitOnDisqualification] =
+    useState(true);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
@@ -94,7 +95,9 @@ export default function QuizSettingsView({ quizId }: QuizSettingsViewProps) {
         }
 
         setQuiz(data.quiz);
-        setIsActive(data.quiz.isActive !== undefined ? data.quiz.isActive : true);
+        setIsActive(
+          data.quiz.isActive !== undefined ? data.quiz.isActive : true
+        );
         setDuration(data.quiz.duration || null);
 
         if (data.quiz.availableDate) {
@@ -109,16 +112,30 @@ export default function QuizSettingsView({ quizId }: QuizSettingsViewProps) {
           setDueTime(date.toTimeString().slice(0, 5));
         }
 
-        setAllowRetake(data.quiz.allowRetake !== undefined ? data.quiz.allowRetake : false);
-        setShowResults(data.quiz.showResults !== undefined ? data.quiz.showResults : true);
+        setAllowRetake(
+          data.quiz.allowRetake !== undefined ? data.quiz.allowRetake : false
+        );
+        setShowResults(
+          data.quiz.showResults !== undefined ? data.quiz.showResults : true
+        );
         setSelectedSectionIds(data.quiz.sectionIds || []);
 
         const antiCheat = data.quiz.antiCheat || {};
-        setAntiCheatEnabled(antiCheat.enabled !== undefined ? antiCheat.enabled : true);
+        setAntiCheatEnabled(
+          antiCheat.enabled !== undefined ? antiCheat.enabled : true
+        );
         setTabChangeLimit(antiCheat.tabChangeLimit || 3);
         setTimeAwayThreshold(antiCheat.timeAwayThreshold || 5);
-        setAutoDisqualifyOnRefresh(antiCheat.autoDisqualifyOnRefresh !== undefined ? antiCheat.autoDisqualifyOnRefresh : true);
-        setAutoSubmitOnDisqualification(antiCheat.autoSubmitOnDisqualification !== undefined ? antiCheat.autoSubmitOnDisqualification : true);
+        setAutoDisqualifyOnRefresh(
+          antiCheat.autoDisqualifyOnRefresh !== undefined
+            ? antiCheat.autoDisqualifyOnRefresh
+            : true
+        );
+        setAutoSubmitOnDisqualification(
+          antiCheat.autoSubmitOnDisqualification !== undefined
+            ? antiCheat.autoSubmitOnDisqualification
+            : true
+        );
       } catch (err) {
         console.error("Error fetching quiz:", err);
         setError(err instanceof Error ? err.message : "Failed to load quiz");
@@ -172,13 +189,15 @@ export default function QuizSettingsView({ quizId }: QuizSettingsViewProps) {
         throw new Error(quizData.error || "Failed to fetch quiz data");
       }
 
-      const availableDateTime = availableDate && availableTime
-        ? new Date(`${availableDate}T${availableTime}`).toISOString()
-        : null;
+      const availableDateTime =
+        availableDate && availableTime
+          ? new Date(`${availableDate}T${availableTime}`).toISOString()
+          : null;
 
-      const dueDateTime = dueDate && dueTime
-        ? new Date(`${dueDate}T${dueTime}`).toISOString()
-        : null;
+      const dueDateTime =
+        dueDate && dueTime
+          ? new Date(`${dueDate}T${dueTime}`).toISOString()
+          : null;
 
       const { apiPut } = await import("../../../../lib/api");
       const response = await apiPut(`/api/quizzes/${quizId}`, {
@@ -215,7 +234,9 @@ export default function QuizSettingsView({ quizId }: QuizSettingsViewProps) {
       goToDetail(quizId);
     } catch (err) {
       console.error("Error updating quiz:", err);
-      setError(err instanceof Error ? err.message : "Failed to update settings");
+      setError(
+        err instanceof Error ? err.message : "Failed to update settings"
+      );
     } finally {
       setSaving(false);
     }
@@ -236,7 +257,9 @@ export default function QuizSettingsView({ quizId }: QuizSettingsViewProps) {
     return (
       <div className="bg-red-400 border-4 border-gray-900 p-8 shadow-[4px_4px_0px_0px_rgba(31,41,55,1)] flex flex-col items-center justify-center gap-4">
         <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center border-3 border-gray-900">
-          <span className="material-icons-outlined text-red-500 text-2xl">error</span>
+          <span className="material-icons-outlined text-red-500 text-2xl">
+            error
+          </span>
         </div>
         <p className="text-lg font-bold text-gray-900">{error}</p>
         <button
@@ -257,11 +280,15 @@ export default function QuizSettingsView({ quizId }: QuizSettingsViewProps) {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <div className="w-12 h-12 bg-orange-400 rounded-xl flex items-center justify-center border-3 border-gray-900 shadow-[3px_3px_0px_0px_rgba(31,41,55,1)]">
-            <span className="material-icons-outlined text-gray-900 text-2xl">settings</span>
+            <span className="material-icons-outlined text-gray-900 text-2xl">
+              settings
+            </span>
           </div>
           <div>
             <h2 className="text-3xl font-black text-gray-900">Quiz Settings</h2>
-            <p className="text-sm font-bold text-gray-600">[ configure your assessment ]</p>
+            <p className="text-sm font-bold text-gray-600">
+              [ configure your assessment ]
+            </p>
           </div>
         </div>
         <button
@@ -278,7 +305,9 @@ export default function QuizSettingsView({ quizId }: QuizSettingsViewProps) {
         <div className="bg-white border-4 border-gray-900 shadow-[4px_4px_0px_0px_rgba(31,41,55,1)] overflow-hidden">
           <div className="bg-cyan-400 border-b-4 border-gray-900 px-5 py-3">
             <div className="flex items-center gap-2">
-              <span className="material-icons-outlined text-gray-900">quiz</span>
+              <span className="material-icons-outlined text-gray-900">
+                quiz
+              </span>
               <span className="font-bold text-gray-900">{quiz.title}</span>
             </div>
           </div>
@@ -287,17 +316,27 @@ export default function QuizSettingsView({ quizId }: QuizSettingsViewProps) {
         {/* Quiz Status */}
         <div className="bg-white border-4 border-gray-900 shadow-[4px_4px_0px_0px_rgba(31,41,55,1)] p-6">
           <div className="flex items-center gap-2 mb-4">
-            <span className="material-icons-outlined text-gray-900">toggle_on</span>
+            <span className="material-icons-outlined text-gray-900">
+              toggle_on
+            </span>
             <h3 className="text-lg font-black text-gray-900">Quiz Status</h3>
           </div>
           <label className="flex items-center gap-4 cursor-pointer p-4 bg-amber-50 border-3 border-gray-900 hover:bg-amber-100 transition-colors">
-            <div className={`w-12 h-7 rounded-full border-3 border-gray-900 relative transition-colors ${isActive ? 'bg-lime-400' : 'bg-gray-300'}`}>
-              <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full border-2 border-gray-900 transition-transform ${isActive ? 'translate-x-5' : 'translate-x-0.5'}`}></div>
+            <div
+              className={`w-12 h-7 rounded-full border-3 border-gray-900 relative transition-colors ${isActive ? "bg-lime-400" : "bg-gray-300"}`}
+            >
+              <div
+                className={`absolute top-0.5 w-5 h-5 bg-white rounded-full border-2 border-gray-900 transition-transform ${isActive ? "translate-x-5" : "translate-x-0.5"}`}
+              ></div>
             </div>
             <div className="flex flex-col">
-              <span className="font-bold text-gray-900">{isActive ? "Active" : "Inactive"}</span>
+              <span className="font-bold text-gray-900">
+                {isActive ? "Active" : "Inactive"}
+              </span>
               <span className="text-sm font-medium text-gray-600">
-                {isActive ? "Students can access and take this quiz" : "Quiz is hidden from students"}
+                {isActive
+                  ? "Students can access and take this quiz"
+                  : "Quiz is hidden from students"}
               </span>
             </div>
           </label>
@@ -306,25 +345,35 @@ export default function QuizSettingsView({ quizId }: QuizSettingsViewProps) {
         {/* Duration & Timing */}
         <div className="bg-white border-4 border-gray-900 shadow-[4px_4px_0px_0px_rgba(31,41,55,1)] p-6">
           <div className="flex items-center gap-2 mb-4">
-            <span className="material-icons-outlined text-gray-900">schedule</span>
-            <h3 className="text-lg font-black text-gray-900">Duration & Timing</h3>
+            <span className="material-icons-outlined text-gray-900">
+              schedule
+            </span>
+            <h3 className="text-lg font-black text-gray-900">
+              Duration & Timing
+            </h3>
           </div>
-          
+
           <div className="flex flex-col gap-5">
             <div className="flex flex-col gap-2">
-              <label className="text-sm font-bold text-gray-900">Duration (minutes)</label>
+              <label className="text-sm font-bold text-gray-900">
+                Duration (minutes)
+              </label>
               <input
                 type="number"
                 min="1"
                 value={duration || ""}
-                onChange={(e) => setDuration(e.target.value ? parseInt(e.target.value) : null)}
+                onChange={(e) =>
+                  setDuration(e.target.value ? parseInt(e.target.value) : null)
+                }
                 className="w-full px-4 py-3 border-3 border-gray-900 bg-amber-50 font-medium placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-400"
                 placeholder="Enter duration (optional)"
               />
             </div>
 
             <div className="flex flex-col gap-2">
-              <label className="text-sm font-bold text-gray-900">Available From</label>
+              <label className="text-sm font-bold text-gray-900">
+                Available From
+              </label>
               <div className="flex gap-3">
                 <input
                   type="date"
@@ -342,7 +391,9 @@ export default function QuizSettingsView({ quizId }: QuizSettingsViewProps) {
             </div>
 
             <div className="flex flex-col gap-2">
-              <label className="text-sm font-bold text-gray-900">Due Date</label>
+              <label className="text-sm font-bold text-gray-900">
+                Due Date
+              </label>
               <div className="flex gap-3">
                 <input
                   type="date"
@@ -364,26 +415,36 @@ export default function QuizSettingsView({ quizId }: QuizSettingsViewProps) {
         {/* Section Assignment */}
         <div className="bg-white border-4 border-gray-900 shadow-[4px_4px_0px_0px_rgba(31,41,55,1)] p-6">
           <div className="flex items-center gap-2 mb-4">
-            <span className="material-icons-outlined text-gray-900">groups</span>
-            <h3 className="text-lg font-black text-gray-900">Section Assignment</h3>
+            <span className="material-icons-outlined text-gray-900">
+              groups
+            </span>
+            <h3 className="text-lg font-black text-gray-900">
+              Section Assignment
+            </h3>
           </div>
-          
+
           {loadingSections ? (
             <div className="flex items-center gap-2 p-4 bg-amber-50 border-2 border-gray-900">
               <div className="w-4 h-4 border-2 border-gray-900 border-t-transparent rounded-full animate-spin"></div>
-              <span className="font-medium text-gray-600">Loading sections...</span>
+              <span className="font-medium text-gray-600">
+                Loading sections...
+              </span>
             </div>
           ) : sections.length === 0 ? (
             <div className="p-4 bg-amber-100 border-3 border-gray-900 text-center">
-              <span className="font-bold text-gray-700">No sections available</span>
+              <span className="font-bold text-gray-700">
+                No sections available
+              </span>
             </div>
           ) : (
             <div className="flex flex-col gap-2 max-h-48 overflow-y-auto border-3 border-gray-900 bg-amber-50 p-3">
               {sections.map((section) => (
-                <label 
-                  key={section.id} 
+                <label
+                  key={section.id}
                   className={`flex items-center gap-3 cursor-pointer p-3 border-2 border-gray-900 transition-colors ${
-                    selectedSectionIds.includes(section.id) ? 'bg-purple-400' : 'bg-white hover:bg-amber-100'
+                    selectedSectionIds.includes(section.id)
+                      ? "bg-purple-400"
+                      : "bg-white hover:bg-amber-100"
                   }`}
                 >
                   <input
@@ -391,14 +452,21 @@ export default function QuizSettingsView({ quizId }: QuizSettingsViewProps) {
                     checked={selectedSectionIds.includes(section.id)}
                     onChange={(e) => {
                       if (e.target.checked) {
-                        setSelectedSectionIds([...selectedSectionIds, section.id]);
+                        setSelectedSectionIds([
+                          ...selectedSectionIds,
+                          section.id,
+                        ]);
                       } else {
-                        setSelectedSectionIds(selectedSectionIds.filter((id) => id !== section.id));
+                        setSelectedSectionIds(
+                          selectedSectionIds.filter((id) => id !== section.id)
+                        );
                       }
                     }}
                     className="w-5 h-5 border-2 border-gray-900 accent-purple-600"
                   />
-                  <span className="font-bold text-gray-900">{section.name}</span>
+                  <span className="font-bold text-gray-900">
+                    {section.name}
+                  </span>
                 </label>
               ))}
             </div>
@@ -411,9 +479,11 @@ export default function QuizSettingsView({ quizId }: QuizSettingsViewProps) {
             <span className="material-icons-outlined text-gray-900">tune</span>
             <h3 className="text-lg font-black text-gray-900">Quiz Options</h3>
           </div>
-          
+
           <div className="flex flex-col gap-3">
-            <label className={`flex items-center gap-3 cursor-pointer p-3 border-3 border-gray-900 transition-colors ${allowRetake ? 'bg-lime-400' : 'bg-amber-50 hover:bg-amber-100'}`}>
+            <label
+              className={`flex items-center gap-3 cursor-pointer p-3 border-3 border-gray-900 transition-colors ${allowRetake ? "bg-lime-400" : "bg-amber-50 hover:bg-amber-100"}`}
+            >
               <input
                 type="checkbox"
                 checked={allowRetake}
@@ -422,10 +492,14 @@ export default function QuizSettingsView({ quizId }: QuizSettingsViewProps) {
               />
               <div className="flex flex-col">
                 <span className="font-bold text-gray-900">Allow Retake</span>
-                <span className="text-sm font-medium text-gray-600">Students can attempt the quiz multiple times</span>
+                <span className="text-sm font-medium text-gray-600">
+                  Students can attempt the quiz multiple times
+                </span>
               </div>
             </label>
-            <label className={`flex items-center gap-3 cursor-pointer p-3 border-3 border-gray-900 transition-colors ${showResults ? 'bg-cyan-400' : 'bg-amber-50 hover:bg-amber-100'}`}>
+            <label
+              className={`flex items-center gap-3 cursor-pointer p-3 border-3 border-gray-900 transition-colors ${showResults ? "bg-cyan-400" : "bg-amber-50 hover:bg-amber-100"}`}
+            >
               <input
                 type="checkbox"
                 checked={showResults}
@@ -433,8 +507,12 @@ export default function QuizSettingsView({ quizId }: QuizSettingsViewProps) {
                 className="w-5 h-5 border-2 border-gray-900 accent-cyan-600"
               />
               <div className="flex flex-col">
-                <span className="font-bold text-gray-900">Show Results Immediately</span>
-                <span className="text-sm font-medium text-gray-600">Display score and answers after submission</span>
+                <span className="font-bold text-gray-900">
+                  Show Results Immediately
+                </span>
+                <span className="text-sm font-medium text-gray-600">
+                  Display score and answers after submission
+                </span>
               </div>
             </label>
           </div>
@@ -443,11 +521,17 @@ export default function QuizSettingsView({ quizId }: QuizSettingsViewProps) {
         {/* Anti-Cheat */}
         <div className="bg-white border-4 border-gray-900 shadow-[4px_4px_0px_0px_rgba(31,41,55,1)] p-6">
           <div className="flex items-center gap-2 mb-4">
-            <span className="material-icons-outlined text-gray-900">security</span>
-            <h3 className="text-lg font-black text-gray-900">Anti-Cheating Configuration</h3>
+            <span className="material-icons-outlined text-gray-900">
+              security
+            </span>
+            <h3 className="text-lg font-black text-gray-900">
+              Anti-Cheating Configuration
+            </h3>
           </div>
-          
-          <label className={`flex items-center gap-3 cursor-pointer p-3 border-3 border-gray-900 mb-4 transition-colors ${antiCheatEnabled ? 'bg-red-400' : 'bg-amber-50 hover:bg-amber-100'}`}>
+
+          <label
+            className={`flex items-center gap-3 cursor-pointer p-3 border-3 border-gray-900 mb-4 transition-colors ${antiCheatEnabled ? "bg-red-400" : "bg-amber-50 hover:bg-amber-100"}`}
+          >
             <input
               type="checkbox"
               checked={antiCheatEnabled}
@@ -455,52 +539,74 @@ export default function QuizSettingsView({ quizId }: QuizSettingsViewProps) {
               className="w-5 h-5 border-2 border-gray-900 accent-red-600"
             />
             <div className="flex flex-col">
-              <span className="font-bold text-gray-900">Enable Anti-Cheating Measures</span>
-              <span className="text-sm font-medium text-gray-700">Monitor and restrict suspicious behavior</span>
+              <span className="font-bold text-gray-900">
+                Enable Anti-Cheating Measures
+              </span>
+              <span className="text-sm font-medium text-gray-700">
+                Monitor and restrict suspicious behavior
+              </span>
             </div>
           </label>
 
           {antiCheatEnabled && (
             <div className="flex flex-col gap-4 p-4 bg-red-100 border-3 border-gray-900">
               <div className="flex flex-col gap-2">
-                <label className="text-sm font-bold text-gray-900">Tab Change Limit</label>
+                <label className="text-sm font-bold text-gray-900">
+                  Tab Change Limit
+                </label>
                 <input
                   type="number"
                   min="0"
                   max="10"
                   value={tabChangeLimit}
-                  onChange={(e) => setTabChangeLimit(parseInt(e.target.value) || 0)}
+                  onChange={(e) =>
+                    setTabChangeLimit(parseInt(e.target.value) || 0)
+                  }
                   className="w-full px-4 py-3 border-3 border-gray-900 bg-white font-medium focus:outline-none focus:ring-2 focus:ring-red-400"
                 />
               </div>
               <div className="flex flex-col gap-2">
-                <label className="text-sm font-bold text-gray-900">Time Away Threshold (seconds)</label>
+                <label className="text-sm font-bold text-gray-900">
+                  Time Away Threshold (seconds)
+                </label>
                 <input
                   type="number"
                   min="0"
                   max="300"
                   value={timeAwayThreshold}
-                  onChange={(e) => setTimeAwayThreshold(parseInt(e.target.value) || 0)}
+                  onChange={(e) =>
+                    setTimeAwayThreshold(parseInt(e.target.value) || 0)
+                  }
                   className="w-full px-4 py-3 border-3 border-gray-900 bg-white font-medium focus:outline-none focus:ring-2 focus:ring-red-400"
                 />
               </div>
-              <label className={`flex items-center gap-3 cursor-pointer p-3 border-2 border-gray-900 transition-colors ${autoDisqualifyOnRefresh ? 'bg-orange-400' : 'bg-white hover:bg-amber-50'}`}>
+              <label
+                className={`flex items-center gap-3 cursor-pointer p-3 border-2 border-gray-900 transition-colors ${autoDisqualifyOnRefresh ? "bg-orange-400" : "bg-white hover:bg-amber-50"}`}
+              >
                 <input
                   type="checkbox"
                   checked={autoDisqualifyOnRefresh}
                   onChange={(e) => setAutoDisqualifyOnRefresh(e.target.checked)}
                   className="w-5 h-5 border-2 border-gray-900"
                 />
-                <span className="font-bold text-gray-900">Auto-Disqualify on Page Refresh</span>
+                <span className="font-bold text-gray-900">
+                  Auto-Disqualify on Page Refresh
+                </span>
               </label>
-              <label className={`flex items-center gap-3 cursor-pointer p-3 border-2 border-gray-900 transition-colors ${autoSubmitOnDisqualification ? 'bg-orange-400' : 'bg-white hover:bg-amber-50'}`}>
+              <label
+                className={`flex items-center gap-3 cursor-pointer p-3 border-2 border-gray-900 transition-colors ${autoSubmitOnDisqualification ? "bg-orange-400" : "bg-white hover:bg-amber-50"}`}
+              >
                 <input
                   type="checkbox"
                   checked={autoSubmitOnDisqualification}
-                  onChange={(e) => setAutoSubmitOnDisqualification(e.target.checked)}
+                  onChange={(e) =>
+                    setAutoSubmitOnDisqualification(e.target.checked)
+                  }
                   className="w-5 h-5 border-2 border-gray-900"
                 />
-                <span className="font-bold text-gray-900">Auto-Submit on Disqualification</span>
+                <span className="font-bold text-gray-900">
+                  Auto-Submit on Disqualification
+                </span>
               </label>
             </div>
           )}
@@ -513,7 +619,9 @@ export default function QuizSettingsView({ quizId }: QuizSettingsViewProps) {
             disabled={saving}
             className="flex-1 px-6 py-4 bg-lime-400 text-gray-900 font-bold border-4 border-gray-900 shadow-[5px_5px_0px_0px_rgba(31,41,55,1)] hover:shadow-[6px_6px_0px_0px_rgba(31,41,55,1)] hover:-translate-x-0.5 hover:-translate-y-0.5 active:shadow-[2px_2px_0px_0px_rgba(31,41,55,1)] active:translate-x-0.5 active:translate-y-0.5 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
           >
-            {saving && <div className="w-5 h-5 border-3 border-gray-900 border-t-transparent rounded-full animate-spin"></div>}
+            {saving && (
+              <div className="w-5 h-5 border-3 border-gray-900 border-t-transparent rounded-full animate-spin"></div>
+            )}
             <span className="material-icons-outlined">save</span>
             <span>{saving ? "Saving..." : "Save Settings"}</span>
           </button>
