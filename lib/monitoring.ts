@@ -7,7 +7,7 @@ export type UsageEvent = {
   userId: string;
   route: string;
   method: string;
-  timestamp: Date;
+  timestamp?: Date;
   metadata?: Record<string, unknown>;
 };
 
@@ -15,7 +15,7 @@ export type CostEvent = {
   service: "gemini" | "firestore" | "imgbb" | "other";
   amount: number;
   unit: string;
-  timestamp: Date;
+  timestamp?: Date;
   metadata?: Record<string, unknown>;
 };
 
@@ -37,9 +37,9 @@ export const trackUsage = async (event: UsageEvent): Promise<void> => {
 
     const dailySummaryDoc = await dailySummaryRef.get();
     if (dailySummaryDoc.exists) {
-      const data = dailySummaryDoc.data();
-      const currentCount = (data?.count ?? 0) as number;
-      const currentRoutes = (data?.routes ?? {}) as Record<string, number>;
+      const data = dailySummaryDoc.data() as { count: number; routes: Record<string, number> } | undefined;
+      const currentCount = data?.count ?? 0;
+      const currentRoutes = data?.routes ?? {};
       const routeCount = currentRoutes[event.route] ?? 0;
 
       batch.update(dailySummaryRef, {
@@ -84,9 +84,9 @@ export const trackCost = async (event: CostEvent): Promise<void> => {
 
     const dailyCostDoc = await dailyCostRef.get();
     if (dailyCostDoc.exists) {
-      const data = dailyCostDoc.data();
-      const currentAmount = (data?.totalAmount ?? 0) as number;
-      const currentCount = (data?.count ?? 0) as number;
+      const data = dailyCostDoc.data() as { totalAmount: number; count: number } | undefined;
+      const currentAmount = data?.totalAmount ?? 0;
+      const currentCount = data?.count ?? 0;
 
       await dailyCostRef.update({
         totalAmount: currentAmount + event.amount,
@@ -168,13 +168,11 @@ export const getUserUsageStats = async (
     const requestsByRoute: Record<string, number> = {};
 
     summaryDocs.forEach((doc) => {
-      const data = doc.data();
-      totalRequests += (data?.count ?? 0) as number;
-      Object.entries((data?.routes ?? {}) as Record<string, number>).forEach(
-        ([route, count]) => {
-          requestsByRoute[route] = (requestsByRoute[route] ?? 0) + count;
-        }
-      );
+      const data = doc.data() as { count: number; routes: Record<string, number> } | undefined;
+      totalRequests += data?.count ?? 0;
+      Object.entries(data?.routes ?? {}).forEach(([route, count]) => {
+        requestsByRoute[route] = (requestsByRoute[route] ?? 0) + count;
+      });
     });
 
     const aiCostDocs = await adminDb
