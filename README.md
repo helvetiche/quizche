@@ -9,6 +9,7 @@ QuizChe is a production-ready web application that enables teachers to create in
 ## Key Features
 
 ### For Teachers
+
 - **AI Quiz Generation**: Upload PDFs and automatically generate quizzes with multiple question types (multiple choice, identification, true/false)
 - **Section Management**: Create and manage student sections/classes
 - **Live Quiz Monitoring**: Real-time tracking of student quiz attempts with anti-cheat detection
@@ -16,6 +17,7 @@ QuizChe is a production-ready web application that enables teachers to create in
 - **Flexible Quiz Settings**: Configure time limits, difficulty levels, and custom instructions
 
 ### For Students
+
 - **AI Flashcard Generation**: Convert PDF study materials into interactive flashcards
 - **Quiz Taking**: Complete assigned quizzes with instant feedback
 - **Study History**: Track quiz attempts and review past performance
@@ -23,6 +25,7 @@ QuizChe is a production-ready web application that enables teachers to create in
 - **Flashcard Management**: Create, edit, and study custom flashcard sets
 
 ### Security & Performance
+
 - **Firebase Authentication**: Secure Google OAuth integration
 - **Role-Based Access Control**: Separate teacher and student permissions
 - **CSRF Protection**: Token-based security for all mutating operations
@@ -31,6 +34,7 @@ QuizChe is a production-ready web application that enables teachers to create in
 - **Anti-Cheat System**: Tab change detection, time tracking, and violation monitoring
 
 ### AI Capabilities
+
 - **PDF Text Extraction**: Intelligent content extraction from PDF documents
 - **Smart Quiz Generation**: Context-aware question generation with explanations
 - **Flashcard Creation**: Automated front/back card generation from study materials
@@ -40,6 +44,7 @@ QuizChe is a production-ready web application that enables teachers to create in
 ## Tech Stack
 
 ### Frontend
+
 - **Next.js 16** - React framework with App Router
 - **React 19** - UI library
 - **TypeScript** - Type-safe development
@@ -48,6 +53,7 @@ QuizChe is a production-ready web application that enables teachers to create in
 - **Three.js** - 3D graphics and effects
 
 ### Backend
+
 - **Next.js API Routes** - Serverless functions
 - **Firebase Admin SDK** - Server-side Firebase operations
 - **Google Gemini AI** - AI content generation (2.0 Flash & 1.5 Flash)
@@ -55,6 +61,7 @@ QuizChe is a production-ready web application that enables teachers to create in
 - **Zod** - Runtime validation
 
 ### Infrastructure
+
 - **Firebase Firestore** - NoSQL database
 - **Firebase Authentication** - User management
 - **Vercel** - Deployment platform
@@ -96,6 +103,7 @@ quizche/
 ## Getting Started
 
 ### Prerequisites
+
 - Node.js 20+
 - Firebase project with Firestore and Authentication
 - Google Gemini API key
@@ -211,6 +219,7 @@ POST /api/quizzes/generate
 ## AI Generation
 
 ### Quiz Generation
+
 - Supports 3 difficulty levels (easy, medium, hard)
 - Multiple question types (multiple choice, identification, true/false)
 - Includes explanations for each answer
@@ -218,6 +227,7 @@ POST /api/quizzes/generate
 - Fallback model support (Gemini 2.0 Flash → 1.5 Flash)
 
 ### Flashcard Generation
+
 - Automatic front/back card creation
 - Difficulty-based content adaptation
 - Concise formatting (front <200 chars, back <500 chars)
@@ -226,6 +236,7 @@ POST /api/quizzes/generate
 ## Database Schema
 
 ### Collections
+
 - `users` - User profiles and roles
 - `quizzes` - Quiz definitions and questions
 - `flashcards` - Flashcard sets and cards
@@ -240,6 +251,7 @@ POST /api/quizzes/generate
 ## Contributing
 
 This is a production application. All contributions must:
+
 - Follow TypeScript strict mode
 - Include proper error handling
 - Add security headers to responses

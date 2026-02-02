@@ -38,9 +38,9 @@ export const trackUsage = async (event: UsageEvent): Promise<void> => {
     const dailySummaryDoc = await dailySummaryRef.get();
     if (dailySummaryDoc.exists) {
       const data = dailySummaryDoc.data();
-      const currentCount = (data?.count !== undefined ? data.count as number : 0);
-      const currentRoutes = (data?.routes !== undefined ? data.routes as Record<string, number> : {});
-      const routeCount = (currentRoutes[event.route] !== undefined ? currentRoutes[event.route] : 0);
+      const currentCount = (data?.count ?? 0) as number;
+      const currentRoutes = (data?.routes ?? {}) as Record<string, number>;
+      const routeCount = currentRoutes[event.route] ?? 0;
 
       batch.update(dailySummaryRef, {
         count: currentCount + 1,
@@ -74,7 +74,7 @@ export const trackCost = async (event: CostEvent): Promise<void> => {
     const docRef = adminDb.collection(COST_COLLECTION).doc();
     await docRef.set({
       ...event,
-      timestamp: event.timestamp !== undefined ? event.timestamp : new Date(),
+      timestamp: event.timestamp ?? new Date(),
       date: new Date().toISOString().split("T")[0],
     });
 
@@ -85,8 +85,8 @@ export const trackCost = async (event: CostEvent): Promise<void> => {
     const dailyCostDoc = await dailyCostRef.get();
     if (dailyCostDoc.exists) {
       const data = dailyCostDoc.data();
-      const currentAmount = (data?.totalAmount !== undefined ? data.totalAmount as number : 0);
-      const currentCount = (data?.count !== undefined ? data.count as number : 0);
+      const currentAmount = (data?.totalAmount ?? 0) as number;
+      const currentCount = (data?.count ?? 0) as number;
 
       await dailyCostRef.update({
         totalAmount: currentAmount + event.amount,
@@ -169,11 +169,10 @@ export const getUserUsageStats = async (
 
     summaryDocs.forEach((doc) => {
       const data = doc.data();
-      totalRequests += (data?.count !== undefined ? data.count as number : 0);
-      Object.entries((data?.routes !== undefined ? data.routes as Record<string, number> : {})).forEach(
+      totalRequests += (data?.count ?? 0) as number;
+      Object.entries((data?.routes ?? {}) as Record<string, number>).forEach(
         ([route, count]) => {
-          requestsByRoute[route] =
-            ((requestsByRoute[route] !== undefined ? requestsByRoute[route] : 0)) + (count);
+          requestsByRoute[route] = (requestsByRoute[route] ?? 0) + count;
         }
       );
     });
@@ -192,7 +191,8 @@ export const getUserUsageStats = async (
 
     aiCostDocs.forEach((doc) => {
       const data = doc.data();
-      const operation = (data?.metadata as Record<string, unknown>)?.operation;
+      const metadata = data?.metadata as Record<string, unknown> | undefined;
+      const operation = metadata?.operation;
       if (operation === "pdf_extraction") {
         aiUsage.pdfExtractions += 1;
       } else if (operation === "quiz_generation") {
