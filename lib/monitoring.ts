@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unnecessary-condition, @typescript-eslint/prefer-nullish-coalescing */
 import { adminDb } from "./firebase-admin";
 
 const USAGE_COLLECTION = "usageTracking";
@@ -27,7 +26,7 @@ export const trackUsage = async (event: UsageEvent): Promise<void> => {
 
     batch.set(docRef, {
       ...event,
-      timestamp: event.timestamp !== undefined ? event.timestamp : new Date(),
+      timestamp: event.timestamp ?? new Date(),
       date: new Date().toISOString().split("T")[0],
       hour: new Date().getHours(),
     });
@@ -39,16 +38,9 @@ export const trackUsage = async (event: UsageEvent): Promise<void> => {
     const dailySummaryDoc = await dailySummaryRef.get();
     if (dailySummaryDoc.exists) {
       const data = dailySummaryDoc.data();
-      const currentCount =
-        data?.count !== undefined ? (data.count as number) : 0;
-      const currentRoutes =
-        data?.routes !== undefined
-          ? (data.routes as Record<string, number>)
-          : {};
-      const routeCount =
-        currentRoutes[event.route] !== undefined
-          ? currentRoutes[event.route]
-          : 0;
+      const currentCount = (data?.count !== undefined ? data.count as number : 0);
+      const currentRoutes = (data?.routes !== undefined ? data.routes as Record<string, number> : {});
+      const routeCount = (currentRoutes[event.route] !== undefined ? currentRoutes[event.route] : 0);
 
       batch.update(dailySummaryRef, {
         count: currentCount + 1,
@@ -93,10 +85,8 @@ export const trackCost = async (event: CostEvent): Promise<void> => {
     const dailyCostDoc = await dailyCostRef.get();
     if (dailyCostDoc.exists) {
       const data = dailyCostDoc.data();
-      const currentAmount =
-        data?.totalAmount !== undefined ? (data.totalAmount as number) : 0;
-      const currentCount =
-        data?.count !== undefined ? (data.count as number) : 0;
+      const currentAmount = (data?.totalAmount !== undefined ? data.totalAmount as number : 0);
+      const currentCount = (data?.count !== undefined ? data.count as number : 0);
 
       await dailyCostRef.update({
         totalAmount: currentAmount + event.amount,
@@ -179,16 +169,13 @@ export const getUserUsageStats = async (
 
     summaryDocs.forEach((doc) => {
       const data = doc.data();
-      totalRequests += data?.count !== undefined ? (data.count as number) : 0;
-      Object.entries(
-        data?.routes !== undefined
-          ? (data.routes as Record<string, number>)
-          : {}
-      ).forEach(([route, count]) => {
-        requestsByRoute[route] =
-          (requestsByRoute[route] !== undefined ? requestsByRoute[route] : 0) +
-          count;
-      });
+      totalRequests += (data?.count !== undefined ? data.count as number : 0);
+      Object.entries((data?.routes !== undefined ? data.routes as Record<string, number> : {})).forEach(
+        ([route, count]) => {
+          requestsByRoute[route] =
+            ((requestsByRoute[route] !== undefined ? requestsByRoute[route] : 0)) + (count);
+        }
+      );
     });
 
     const aiCostDocs = await adminDb
