@@ -1,268 +1,314 @@
-# QuizChe
-
-A modern, AI-powered educational platform for creating and managing quizzes and flashcards. Built with Next.js, Firebase, and Google Gemini AI.
-
-## Overview
-
-QuizChe is a production-ready web application that enables teachers to create intelligent quizzes and students to generate personalized flashcards from PDF documents. The platform features real-time quiz monitoring, anti-cheat mechanisms, and AI-powered content generation.
-
-## Key Features
-
-### For Teachers
-
-- **AI Quiz Generation**: Upload PDFs and automatically generate quizzes with multiple question types (multiple choice, identification, true/false)
-- **Section Management**: Create and manage student sections/classes
-- **Live Quiz Monitoring**: Real-time tracking of student quiz attempts with anti-cheat detection
-- **Quiz Analytics**: View detailed results and student performance metrics
-- **Flexible Quiz Settings**: Configure time limits, difficulty levels, and custom instructions
-
-### For Students
-
-- **AI Flashcard Generation**: Convert PDF study materials into interactive flashcards
-- **Quiz Taking**: Complete assigned quizzes with instant feedback
-- **Study History**: Track quiz attempts and review past performance
-- **Peer Connections**: Connect with other students for collaborative learning
-- **Flashcard Management**: Create, edit, and study custom flashcard sets
-
-### Security & Performance
-
-- **Firebase Authentication**: Secure Google OAuth integration
-- **Role-Based Access Control**: Separate teacher and student permissions
-- **CSRF Protection**: Token-based security for all mutating operations
-- **Rate Limiting**: Redis-backed rate limiting with Upstash
-- **Caching**: Multi-layer caching (Redis + Firestore) for optimal performance
-- **Anti-Cheat System**: Tab change detection, time tracking, and violation monitoring
-
-### AI Capabilities
-
-- **PDF Text Extraction**: Intelligent content extraction from PDF documents
-- **Smart Quiz Generation**: Context-aware question generation with explanations
-- **Flashcard Creation**: Automated front/back card generation from study materials
-- **Difficulty Levels**: Easy, medium, and hard content adaptation
-- **Custom Instructions**: Additional prompts for tailored content generation
-
-## Tech Stack
-
-### Frontend
-
-- **Next.js 16** - React framework with App Router
-- **React 19** - UI library
-- **TypeScript** - Type-safe development
-- **Tailwind CSS** - Utility-first styling
-- **Motion** - Animation library
-- **Three.js** - 3D graphics and effects
-
-### Backend
-
-- **Next.js API Routes** - Serverless functions
-- **Firebase Admin SDK** - Server-side Firebase operations
-- **Google Gemini AI** - AI content generation (2.0 Flash & 1.5 Flash)
-- **Upstash Redis** - Rate limiting and caching
-- **Zod** - Runtime validation
-
-### Infrastructure
-
-- **Firebase Firestore** - NoSQL database
-- **Firebase Authentication** - User management
-- **Vercel** - Deployment platform
-- **Redis** - Caching and rate limiting
+# 🎯 QuizChe
 
-## Project Structure
-
-```
-quizche/
-├── app/
-│   ├── api/              # API routes (serverless functions)
-│   │   ├── auth/         # Authentication endpoints
-│   │   ├── quizzes/      # Quiz CRUD and generation
-│   │   ├── flashcards/   # Flashcard CRUD and generation
-│   │   ├── teacher/      # Teacher-specific endpoints
-│   │   ├── student/      # Student-specific endpoints
-│   │   └── connections/  # Student connection management
-│   ├── components/       # React components
-│   │   ├── auth/         # Authentication components
-│   │   ├── dashboard/    # Dashboard views
-│   │   ├── create/       # Content creation components
-│   │   └── ui/           # Reusable UI components
-│   ├── student/          # Student pages
-│   ├── teacher/          # Teacher pages
-│   └── hooks/            # Custom React hooks
-├── lib/
-│   ├── firebase-admin.ts # Firebase Admin SDK setup
-│   ├── firebase.ts       # Firebase client SDK
-│   ├── gemini.ts         # AI generation logic
-│   ├── auth.ts           # Authentication utilities
-│   ├── rate-limit.ts     # Rate limiting
-│   ├── cache.ts          # Caching layer
-│   ├── validation.ts     # Input validation schemas
-│   └── security-headers.ts # HTTP security headers
-└── components/           # Shared UI components
-
-```
+> turn your study materials into quizzes and flashcards instantly. powered by AI.
 
-## Getting Started
+<div align="center">
 
-### Prerequisites
+🟢 **for students** • 🟡 **for teachers** • 🔴 **100% free to start**
 
-- Node.js 20+
-- Firebase project with Firestore and Authentication
-- Google Gemini API key
-- Upstash Redis instance
+</div>
 
-### Environment Variables
+---
 
-Create a `.env` file with the following variables:
+## what is QuizChe?
 
-```env
-# Firebase Client (Public)
-NEXT_PUBLIC_FIREBASE_API_KEY=
-NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=
-NEXT_PUBLIC_FIREBASE_PROJECT_ID=
-NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=
-NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=
-NEXT_PUBLIC_FIREBASE_APP_ID=
+QuizChe is your AI study buddy that transforms boring PDFs into interactive quizzes and flashcards. Upload your lecture notes, textbook chapters, or study guides, and let AI do the heavy lifting.
 
-# Firebase Admin (Private - Server Only)
-FIREBASE_PROJECT_ID=
-FIREBASE_CLIENT_EMAIL=
-FIREBASE_PRIVATE_KEY=
+No more spending hours making flashcards. No more guessing what questions might be on the test. Just upload, generate, and start learning.
 
-# Google Gemini AI
-NEXT_PRIVATE_GEMINI_API_KEY=
+---
 
-# Upstash Redis
-UPSTASH_REDIS_REST_URL=
-UPSTASH_REDIS_REST_TOKEN=
+## 🟢 for students
 
-# ImgBB (Image Upload)
-IMGBB_API_KEY=
-```
+### turn PDFs into flashcards
 
-### Installation
+got a 50-page PDF? upload it and get instant flashcards. the AI reads through everything and creates question-answer pairs that actually make sense.
 
-```bash
-# Install dependencies
-npm install
+**how it works:**
+1. upload your study material (PDF)
+2. pick difficulty (easy, medium, or hard)
+3. choose how many flashcards you want
+4. get your flashcard deck in seconds
+5. study anywhere, anytime
 
-# Run development server
-npm run dev
+**what you can do:**
+- 📚 create unlimited flashcard sets
+- ✏️ edit cards if the AI missed something
+- � flip through cards with smooth animations
+- 📊 track which cards you know vs. still learning
+- 🤝 share flashcard sets with friends
+- 💾 save your progress automatically
 
-# Build for production
-npm run build
+### take quizzes from teachers
 
-# Start production server
-npm start
-```
+your teacher creates a quiz? you'll see it in your dashboard. simple as that.
 
-### Development Commands
+**quiz features:**
+- ⏱️ timed quizzes (if your teacher sets it)
+- 📝 multiple choice, true/false, and short answer questions
+- ✅ instant feedback after submission
+- 📈 see your score and what you got wrong
+- 🔍 detailed explanations for each answer
+- 📊 track your quiz history and improvement
 
-```bash
-# Lint code
-npm run lint
+### connect with classmates
 
-# Format code
-npm run format
+find your friends, send connection requests, and study together. share flashcard sets, compare quiz scores, and help each other out.
 
-# Check formatting
-npm run format:check
+**connection features:**
+- 🔍 search for classmates by name or email
+- 🤝 send and accept connection requests
+- 📤 share your flashcard sets with connections
+- 👥 see what your friends are studying
+- 🏆 friendly competition on quiz scores
 
-# Analyze bundle size
-npm run analyze
-```
+---
 
-## API Architecture
+## 🟡 for teachers
 
-All API routes follow a strict security pattern:
+### create quizzes from PDFs
 
-1. **Authentication** - Verify Firebase ID token
-2. **Authorization** - Check user role and permissions
-3. **Rate Limiting** - Prevent abuse
-4. **CSRF Protection** - Validate CSRF tokens for mutations
-5. **Input Validation** - Zod schema validation
-6. **Business Logic** - Execute operation
-7. **Response** - Return with security headers
+teaching a chapter? upload the PDF and let AI generate a complete quiz. you can customize everything before sharing it with students.
 
-### Example API Flow
+**how it works:**
+1. upload your teaching material (PDF)
+2. choose difficulty level
+3. set number of questions
+4. add custom instructions (optional)
+5. review and edit the generated quiz
+6. assign to your sections/classes
 
-```typescript
-POST /api/quizzes/generate
-├── Verify Firebase token (401 if invalid)
-├── Check teacher role (403 if not teacher)
-├── Rate limit check (429 if exceeded)
-├── CSRF validation (403 if invalid)
-├── Validate PDF upload (400 if invalid)
-├── Extract text from PDF
-├── Generate quiz with AI
-├── Track AI usage
-└── Return quiz data with security headers
-```
+**quiz customization:**
+- 📝 edit any question or answer
+- ➕ add your own questions
+- 🗑️ remove questions you don't like
+- ⏰ set time limits
+- 🎯 choose question types (multiple choice, true/false, identification)
+- 📊 set passing scores
 
-## Security Features
+### organize your classes
 
-- **No Direct Client Database Access**: All Firestore operations go through API routes
-- **Service Account Authentication**: Backend uses Firebase Admin SDK
-- **HTTP Security Headers**: CSP, HSTS, X-Frame-Options, etc.
-- **Input Sanitization**: DOMPurify for user-generated content
-- **Rate Limiting**: Per-user and per-operation limits
-- **CSRF Tokens**: Required for all state-changing operations
-- **Anti-Cheat Detection**: Tab monitoring and violation tracking
+create sections for different classes or periods. add students, manage rosters, and keep everything organized.
 
-## Performance Optimizations
+**section management:**
+- � create unlimited sections
+- 👥 add students by email
+- 🏷️ name sections (e.g., "Period 1 Biology", "AP Calculus")
+- 📊 see all students in each section
+- 🔄 move students between sections
+- 📤 assign quizzes to specific sections
 
-- **Multi-Layer Caching**: Redis + Firestore caching
-- **PDF Extraction Caching**: Reuse extracted text for identical PDFs
-- **AI Response Caching**: Cache quiz/flashcard generation results
-- **Batch Queries**: Minimize Firestore reads
-- **Pagination**: Efficient data loading
-- **Bundle Optimization**: Code splitting and tree shaking
+### monitor quizzes in real-time
 
-## AI Generation
+when students take quizzes, you can watch in real-time. see who's taking it, how long they're spending, and if anyone's cheating.
 
-### Quiz Generation
+**live monitoring shows:**
+- 👀 who's currently taking the quiz
+- ⏱️ how long each student has been working
+- � tab switches (if they leave the quiz page)
+- ⏰ time spent away from the quiz
+- 🔴 automatic flags for suspicious behavior
+- � live completion status
 
-- Supports 3 difficulty levels (easy, medium, hard)
-- Multiple question types (multiple choice, identification, true/false)
-- Includes explanations for each answer
-- Custom instruction support
-- Fallback model support (Gemini 2.0 Flash → 1.5 Flash)
+### see detailed results
 
-### Flashcard Generation
+after students submit, see everything. who passed, who struggled, which questions were hardest, and individual student breakdowns.
 
-- Automatic front/back card creation
-- Difficulty-based content adaptation
-- Concise formatting (front <200 chars, back <500 chars)
-- Custom instruction support
+**analytics include:**
+- � class average and distribution
+- 🎯 question-by-question breakdown
+- 👤 individual student performance
+- 📈 improvement over time
+- 🔍 most missed questions
+- 💡 insights on what to review
 
-## Database Schema
+---
 
-### Collections
+## 🔴 key features
 
-- `users` - User profiles and roles
-- `quizzes` - Quiz definitions and questions
-- `flashcards` - Flashcard sets and cards
-- `sections` - Teacher class sections
-- `section_students` - Section membership
-- `connections` - Student peer connections
-- `quizAttempts` - Quiz submission records
-- `activeQuizSessions` - Live quiz monitoring
-- `pdfExtractionCache` - Cached PDF text extraction
-- `aiUsage` - AI cost tracking
+### AI that actually understands
 
-## Contributing
+our AI doesn't just copy-paste from your PDFs. it reads, understands, and creates questions that test real comprehension.
 
-This is a production application. All contributions must:
+**what makes it smart:**
+- 📖 reads context, not just keywords
+- 🎯 creates questions at the right difficulty
+- 💡 includes explanations for answers
+- 🔄 adapts to different subjects
+- 📚 handles textbooks, notes, slides, anything
 
-- Follow TypeScript strict mode
-- Include proper error handling
-- Add security headers to responses
-- Validate all inputs with Zod
-- Include rate limiting for expensive operations
-- Pass ESLint checks
+### difficulty levels explained
 
-## License
+**🟢 easy mode**
+- uses exact wording from the material
+- straightforward questions
+- tests basic recall
+- perfect for memorization
 
-Private - All rights reserved
+**🟡 medium mode**
+- rephrases concepts
+- requires understanding
+- tests comprehension
+- good for most studying
 
-## Support
+**🔴 hard mode**
+- completely rewritten questions
+- requires deep understanding
+- tests critical thinking
+- best for exam prep
 
-For issues or questions, please contact the development team.
+### anti-cheat system
+
+for teachers: we keep quizzes fair. the system tracks suspicious behavior without being invasive.
+
+**what we track:**
+- � switching to other tabs/apps
+- ⏰ time spent away from quiz
+- � unusual patterns
+- 📊 completion time vs. average
+
+**what we DON'T track:**
+- ❌ your camera
+- ❌ your screen content
+- ❌ your browsing history
+- ❌ anything outside the quiz
+
+### works everywhere
+
+phone, tablet, laptop, desktop - QuizChe works on everything. study on the bus, take quizzes in class, create flashcards at home.
+
+**features:**
+- 📱 mobile-friendly design
+- � auto-saves your progress
+- 🔄 syncs across devices
+- ⚡ works on slow internet
+- 🌙 dark mode friendly
+
+---
+
+## 🎓 how to get started
+
+### for students
+
+1. **sign up** with your Google account
+2. **choose "student"** as your role
+3. **complete your profile** (name, school, etc.)
+4. **start creating flashcards** or wait for teacher assignments
+
+### for teachers
+
+1. **sign up** with your Google account
+2. **choose "teacher"** as your role
+3. **complete your profile** (name, school, subjects)
+4. **create your first section** (add students)
+5. **generate your first quiz** from a PDF
+
+---
+
+## � tips and tricks
+
+### for better flashcards
+
+- � *use clear, well-formatted PDFs
+- 📚 upload one topic at a time
+- 🎯 start with medium difficulty
+- ✏️ review and edit AI-generated cards
+- 🔄 regenerate if you don't like the results
+
+### for better quizzes
+
+- 📖 upload comprehensive materials
+- 🎯 be specific with custom instructions
+- 📝 review questions before assigning
+- ⏰ set reasonable time limits
+- 📊 check analytics after each quiz
+
+### for better studying
+
+- 🔄 review flashcards multiple times
+- 📊 focus on cards you get wrong
+- 🤝 study with connected friends
+- 📈 track your quiz scores over time
+- 💡 read explanations, don't just memorize
+
+---
+
+## 🤔 common questions
+
+**is it really free?**
+yes! we're free to start. you can create flashcards and quizzes without paying anything.
+
+**how accurate is the AI?**
+pretty damn accurate. it uses Google's Gemini AI, which is one of the best. but always review what it generates - AI isn't perfect.
+
+**can I edit AI-generated content?**
+absolutely! edit questions, answers, flashcards - whatever you want. the AI is a starting point, not the final word.
+
+**does it work with any PDF?**
+works best with text-based PDFs (like typed documents). scanned images might not work as well.
+
+**is my data safe?**
+yes. we use Google's security systems. your PDFs and quizzes are private. teachers can only see their students' data.
+
+**can students cheat?**
+we track suspicious behavior, but we're not Big Brother. the system flags weird patterns, but teachers make the final call.
+
+**how many flashcards can I create?**
+as many as you want! no limits on flashcard creation.
+
+**how many quizzes can teachers create?**
+teachers can generate 3 quizzes per hour (to prevent abuse). after that, wait an hour or create quizzes manually.
+
+**can I use it on my phone?**
+yep! works on any device with a web browser.
+
+**do I need to download anything?**
+nope. it's all web-based. just go to the website and sign in.
+
+---
+
+## � what's coming next
+
+we're constantly improving QuizChe. here's what's in the works:
+
+**🟢 coming soon**
+- 📱 mobile apps (iOS and Android)
+- 🎥 video content support
+- 🗣️ voice notes to flashcards
+- 🏆 achievement badges
+
+**🟡 in development**
+- � collaborative study rooms
+- � advanced analytics
+- 🎮 gamification features
+- � smart notifications
+
+**� future plans**
+- 🧠 spaced repetition algorithm
+- � study streaks
+- 🏅 leaderboards
+- 🤖 AI study recommendations
+
+---
+
+## 💬 need help?
+
+**students:** check your dashboard for tutorials, or ask your teacher
+
+**teachers:** email us or check the help center
+
+**found a bug?** let us know! we fix things fast
+
+**have an idea?** we love feedback! tell us what you want to see
+
+---
+
+<div align="center">
+
+**QuizChe** - study smarter, not harder
+
+made with ☕ and 🤖 by people who actually care about education
+
+🟢 **sign up now** • 🟡 **it's free** • 🔴 **start learning**
+
+</div>

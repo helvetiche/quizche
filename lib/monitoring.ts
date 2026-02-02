@@ -188,8 +188,8 @@ export const getUserUsageStats = async (
     };
 
     aiCostDocs.forEach((doc) => {
-      const data = doc.data();
-      const metadata = data?.metadata as Record<string, unknown> | undefined;
+      const data = doc.data() as { metadata?: Record<string, unknown> } | undefined;
+      const metadata = data?.metadata;
       const operation = metadata?.operation;
       if (operation === "pdf_extraction") {
         aiUsage.pdfExtractions += 1;
