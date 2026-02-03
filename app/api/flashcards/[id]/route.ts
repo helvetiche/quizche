@@ -111,6 +111,26 @@ export async function GET(
       });
     }
 
+    // Fetch author details
+    let sharedBy = "Unknown";
+    let sharedByPhotoUrl = null;
+    let sharedBySchool = null;
+
+    if (flashcardData?.userId) {
+      const authorDoc = await adminDb
+        .collection("users")
+        .doc(flashcardData.userId)
+        .get();
+      if (authorDoc.exists) {
+        const authorData = authorDoc.data();
+        sharedBy =
+          `${authorData?.firstName ?? ""} ${authorData?.lastName ?? ""}`.trim() ||
+          "Unknown";
+        sharedByPhotoUrl = authorData?.profilePhotoUrl ?? null;
+        sharedBySchool = authorData?.school ?? null;
+      }
+    }
+
     const result = {
       flashcardSet: {
         id: flashcardDoc.id,
@@ -130,6 +150,10 @@ export async function GET(
         ratings: flashcardData?.ratings || {},
         averageRating: flashcardData?.averageRating || 0,
         totalRatings: flashcardData?.totalRatings || 0,
+        sharedBy,
+        sharedByPhotoUrl,
+        sharedBySchool,
+        sharedByUserId: flashcardData?.userId,
       },
     };
 
