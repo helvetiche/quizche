@@ -1,5 +1,4 @@
-/* eslint-disable @typescript-eslint/no-misused-promises */
-/* eslint-disable @typescript-eslint/strict-boolean-expressions, @typescript-eslint/no-unnecessary-condition, @typescript-eslint/explicit-function-return-type */
+/* eslint-disable @typescript-eslint/strict-boolean-expressions, @typescript-eslint/explicit-function-return-type */
 "use client";
 
 import { useState, useCallback } from "react";
@@ -10,6 +9,7 @@ import FlashcardMaker from "../../../../components/create/FlashcardMaker";
 
 type User = {
   email?: string;
+  idToken?: string;
 };
 
 export default function EditFlashcardPage() {
@@ -18,7 +18,7 @@ export default function EditFlashcardPage() {
   const [user, setUser] = useState<User | null>(null);
   const [idToken, setIdToken] = useState<string | null>(null);
 
-  const handleAuthSuccess = useCallback((userData: any) => {
+  const handleAuthSuccess = useCallback((userData: User) => {
     setUser(userData);
     if (userData.idToken) {
       setIdToken(userData.idToken);

@@ -57,7 +57,7 @@ const BottomNavigation = ({
   const pathname = usePathname();
 
   // Hide bottom navigation on flashcard edit page
-  if (pathname?.match(/^\/student\/flashcards\/[^/]+\/edit$/)) {
+  if (/^\/student\/flashcards\/[^/]+\/edit$/.exec(pathname ?? "") !== null) {
     return null;
   }
 

@@ -126,6 +126,10 @@ export async function GET(
         updatedAt:
           flashcardData?.updatedAt?.toDate?.()?.toISOString() ||
           flashcardData?.updatedAt,
+        comments: flashcardData?.comments || [],
+        ratings: flashcardData?.ratings || {},
+        averageRating: flashcardData?.averageRating || 0,
+        totalRatings: flashcardData?.totalRatings || 0,
       },
     };
 

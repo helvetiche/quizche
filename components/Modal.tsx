@@ -8,6 +8,7 @@ import {
   type ReactNode,
   useCallback,
 } from "react";
+import { createPortal } from "react-dom";
 import { gsap } from "gsap";
 
 type ModalProps = {
@@ -26,7 +27,7 @@ const Modal = ({
   className = "",
   backdropClassName = "",
   closeOnBackdropClick = true,
-}: ModalProps): React.JSX.Element => {
+}: ModalProps): ReactNode => {
   const [isVisible, setIsVisible] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
   const modalRef = useRef<HTMLDivElement>(null);
@@ -114,8 +115,10 @@ const Modal = ({
 
   if (!isVisible) return <></>;
 
-  return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+  if (typeof document === "undefined") return null;
+
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
       <div
         ref={backdropRef}
         className={`absolute inset-0 bg-black/50 ${backdropClassName}`}
@@ -124,7 +127,8 @@ const Modal = ({
       <div ref={modalRef} className={`relative ${className}`}>
         {children}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 

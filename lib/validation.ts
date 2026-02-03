@@ -69,6 +69,46 @@ export const FlashcardSetSchema = z.object({
   tags: z.array(z.string().max(20).trim()).max(4).optional(),
 });
 
+// Comment and Rating schemas
+export type Comment = {
+  id: string;
+  userId: string;
+  userName: string;
+  userPhotoUrl?: string | null;
+  content: string;
+  createdAt: string;
+  likes: string[];
+  replies: Comment[];
+};
+
+export const CommentSchema: z.ZodType<Comment> = z.lazy(() =>
+  z.object({
+    id: z.string(),
+    userId: z.string(),
+    userName: z.string(),
+    userPhotoUrl: z.string().optional().or(z.literal("")).nullable(),
+    content: z.string().min(1).max(1000).trim(),
+    createdAt: z.string(),
+    likes: z.array(z.string()).default([]), // Array of userIds who liked the comment
+    replies: z.array(CommentSchema).default([]),
+  })
+);
+
+export const RatingSchema = z.object({
+  userId: z.string(),
+  rating: z.number().int().min(1).max(5),
+  createdAt: z.string(),
+});
+
+export const AddCommentSchema = z.object({
+  content: z.string().min(1).max(1000).trim(),
+  parentId: z.string().optional(), // If replying to a comment
+});
+
+export const RateFlashcardSchema = z.object({
+  rating: z.number().int().min(1).max(5),
+});
+
 // User profile validation schemas
 export const UserProfileSchema = z.object({
   firstName: z.string().min(1).max(100).trim(),

@@ -7,6 +7,7 @@ import Image from "next/image";
 import { getAuth } from "firebase/auth";
 import app from "@/lib/firebase";
 import ShareFlashcardModal from "../../flashcards/ShareFlashcardModal";
+import ViewFlashcardModal from "./ViewFlashcardModal";
 
 type FlashcardSet = {
   id: string;
@@ -35,6 +36,8 @@ export default function StudentFlashcardsContent({
   const [shareModalFlashcardId, setShareModalFlashcardId] = useState<
     string | null
   >(null);
+  const [viewModalFlashcard, setViewModalFlashcard] =
+    useState<FlashcardSet | null>(null);
 
   const fetchFlashcards = useCallback(async (): Promise<void> => {
     if (!user) return;
@@ -205,6 +208,12 @@ export default function StudentFlashcardsContent({
 
                 <div className="flex flex-col gap-2">
                   <div className="flex gap-2">
+                    <button
+                      onClick={() => setViewModalFlashcard(flashcard)}
+                      className="flex-1 px-4 py-2 text-center font-light bg-gray-100 text-black hover:bg-gray-200 transition-colors"
+                    >
+                      View
+                    </button>
                     <Link
                       href={`/student/flashcards/${flashcard.id}/study`}
                       className="flex-1 px-4 py-2 text-center font-light bg-black text-white hover:bg-gray-800 transition-colors"
@@ -215,7 +224,7 @@ export default function StudentFlashcardsContent({
                       href={`/student/flashcards/${flashcard.id}/edit`}
                       className="flex-1 px-4 py-2 text-center font-light bg-gray-200 text-black hover:bg-gray-300 transition-colors"
                     >
-                      {flashcard.isShared ? "Clone & Edit" : "Edit"}
+                      {flashcard.isShared ? "Clone" : "Edit"}
                     </Link>
                   </div>
                   {!flashcard.isShared && (
@@ -242,6 +251,12 @@ export default function StudentFlashcardsContent({
           onShareSuccess={() => void fetchFlashcards()}
         />
       )}
+
+      <ViewFlashcardModal
+        isOpen={!!viewModalFlashcard}
+        onClose={() => setViewModalFlashcard(null)}
+        flashcard={viewModalFlashcard}
+      />
     </div>
   );
 }

@@ -18,83 +18,6 @@ import {
 } from "@/lib/validation";
 import { handleApiError } from "@/lib/error-handler";
 
-type Flashcard = {
-  front: string;
-  back: string;
-  frontImageUrl?: string;
-  backImageUrl?: string;
-};
-
-type FlashcardSetData = {
-  title: string;
-  description?: string;
-  cards: Flashcard[];
-  isPublic?: boolean;
-  coverImageUrl?: string;
-};
-
-const _validateFlashcardSet = (data: unknown): data is FlashcardSetData => {
-  if (data === null || data === undefined || typeof data !== "object")
-    return false;
-  const obj = data as Record<string, unknown>;
-  if (typeof obj.title !== "string" || obj.title.trim().length === 0) {
-    return false;
-  }
-  if (obj.title.trim().length > 200) return false;
-  if (
-    obj.description !== undefined &&
-    (typeof obj.description !== "string" || obj.description.length > 500)
-  ) {
-    return false;
-  }
-  if (!Array.isArray(obj.cards) || obj.cards.length === 0) {
-    return false;
-  }
-  if (obj.cards.length > 500) return false; // Limit to 500 cards per set
-  if (obj.isPublic !== undefined && typeof obj.isPublic !== "boolean") {
-    return false;
-  }
-  if (
-    obj.coverImageUrl !== undefined &&
-    (typeof obj.coverImageUrl !== "string" ||
-      obj.coverImageUrl.trim().length === 0)
-  ) {
-    return false;
-  }
-  return obj.cards.every((card: unknown) => {
-    if (card === null || card === undefined || typeof card !== "object") {
-      return false;
-    }
-    const cardObj = card as Record<string, unknown>;
-    if (
-      typeof cardObj.front !== "string" ||
-      typeof cardObj.back !== "string" ||
-      cardObj.front.trim().length === 0 ||
-      cardObj.back.trim().length === 0 ||
-      cardObj.front.trim().length > 1000 ||
-      cardObj.back.trim().length > 1000
-    ) {
-      return false;
-    }
-    // Validate image URLs if present
-    if (
-      cardObj.frontImageUrl !== undefined &&
-      (typeof cardObj.frontImageUrl !== "string" ||
-        cardObj.frontImageUrl.trim().length === 0)
-    ) {
-      return false;
-    }
-    if (
-      cardObj.backImageUrl !== undefined &&
-      (typeof cardObj.backImageUrl !== "string" ||
-        cardObj.backImageUrl.trim().length === 0)
-    ) {
-      return false;
-    }
-    return true;
-  });
-};
-
 export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
     const user = await verifyAuth(request);
@@ -176,7 +99,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         }
       }
 
-      let publicFlashcards = publicFlashcardsSnapshot.docs.map((doc) => {
+      const publicFlashcards = publicFlashcardsSnapshot.docs.map((doc) => {
         const data = doc.data();
         return {
           id: doc.id,
@@ -227,7 +150,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       ownerResults.forEach(({ uid, doc }) => {
         if (doc.exists) {
           const data = doc.data();
-          ownerDetails[uid as string] = {
+          ownerDetails[uid] = {
             displayName:
               data?.displayName ||
               `${data?.firstName ?? ""} ${data?.lastName ?? ""}`.trim() ||

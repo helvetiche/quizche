@@ -3,6 +3,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
+import NextImage from "next/image";
 import { createPortal } from "react-dom";
 import { getAuth } from "firebase/auth";
 import app from "@/lib/firebase";
@@ -140,9 +141,9 @@ export default function StudentHomeContent({ user }: StudentHomeContentProps) {
       const query = searchQuery.toLowerCase();
       const matchesSearch =
         fc.title.toLowerCase().includes(query) ||
-        (fc.description && fc.description.toLowerCase().includes(query)) ||
-        (fc.sharedBy && fc.sharedBy.toLowerCase().includes(query)) ||
-        (fc.tags && fc.tags.some((tag) => tag.toLowerCase().includes(query)));
+        (fc.description?.toLowerCase().includes(query) ?? false) ||
+        (fc.sharedBy?.toLowerCase().includes(query) ?? false) ||
+        (fc.tags?.some((tag) => tag.toLowerCase().includes(query)) ?? false);
 
       if (!matchesSearch) return false;
 
@@ -162,19 +163,6 @@ export default function StudentHomeContent({ user }: StudentHomeContentProps) {
       // Default to newest first
       return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     });
-
-  const formatDate = (dateString: string): string => {
-    try {
-      const date = new Date(dateString);
-      return date.toLocaleDateString("en-US", {
-        year: "numeric",
-        month: "short",
-        day: "numeric",
-      });
-    } catch {
-      return "Unknown date";
-    }
-  };
 
   return (
     <div className="flex flex-col items-center min-h-[60vh] relative">
@@ -419,10 +407,11 @@ export default function StudentHomeContent({ user }: StudentHomeContentProps) {
                           {/* Cover Image or Pattern */}
                           <div className="h-32 w-full border-b-3 border-gray-900 relative bg-amber-50 group-hover:bg-amber-100 transition-colors">
                             {flashcard.coverImageUrl ? (
-                              <img
+                              <NextImage
                                 src={flashcard.coverImageUrl}
                                 alt={flashcard.title}
-                                className="w-full h-full object-cover"
+                                fill
+                                className="object-cover"
                               />
                             ) : (
                               <div className="w-full h-full flex items-center justify-center overflow-hidden relative">
@@ -501,16 +490,18 @@ export default function StudentHomeContent({ user }: StudentHomeContentProps) {
                             )}
                             {flashcard.sharedBy && (
                               <div className="flex items-center gap-2 shrink-0 mt-auto">
-                                {flashcard.sharedByPhotoUrl ||
+                                {(flashcard.sharedByPhotoUrl ??
                                 (user &&
                                   flashcard.sharedByUserId === user.uid &&
-                                  user.picture) ? (
-                                  <img
+                                  user.picture)) ? (
+                                  <NextImage
                                     src={
-                                      flashcard.sharedByPhotoUrl || user.picture
+                                      flashcard.sharedByPhotoUrl ?? user.picture
                                     }
-                                    alt={flashcard.sharedBy}
-                                    className="w-10 h-10 rounded-full border-2 border-gray-900 object-cover shrink-0"
+                                    alt={flashcard.sharedBy ?? "User"}
+                                    width={40}
+                                    height={40}
+                                    className="rounded-full border-2 border-gray-900 object-cover shrink-0"
                                   />
                                 ) : (
                                   <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center border-2 border-gray-900 shrink-0">
