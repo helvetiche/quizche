@@ -5,7 +5,8 @@
 import { useState, useEffect } from "react";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/lib/firebase";
-import QuizForm, { type GeneratedQuizData } from "../../../create/QuizForm";
+import QuizForm from "../../../create/QuizForm";
+import { type GeneratedQuizData } from "../../../create/quiz-form/types";
 import PDFUploadModal from "../../../create/PDFUploadModal";
 import { useQuizView } from "./QuizViewContext";
 import Modal from "@/components/Modal";
