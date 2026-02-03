@@ -2,13 +2,10 @@
 /* eslint-disable @typescript-eslint/strict-boolean-expressions, @typescript-eslint/no-unnecessary-condition, @typescript-eslint/explicit-function-return-type */
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { onAuthStateChanged } from "firebase/auth";
-import { auth } from "@/lib/firebase";
 import AuthGuard from "../../../../components/auth/AuthGuard";
 import DashboardLayout from "../../../../components/layout/DashboardLayout";
-import Loading from "../../../../components/ui/Loading";
 import FlashcardMaker from "../../../../components/create/FlashcardMaker";
 
 type User = {
@@ -20,36 +17,20 @@ export default function EditFlashcardPage() {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [idToken, setIdToken] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-      if (currentUser !== undefined && currentUser !== null) {
-        try {
-          const token = await currentUser.getIdToken();
-          setIdToken(token);
-        } catch (error) {
-          console.error("Error getting token:", error);
-        }
-      } else {
-        setIdToken(null);
-      }
-      setLoading(false);
-    });
-
-    return () => unsubscribe();
+  const handleAuthSuccess = useCallback((userData: any) => {
+    setUser(userData);
+    if (userData.idToken) {
+      setIdToken(userData.idToken);
+    }
   }, []);
 
   const handleSuccess = (): void => {
     router.push("/student?tab=flashcards");
   };
 
-  if (loading !== undefined && loading !== null) {
-    return <Loading />;
-  }
-
   return (
-    <AuthGuard requiredRole="student" onAuthSuccess={setUser}>
+    <AuthGuard requiredRole="student" onAuthSuccess={handleAuthSuccess}>
       <DashboardLayout
         title="QuizChe - Edit Flashcard Set"
         userEmail={user?.email}
@@ -67,14 +48,21 @@ export default function EditFlashcardPage() {
               Cancel
             </button>
           </div>
-          {idToken && params.id ? (
+          {!params.id ? (
+            <div className="p-4 bg-red-50 border border-red-200 text-red-600 rounded-lg">
+              Error: Invalid Flashcard ID. Please go back and try again.
+            </div>
+          ) : idToken ? (
             <FlashcardMaker
               idToken={idToken}
               flashcardId={params.id as string}
               onSuccess={handleSuccess}
             />
           ) : (
-            <p className="text-lg text-black">Loading...</p>
+            <div className="flex justify-center items-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+              <span className="ml-3 text-gray-600">Initializing editor...</span>
+            </div>
           )}
         </div>
       </DashboardLayout>

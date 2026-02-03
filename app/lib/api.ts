@@ -21,6 +21,7 @@ export const apiFetch = async (
     idToken,
     method = "GET",
     headers = {},
+    body,
     ...restOptions
   } = options;
 
@@ -38,16 +39,14 @@ export const apiFetch = async (
   };
 
   // Check if body is FormData - if so, remove Content-Type to let browser set it with boundary
-  const isFormData = restOptions.body instanceof FormData;
-  console.warn(
-    "apiFetch - isFormData:",
-    isFormData,
-    "body type:",
-    typeof restOptions.body,
-    "body constructor:",
-    restOptions.body?.constructor?.name
-  );
+  const requestBody = body;
+  const isFormData = requestBody instanceof FormData;
 
+  if (method === "POST" || method === "PUT") {
+    if (requestBody === undefined) {
+      console.error(`apiFetch - ${method} request to ${url} has no body!`);
+    }
+  }
   if (isFormData !== undefined && isFormData !== null) {
     delete requestHeaders["Content-Type"];
     delete requestHeaders["content-type"];
@@ -59,7 +58,7 @@ export const apiFetch = async (
   }
 
   // Add CSRF token if needed
-  if (needsCSRF !== undefined && needsCSRF !== null) {
+  if (needsCSRF) {
     if (!idToken) {
       // CSRF is needed but no idToken provided
       console.error("CSRF token required but no idToken provided");
@@ -128,7 +127,7 @@ export const apiFetch = async (
   // For FormData, we need to ensure NO Content-Type header is set so browser adds it with boundary
   const fetchOptions: RequestInit = {
     method,
-    body: restOptions.body,
+    body: requestBody,
     credentials: restOptions.credentials,
     cache: restOptions.cache,
     redirect: restOptions.redirect,
@@ -183,7 +182,7 @@ export const apiFetch = async (
         // Retry request with new token
         const retryFetchOptions: RequestInit = {
           method,
-          body: restOptions.body,
+          body: requestBody,
           credentials: restOptions.credentials,
           cache: restOptions.cache,
           redirect: restOptions.redirect,

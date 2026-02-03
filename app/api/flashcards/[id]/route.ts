@@ -66,7 +66,7 @@ export async function GET(
           .limit(1)
           .get();
 
-        if (shareDoc.empty !== undefined && shareDoc.empty !== null) {
+        if (shareDoc.empty) {
           return NextResponse.json(
             {
               error:
@@ -204,22 +204,31 @@ export async function PUT(
 
     const flashcardData = flashcardDoc.data();
     const isOwner = flashcardData?.userId === user.uid;
+    const isPublic = flashcardData?.isPublic ?? false;
 
     // If user is not the owner, clone the flashcard
     if (!isOwner) {
-      // Check if flashcard is shared with this user
-      const shareDoc = await adminDb
-        .collection("flashcardShares")
-        .where("flashcardId", "==", id)
-        .where("sharedWithUserId", "==", user.uid)
-        .limit(1)
-        .get();
+      // Check if flashcard is shared with this user or public
+      let isAllowed = isPublic;
 
-      if (shareDoc.empty !== undefined && shareDoc.empty !== null) {
+      if (!isAllowed) {
+        const shareDoc = await adminDb
+          .collection("flashcardShares")
+          .where("flashcardId", "==", id)
+          .where("sharedWithUserId", "==", user.uid)
+          .limit(1)
+          .get();
+
+        if (shareDoc.empty === false) {
+          isAllowed = true;
+        }
+      }
+
+      if (!isAllowed) {
         return NextResponse.json(
           {
             error:
-              "Forbidden: You can only update your own flashcard sets or shared ones",
+              "Forbidden: You can only update your own flashcard sets, public ones, or shared ones",
           },
           { status: 403, headers: getErrorSecurityHeaders() }
         );

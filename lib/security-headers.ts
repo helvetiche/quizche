@@ -47,7 +47,7 @@ export const getSecurityHeaders = (
       "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.googleapis.com https://apis.google.com https://*.gstatic.com https://*.firebaseapp.com; " +
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
       "img-src 'self' data: https:; " +
-      "font-src 'self' data: https://fonts.gstatic.com; " +
+      "font-src 'self' data: https://fonts.gstatic.com https://r2cdn.perplexity.ai; " +
       "connect-src 'self' https://*.firebaseio.com https://*.googleapis.com https://*.google.com https://*.ibb.co https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://accounts.google.com wss://*.firebaseio.com; " +
       "frame-src 'self' https://*.google.com https://*.googleapis.com https://accounts.google.com https://*.firebaseapp.com; " +
       "frame-ancestors 'none';",
@@ -103,7 +103,7 @@ export const getPublicSecurityHeaders = (
       "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.googleapis.com https://apis.google.com https://*.gstatic.com https://*.firebaseapp.com https://www.gstatic.com; " +
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
       "img-src 'self' data: https: blob:; " +
-      "font-src 'self' data: https://fonts.gstatic.com; " +
+      "font-src 'self' data: https://fonts.gstatic.com https://r2cdn.perplexity.ai; " +
       "connect-src 'self' https://*.firebaseio.com https://*.googleapis.com https://*.google.com https://*.ibb.co https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://accounts.google.com wss://*.firebaseio.com; " +
       "frame-src 'self' https://*.google.com https://*.googleapis.com https://accounts.google.com https://*.firebaseapp.com; " +
       "frame-ancestors 'none'; " +

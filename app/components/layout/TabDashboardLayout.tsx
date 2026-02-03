@@ -83,7 +83,7 @@ function TabDashboardLayoutInner({
 
           // Fetch full name from profile API
           try {
-            const profileResponse = await fetch("/api/profile", {
+            const profileResponse = await fetch("/api/users/profile", {
               headers: { Authorization: `Bearer ${token}` },
             });
             if (

@@ -128,18 +128,141 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     const url = new URL(request.url);
     const limitParam = url.searchParams.get("limit");
+    const isPublic = url.searchParams.get("public") === "true";
     const limit = parseInt(limitParam !== null ? limitParam : "50", 10);
     const validatedLimit = Math.min(Math.max(limit, 1), 100);
 
     // Check cache first
-    const cacheKey = getApiCacheKey("/api/flashcards", user.uid, {
+    const cacheKey = getApiCacheKey("/api/flashcards:v2", user.uid, {
       limit: validatedLimit.toString(),
+      public: isPublic.toString(),
     });
     const cached = await cache.get<{
       flashcards: Record<string, unknown>[];
     }>(cacheKey);
     if (cached !== null && cached !== undefined) {
       return NextResponse.json(cached, {
+        status: 200,
+        headers: getPublicSecurityHeaders({
+          rateLimitHeaders: rateLimitResult.headers,
+          cacheControl: "private, max-age=300",
+        }),
+      });
+    }
+
+    if (isPublic) {
+      let publicFlashcardsSnapshot;
+      try {
+        publicFlashcardsSnapshot = await adminDb
+          .collection("flashcards")
+          .where("isPublic", "==", true)
+          .orderBy("createdAt", "desc")
+          .limit(validatedLimit)
+          .get();
+      } catch (error: any) {
+        // Fallback for missing index: fetch without sort, then sort in memory
+        // This handles the "The query requires an index" error
+        if (error?.code === 9 || error?.message?.includes("index")) {
+          console.warn(
+            "Missing Firestore index for 'isPublic' + 'createdAt'. Falling back to in-memory sort. Please create the index in Firebase Console."
+          );
+          publicFlashcardsSnapshot = await adminDb
+            .collection("flashcards")
+            .where("isPublic", "==", true)
+            .limit(validatedLimit)
+            .get();
+        } else {
+          throw error;
+        }
+      }
+
+      let publicFlashcards = publicFlashcardsSnapshot.docs.map((doc) => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          title: data.title,
+          description: data.description ?? "",
+          totalCards: data.totalCards ?? 0,
+          isPublic: true,
+          coverImageUrl: data.coverImageUrl ?? undefined,
+          createdAt:
+            data.createdAt?.toDate?.()?.toISOString() ?? data.createdAt,
+          updatedAt:
+            data.updatedAt?.toDate?.()?.toISOString() ?? data.updatedAt,
+          userId: data.userId,
+        };
+      });
+
+      // Ensure sorted by createdAt desc (needed if fallback was used)
+      publicFlashcards.sort((a, b) => {
+        const dateA = new Date(a.createdAt).getTime();
+        const dateB = new Date(b.createdAt).getTime();
+        return dateB - dateA;
+      });
+
+      // Fetch owner details
+      const ownerIds = new Set(
+        publicFlashcards
+          .map((fc) => fc.userId)
+          .filter(
+            (uid): uid is string => typeof uid === "string" && uid.length > 0
+          )
+      );
+      const ownerPromises = Array.from(ownerIds).map((uid) =>
+        adminDb
+          .collection("users")
+          .doc(uid)
+          .get()
+          .then((doc) => ({ uid, doc }))
+          .catch((err) => {
+            console.error(`Error fetching user ${uid}:`, err);
+            return { uid, doc: { exists: false, data: () => null } as any };
+          })
+      );
+
+      const ownerResults = await Promise.all(ownerPromises);
+      const ownerDetails: Record<string, any> = {};
+
+      ownerResults.forEach(({ uid, doc }) => {
+        if (doc.exists) {
+          const data = doc.data();
+          ownerDetails[uid as string] = {
+            displayName:
+              data?.displayName ||
+              `${data?.firstName ?? ""} ${data?.lastName ?? ""}`.trim() ||
+              "",
+            email: data?.email ?? "",
+            photoUrl: data?.profilePhotoUrl || data?.photoURL || null,
+            school: data?.school ?? "",
+          };
+        }
+      });
+
+      const flashcards = publicFlashcards.map((fc) => {
+        const owner = ownerDetails[fc.userId] || {
+          displayName: "Unknown User",
+          email: "",
+          photoUrl: null,
+          school: "",
+        };
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { userId, ...rest } = fc;
+        return {
+          ...rest,
+          isShared: true,
+          sharedBy: owner.displayName || owner.email || "Unknown User",
+          sharedByPhotoUrl: owner.photoUrl,
+          sharedBySchool: owner.school,
+          sharedByUserId: fc.userId,
+        };
+      });
+
+      const result = { flashcards };
+
+      // Cache the result
+      await cache.set(cacheKey, result, 300); // 5 minutes
+
+      return NextResponse.json(result, {
         status: 200,
         headers: getPublicSecurityHeaders({
           rateLimitHeaders: rateLimitResult.headers,

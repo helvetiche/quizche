@@ -25,6 +25,7 @@ No more spending hours making flashcards. No more guessing what questions might 
 got a 50-page PDF? upload it and get instant flashcards. the AI reads through everything and creates question-answer pairs that actually make sense.
 
 **how it works:**
+
 1. upload your study material (PDF)
 2. pick difficulty (easy, medium, or hard)
 3. choose how many flashcards you want
@@ -32,6 +33,7 @@ got a 50-page PDF? upload it and get instant flashcards. the AI reads through ev
 5. study anywhere, anytime
 
 **what you can do:**
+
 - 📚 create unlimited flashcard sets
 - ✏️ edit cards if the AI missed something
 - � flip through cards with smooth animations
@@ -44,6 +46,7 @@ got a 50-page PDF? upload it and get instant flashcards. the AI reads through ev
 your teacher creates a quiz? you'll see it in your dashboard. simple as that.
 
 **quiz features:**
+
 - ⏱️ timed quizzes (if your teacher sets it)
 - 📝 multiple choice, true/false, and short answer questions
 - ✅ instant feedback after submission
@@ -56,6 +59,7 @@ your teacher creates a quiz? you'll see it in your dashboard. simple as that.
 find your friends, send connection requests, and study together. share flashcard sets, compare quiz scores, and help each other out.
 
 **connection features:**
+
 - 🔍 search for classmates by name or email
 - 🤝 send and accept connection requests
 - 📤 share your flashcard sets with connections
@@ -71,6 +75,7 @@ find your friends, send connection requests, and study together. share flashcard
 teaching a chapter? upload the PDF and let AI generate a complete quiz. you can customize everything before sharing it with students.
 
 **how it works:**
+
 1. upload your teaching material (PDF)
 2. choose difficulty level
 3. set number of questions
@@ -79,6 +84,7 @@ teaching a chapter? upload the PDF and let AI generate a complete quiz. you can 
 6. assign to your sections/classes
 
 **quiz customization:**
+
 - 📝 edit any question or answer
 - ➕ add your own questions
 - 🗑️ remove questions you don't like
@@ -91,6 +97,7 @@ teaching a chapter? upload the PDF and let AI generate a complete quiz. you can 
 create sections for different classes or periods. add students, manage rosters, and keep everything organized.
 
 **section management:**
+
 - � create unlimited sections
 - 👥 add students by email
 - 🏷️ name sections (e.g., "Period 1 Biology", "AP Calculus")
@@ -103,6 +110,7 @@ create sections for different classes or periods. add students, manage rosters, 
 when students take quizzes, you can watch in real-time. see who's taking it, how long they're spending, and if anyone's cheating.
 
 **live monitoring shows:**
+
 - 👀 who's currently taking the quiz
 - ⏱️ how long each student has been working
 - � tab switches (if they leave the quiz page)
@@ -115,6 +123,7 @@ when students take quizzes, you can watch in real-time. see who's taking it, how
 after students submit, see everything. who passed, who struggled, which questions were hardest, and individual student breakdowns.
 
 **analytics include:**
+
 - � class average and distribution
 - 🎯 question-by-question breakdown
 - 👤 individual student performance
@@ -131,6 +140,7 @@ after students submit, see everything. who passed, who struggled, which question
 our AI doesn't just copy-paste from your PDFs. it reads, understands, and creates questions that test real comprehension.
 
 **what makes it smart:**
+
 - 📖 reads context, not just keywords
 - 🎯 creates questions at the right difficulty
 - 💡 includes explanations for answers
@@ -140,18 +150,21 @@ our AI doesn't just copy-paste from your PDFs. it reads, understands, and create
 ### difficulty levels explained
 
 **🟢 easy mode**
+
 - uses exact wording from the material
 - straightforward questions
 - tests basic recall
 - perfect for memorization
 
 **🟡 medium mode**
+
 - rephrases concepts
 - requires understanding
 - tests comprehension
 - good for most studying
 
 **🔴 hard mode**
+
 - completely rewritten questions
 - requires deep understanding
 - tests critical thinking
@@ -162,12 +175,14 @@ our AI doesn't just copy-paste from your PDFs. it reads, understands, and create
 for teachers: we keep quizzes fair. the system tracks suspicious behavior without being invasive.
 
 **what we track:**
+
 - � switching to other tabs/apps
 - ⏰ time spent away from quiz
 - � unusual patterns
 - 📊 completion time vs. average
 
 **what we DON'T track:**
+
 - ❌ your camera
 - ❌ your screen content
 - ❌ your browsing history
@@ -178,6 +193,7 @@ for teachers: we keep quizzes fair. the system tracks suspicious behavior withou
 phone, tablet, laptop, desktop - QuizChe works on everything. study on the bus, take quizzes in class, create flashcards at home.
 
 **features:**
+
 - 📱 mobile-friendly design
 - � auto-saves your progress
 - 🔄 syncs across devices
@@ -209,7 +225,7 @@ phone, tablet, laptop, desktop - QuizChe works on everything. study on the bus, 
 
 ### for better flashcards
 
-- � *use clear, well-formatted PDFs
+- � \*use clear, well-formatted PDFs
 - 📚 upload one topic at a time
 - 🎯 start with medium difficulty
 - ✏️ review and edit AI-generated cards
@@ -272,18 +288,21 @@ nope. it's all web-based. just go to the website and sign in.
 we're constantly improving QuizChe. here's what's in the works:
 
 **🟢 coming soon**
+
 - 📱 mobile apps (iOS and Android)
 - 🎥 video content support
 - 🗣️ voice notes to flashcards
 - 🏆 achievement badges
 
 **🟡 in development**
+
 - � collaborative study rooms
 - � advanced analytics
 - 🎮 gamification features
 - � smart notifications
 
 **� future plans**
+
 - 🧠 spaced repetition algorithm
 - � study streaks
 - 🏅 leaderboards

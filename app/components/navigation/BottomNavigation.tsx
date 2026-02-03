@@ -53,8 +53,13 @@ const Badge = ({
 const BottomNavigation = ({
   userRole,
   badges = {},
-}: BottomNavigationProps): ReactElement => {
+}: BottomNavigationProps): ReactElement | null => {
   const pathname = usePathname();
+
+  // Hide bottom navigation on flashcard edit page
+  if (pathname?.match(/^\/student\/flashcards\/[^/]+\/edit$/)) {
+    return null;
+  }
 
   const homePath = userRole === "teacher" ? "/teacher" : "/student";
   const profilePath =

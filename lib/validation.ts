@@ -56,8 +56,8 @@ export const QuizDataSchema = z.object({
 export const FlashcardCardSchema = z.object({
   front: z.string().min(1).max(2000).trim(),
   back: z.string().min(1).max(2000).trim(),
-  frontImageUrl: z.string().url().optional().or(z.literal("")),
-  backImageUrl: z.string().url().optional().or(z.literal("")),
+  frontImageUrl: z.string().url().optional().or(z.literal("")).nullable(),
+  backImageUrl: z.string().url().optional().or(z.literal("")).nullable(),
 });
 
 export const FlashcardSetSchema = z.object({
@@ -65,7 +65,7 @@ export const FlashcardSetSchema = z.object({
   description: z.string().max(1000).trim().optional(),
   cards: z.array(FlashcardCardSchema).min(1).max(500),
   isPublic: z.boolean().optional(),
-  coverImageUrl: z.string().url().optional().or(z.literal("")),
+  coverImageUrl: z.string().url().optional().or(z.literal("")).nullable(),
 });
 
 // User profile validation schemas
