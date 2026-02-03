@@ -11,6 +11,7 @@ import {
   getErrorSecurityHeaders,
 } from "@/lib/security-headers";
 import { v4 as uuidv4 } from "uuid";
+import cache, { getApiCacheKey } from "@/lib/cache";
 
 // Type definition for Comment (matching the schema conceptually)
 type Comment = {
@@ -125,6 +126,10 @@ export async function POST(
       transaction.update(flashcardRef, { comments });
     });
 
+    // Invalidate cache for this flashcard
+    const cacheKey = getApiCacheKey(`/api/flashcards/${id}`, user.uid);
+    await cache.delete(cacheKey);
+
     return NextResponse.json(
       { message: "Comment added successfully", comment: newComment },
       { status: 201, headers: getSecurityHeaders() }
@@ -201,6 +206,10 @@ export async function PUT(
 
       transaction.update(flashcardRef, { comments });
     });
+
+    // Invalidate cache for this flashcard
+    const cacheKey = getApiCacheKey(`/api/flashcards/${id}`, user.uid);
+    await cache.delete(cacheKey);
 
     return NextResponse.json(
       { message: "Comment updated successfully" },

@@ -6,6 +6,7 @@ import {
   getSecurityHeaders,
   getErrorSecurityHeaders,
 } from "@/lib/security-headers";
+import cache, { getApiCacheKey } from "@/lib/cache";
 
 export async function POST(
   request: NextRequest,
@@ -71,6 +72,10 @@ export async function POST(
         averageRating,
       });
     });
+
+    // Invalidate cache for this flashcard
+    const cacheKey = getApiCacheKey(`/api/flashcards/${id}`, user.uid);
+    await cache.delete(cacheKey);
 
     return NextResponse.json(
       { message: "Rating submitted successfully" },

@@ -99,6 +99,7 @@ export default function ViewFlashcardModal({
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [replyContent, setReplyContent] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [hoverRating, setHoverRating] = useState<number>(0);
 
   useEffect(() => {
     if (isOpen && flashcard) {
@@ -113,8 +114,8 @@ export default function ViewFlashcardModal({
     }
   }, [isOpen, flashcard]);
 
-  const fetchData = async (id: string): Promise<void> => {
-    setLoading(true);
+  const fetchData = async (id: string, skipLoading = false): Promise<void> => {
+    if (!skipLoading) setLoading(true);
     setError(null);
     try {
       const auth = getAuth(app);
@@ -126,6 +127,7 @@ export default function ViewFlashcardModal({
         headers: {
           Authorization: `Bearer ${idToken}`,
         },
+        cache: "no-store",
       });
 
       if (!response.ok) {
@@ -150,18 +152,44 @@ export default function ViewFlashcardModal({
       console.error(err);
       setError("Failed to load content. Please try again.");
     } finally {
-      setLoading(false);
+      if (!skipLoading) setLoading(false);
     }
   };
 
   const handleRate = async (rating: number): Promise<void> => {
     if (!flashcard) return;
+
+    // Store previous state for rollback
+    const previousUserRating = userRating;
+    const previousAverage = averageRating;
+    const previousTotal = totalRatings;
+
+    // Calculate optimistic values
+    let newAverage = averageRating;
+    let newTotal = totalRatings;
+
+    if (previousUserRating === 0) {
+      // New rating
+      newTotal = totalRatings + 1;
+      newAverage = (averageRating * totalRatings + rating) / newTotal;
+    } else {
+      // Update existing rating
+      const effectiveTotal = totalRatings > 0 ? totalRatings : 1;
+      newAverage =
+        (averageRating * effectiveTotal - previousUserRating + rating) /
+        effectiveTotal;
+    }
+
+    // Apply optimistic updates immediately
+    setUserRating(rating);
+    setAverageRating(newAverage);
+    setTotalRatings(newTotal);
+
     try {
       const auth = getAuth(app);
       const currentUser = auth.currentUser;
       if (!currentUser) return;
 
-      setUserRating(rating); // Optimistic update
       const idToken = await currentUser.getIdToken();
 
       const response = await fetch(`/api/flashcards/${flashcard.id}/rate`, {
@@ -175,11 +203,14 @@ export default function ViewFlashcardModal({
 
       if (!response.ok) throw new Error("Failed to rate");
 
-      // Refresh data to get new average
-      await fetchData(flashcard.id);
+      // Silently refresh data to ensure consistency
+      await fetchData(flashcard.id, true);
     } catch (err) {
       console.error(err);
-      // Revert on error? For now just log
+      // Revert optimistic updates on error
+      setUserRating(previousUserRating);
+      setAverageRating(previousAverage);
+      setTotalRatings(previousTotal);
     }
   };
 
@@ -188,12 +219,60 @@ export default function ViewFlashcardModal({
     const content = parentId != null ? replyContent : newComment;
     if (!content.trim()) return;
 
+    // Optimistic Update
+    const auth = getAuth(app);
+    const currentUser = auth.currentUser;
+    if (!currentUser) return;
+
+    // Store previous comments for rollback
+    const previousComments = [...comments];
+
+    const tempId = `temp-${Date.now()}`;
+    const optimisticComment: Comment = {
+      id: tempId,
+      userId: currentUser.uid,
+      userName: currentUser.displayName ?? "You",
+      userPhotoUrl: currentUser.photoURL,
+      content,
+      createdAt: new Date().toISOString(),
+      likes: [],
+      replies: [],
+    };
+
+    if (parentId != null) {
+      // Add as reply
+      const updatedComments = comments.map((comment) => {
+        if (comment.id === parentId) {
+          return {
+            ...comment,
+            replies: [...comment.replies, optimisticComment],
+          };
+        }
+        // Deep search for nested replies if needed (though current UI only supports 1 level deep display in renderComments recursive call,
+        // logic should match)
+        // For simple 1-level or recursive:
+        const addReplyToNested = (c: Comment): Comment => {
+          if (c.id === parentId) {
+            return { ...c, replies: [...c.replies, optimisticComment] };
+          }
+          if (c.replies.length > 0) {
+            return { ...c, replies: c.replies.map(addReplyToNested) };
+          }
+          return c;
+        };
+        return addReplyToNested(comment);
+      });
+      setComments(updatedComments);
+      setReplyingTo(null);
+      setReplyContent("");
+    } else {
+      // Add as new comment
+      setComments([...comments, optimisticComment]);
+      setNewComment("");
+    }
+
     setSubmitting(true);
     try {
-      const auth = getAuth(app);
-      const currentUser = auth.currentUser;
-      if (!currentUser) return;
-
       const idToken = await currentUser.getIdToken();
 
       const response = await fetch(`/api/flashcards/${flashcard.id}/comments`, {
@@ -207,18 +286,18 @@ export default function ViewFlashcardModal({
 
       if (!response.ok) throw new Error("Failed to post comment");
 
-      // Update state locally or refetch
-      // For simplicity and recursive structure, refetching is safer
-      await fetchData(flashcard.id);
-
-      if (parentId != null) {
-        setReplyingTo(null);
-        setReplyContent("");
-      } else {
-        setNewComment("");
-      }
+      // Silently sync with server to get real ID and confirmed state
+      await fetchData(flashcard.id, true);
     } catch (err) {
       console.error(err);
+      // Revert optimistic update
+      setComments(previousComments);
+      if (parentId != null) {
+        setReplyingTo(parentId);
+        setReplyContent(content);
+      } else {
+        setNewComment(content);
+      }
     } finally {
       setSubmitting(false);
     }
@@ -226,11 +305,34 @@ export default function ViewFlashcardModal({
 
   const handleLikeComment = async (commentId: string): Promise<void> => {
     if (!flashcard) return;
-    try {
-      const auth = getAuth(app);
-      const currentUser = auth.currentUser;
-      if (!currentUser) return;
 
+    const auth = getAuth(app);
+    const currentUser = auth.currentUser;
+    if (!currentUser) return;
+
+    // Store previous comments for rollback
+    const previousComments = [...comments];
+
+    // Optimistic Update
+    const toggleLikeInTree = (list: Comment[]): Comment[] => {
+      return list.map((comment) => {
+        if (comment.id === commentId) {
+          const hasLiked = comment.likes.includes(currentUser.uid);
+          const newLikes = hasLiked
+            ? comment.likes.filter((uid) => uid !== currentUser.uid)
+            : [...comment.likes, currentUser.uid];
+          return { ...comment, likes: newLikes };
+        }
+        if (comment.replies.length > 0) {
+          return { ...comment, replies: toggleLikeInTree(comment.replies) };
+        }
+        return comment;
+      });
+    };
+
+    setComments(toggleLikeInTree(comments));
+
+    try {
       const idToken = await currentUser.getIdToken();
 
       const response = await fetch(`/api/flashcards/${flashcard.id}/comments`, {
@@ -244,10 +346,12 @@ export default function ViewFlashcardModal({
 
       if (!response.ok) throw new Error("Failed to like comment");
 
-      // Optimistic update or refetch
-      await fetchData(flashcard.id);
+      // Silently sync
+      await fetchData(flashcard.id, true);
     } catch (err) {
       console.error(err);
+      // Revert
+      setComments(previousComments);
     }
   };
 
@@ -370,22 +474,12 @@ export default function ViewFlashcardModal({
       className="w-full max-w-7xl h-[90vh]"
     >
       <div className="bg-white border-3 border-gray-900 rounded-3xl shadow-[8px_8px_0px_0px_rgba(17,24,39,1)] flex flex-col h-full overflow-hidden">
-        {/* Header - Fixed */}
+        {/* Header - Traffic Lights */}
         <div className="bg-amber-100 p-4 border-b-3 border-gray-900 shrink-0 flex justify-between items-center">
-          <div className="flex items-center gap-4">
-            <div className="w-10 h-10 bg-white border-2 border-gray-900 rounded-full flex items-center justify-center">
-              <span className="material-icons-outlined text-gray-900">
-                visibility
-              </span>
-            </div>
-            <div>
-              <h2 className="text-xl font-black text-gray-900 line-clamp-1">
-                {flashcard.title}
-              </h2>
-              <p className="text-xs font-medium text-gray-600">
-                by {flashcard.sharedBy ?? "Unknown"}
-              </p>
-            </div>
+          <div className="flex gap-1.5">
+            <div className="w-4 h-4 bg-red-500 rounded-full border-2 border-gray-900"></div>
+            <div className="w-4 h-4 bg-yellow-400 rounded-full border-2 border-gray-900"></div>
+            <div className="w-4 h-4 bg-green-500 rounded-full border-2 border-gray-900"></div>
           </div>
           <button
             onClick={onClose}
@@ -397,127 +491,200 @@ export default function ViewFlashcardModal({
 
         {/* Content Area - Flex Row */}
         <div className="flex flex-col md:flex-row h-full overflow-hidden bg-gray-50">
-          {/* Left Column: Cards List */}
+          {/* Left Column: Metadata & Details */}
           <div className="w-full md:w-5/12 border-b md:border-b-0 md:border-r border-gray-200 overflow-y-auto p-6 bg-white">
-            <div className="mb-4 flex items-center justify-between">
-              <h3 className="font-bold text-gray-900 text-lg">
-                Flashcards ({cards.length})
-              </h3>
-            </div>
-
-            {error != null && (
-              <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
-                {error}
+            {loading ? (
+              // Detailed Skeleton
+              <div className="animate-pulse space-y-6">
+                <div className="aspect-video w-full bg-gray-200 rounded-2xl border-2 border-gray-900"></div>
+                <div className="space-y-2">
+                  <div className="h-8 bg-gray-200 rounded-full w-3/4 border border-gray-900"></div>
+                  <div className="h-4 bg-gray-200 rounded-full w-1/3 border border-gray-900"></div>
+                </div>
+                <div className="flex gap-2">
+                  <div className="h-6 w-16 bg-gray-200 rounded-full border border-gray-900"></div>
+                  <div className="h-6 w-20 bg-gray-200 rounded-full border border-gray-900"></div>
+                  <div className="h-6 w-14 bg-gray-200 rounded-full border border-gray-900"></div>
+                </div>
+                <div className="h-32 bg-gray-200 rounded-xl border border-gray-900"></div>
+                <div className="space-y-2">
+                  <div className="h-4 bg-gray-200 rounded w-full border border-gray-900"></div>
+                  <div className="h-4 bg-gray-200 rounded w-5/6 border border-gray-900"></div>
+                  <div className="h-4 bg-gray-200 rounded w-4/6 border border-gray-900"></div>
+                </div>
               </div>
-            )}
-
-            {loading && cards.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-12">
-                <div className="w-8 h-8 border-4 border-gray-200 border-t-gray-900 rounded-full animate-spin mb-4"></div>
-                <p className="text-gray-500 text-sm">Loading cards...</p>
-              </div>
-            ) : cards.length === 0 ? (
-              <p className="text-gray-500 text-sm">No cards available.</p>
             ) : (
-              <div className="grid grid-cols-1 gap-4">
-                {cards.map((card, index) => (
-                  <div
-                    key={index}
-                    className="bg-white border-2 border-gray-100 hover:border-gray-900 rounded-xl p-4 flex gap-4 transition-colors"
-                  >
-                    <div className="w-6 h-6 bg-amber-100 rounded-full border border-gray-900 flex items-center justify-center shrink-0 font-bold text-gray-900 text-xs">
-                      {index + 1}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      {card.frontImageUrl != null &&
-                        card.frontImageUrl !== "" && (
-                          <div className="mb-2 rounded-lg overflow-hidden border border-gray-200 h-24 w-full bg-gray-50 relative">
-                            <Image
-                              src={card.frontImageUrl}
-                              alt="Card"
-                              fill
-                              className="object-contain"
-                            />
+              <div className="space-y-6">
+                {/* 1. Image / 5-card Design */}
+                <div className="w-full aspect-video rounded-2xl border-3 border-gray-900 overflow-hidden relative group bg-amber-50 shadow-[4px_4px_0px_0px_rgba(17,24,39,1)]">
+                  {flashcard.coverImageUrl ? (
+                    <Image
+                      src={flashcard.coverImageUrl}
+                      alt={flashcard.title}
+                      fill
+                      className="object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center overflow-hidden relative">
+                      {/* Decorative background pattern */}
+                      <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#111827_1px,transparent_1px)] [background-size:12px_12px]"></div>
+
+                      {/* Circular Card Stack Design */}
+                      <div className="relative w-48 h-64 transform translate-y-2 group-hover:scale-105 transition-transform duration-500 ease-out">
+                        {/* Glow effect behind */}
+                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-60 h-60 bg-amber-100/20 blur-2xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
+
+                        {/* Far Left Card */}
+                        <div className="absolute top-0 left-0 w-full h-full bg-amber-50 border-2 border-gray-900 rounded-xl transform -rotate-[24deg] -translate-x-8 translate-y-4 shadow-sm z-0"></div>
+
+                        {/* Left Card */}
+                        <div className="absolute top-0 left-0 w-full h-full bg-amber-50 border-2 border-gray-900 rounded-xl transform -rotate-[12deg] -translate-x-4 translate-y-2 shadow-sm z-10 overflow-hidden">
+                          <div className="p-4 space-y-3 opacity-30">
+                            <div className="h-2 bg-amber-100 rounded w-full"></div>
+                            <div className="h-2 bg-amber-100 rounded w-2/3"></div>
+                            <div className="h-2 bg-amber-100 rounded w-3/4"></div>
                           </div>
+                        </div>
+
+                        {/* Far Right Card */}
+                        <div className="absolute top-0 left-0 w-full h-full bg-amber-50 border-2 border-gray-900 rounded-xl transform rotate-[24deg] translate-x-8 translate-y-4 shadow-sm z-0"></div>
+
+                        {/* Right Card */}
+                        <div className="absolute top-0 left-0 w-full h-full bg-amber-50 border-2 border-gray-900 rounded-xl transform rotate-[12deg] translate-x-4 translate-y-2 shadow-sm z-10 overflow-hidden">
+                          <div className="p-4 space-y-3 opacity-30">
+                            <div className="h-2 bg-amber-100 rounded w-3/4"></div>
+                            <div className="h-2 bg-amber-100 rounded w-full"></div>
+                            <div className="h-2 bg-amber-100 rounded w-1/2"></div>
+                          </div>
+                        </div>
+
+                        {/* Center Card */}
+                        <div className="absolute top-0 left-0 w-full h-full bg-amber-50 border-2 border-gray-900 rounded-xl transform rotate-0 z-20 flex flex-col items-center justify-center shadow-md overflow-hidden relative">
+                          {/* Glimmer/Sheen Effect */}
+                          <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-amber-100/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none z-30"></div>
+                          <div className="absolute -inset-[100%] top-0 block h-[200%] w-[200%] -skew-x-12 bg-gradient-to-r from-transparent via-amber-100/30 to-transparent opacity-0 group-hover:animate-[shine_1s_ease-in-out] z-30"></div>
+
+                          <div className="w-12 h-12 rounded-full border-2 border-gray-900 bg-amber-100 flex items-center justify-center mb-3 relative z-10">
+                            <span className="material-icons-outlined text-gray-900 text-2xl group-hover:scale-110 transition-transform duration-300">
+                              school
+                            </span>
+                          </div>
+                          <div className="w-16 h-2 bg-amber-100 rounded-full mb-1.5"></div>
+                          <div className="w-10 h-2 bg-amber-100 rounded-full"></div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* 2. Title */}
+                <div>
+                  <h2 className="text-3xl font-black text-gray-900 leading-tight mb-2">
+                    {flashcard.title}
+                  </h2>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      {flashcard.sharedByPhotoUrl ? (
+                        <Image
+                          src={flashcard.sharedByPhotoUrl}
+                          alt={flashcard.sharedBy ?? "User"}
+                          width={40}
+                          height={40}
+                          className="rounded-full border border-gray-900"
+                        />
+                      ) : (
+                        <div className="w-10 h-10 rounded-full bg-gray-200 border border-gray-900 flex items-center justify-center">
+                          <span className="material-icons-outlined text-gray-500 text-sm">
+                            person
+                          </span>
+                        </div>
+                      )}
+                      <div className="flex flex-col">
+                        <p className="text-base font-bold text-gray-900 leading-none">
+                          {flashcard.sharedBy ?? "Unknown"}
+                        </p>
+                        {flashcard.sharedBySchool && (
+                          <span className="text-xs font-medium text-gray-500 mt-1">
+                            {flashcard.sharedBySchool}
+                          </span>
                         )}
-                      <p className="text-sm font-medium text-gray-900 whitespace-pre-wrap break-words">
-                        {card.front}
+                      </div>
+                    </div>
+
+                    {/* Concise Ratings */}
+                    <div className="flex flex-col items-end">
+                      <div
+                        className="flex"
+                        onMouseLeave={() => setHoverRating(0)}
+                      >
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <button
+                            key={star}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              void handleRate(star);
+                            }}
+                            onMouseEnter={() => setHoverRating(star)}
+                            className="focus:outline-none transition-transform hover:scale-110 active:scale-95"
+                          >
+                            <span
+                              style={{ WebkitTextStroke: "1px #1f2937" }}
+                              className={`material-icons text-xl ${
+                                star <=
+                                (hoverRating > 0
+                                  ? hoverRating
+                                  : userRating > 0
+                                    ? userRating
+                                    : Math.round(averageRating))
+                                  ? "text-amber-400"
+                                  : "text-gray-300"
+                              }`}
+                            >
+                              star
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                      <p className="text-xs font-bold text-amber-600 mt-0.5">
+                        {averageRating.toFixed(1)}/5
                       </p>
                     </div>
                   </div>
-                ))}
+                </div>
+
+                {/* 3. Tags */}
+                {flashcard.tags && flashcard.tags.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {flashcard.tags.map((tag, i) => (
+                      <span
+                        key={i}
+                        className="px-3 py-1 bg-amber-100 border border-gray-900 rounded-full text-xs font-bold text-gray-900"
+                      >
+                        #{tag}
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                {/* 4. Ratings (Removed) */}
+
+                {/* 5. Description */}
+                {flashcard.description && (
+                  <div className="prose prose-sm max-w-none">
+                    <p className="text-gray-700 font-medium leading-relaxed border-l-4 border-amber-400 pl-4 italic">
+                      {flashcard.description}
+                    </p>
+                  </div>
+                )}
               </div>
             )}
           </div>
 
-          {/* Right Column: Ratings & Comments */}
+          {/* Right Column: Comments Only */}
           <div className="w-full md:w-7/12 flex flex-col h-full overflow-hidden bg-gray-50/50">
-            {/* Ratings Header */}
-            <div className="bg-white p-6 border-b border-gray-200 shrink-0">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-3xl font-black text-gray-900">
-                      {averageRating.toFixed(1)}
-                    </span>
-                    <div className="flex text-amber-400">
-                      {[1, 2, 3, 4, 5].map((star) => (
-                        <span key={star} className="material-icons text-xl">
-                          {star <= Math.round(averageRating)
-                            ? "star"
-                            : "star_border"}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                  <p className="text-xs text-gray-500 font-medium">
-                    {totalRatings} ratings
-                  </p>
-                </div>
-
-                <div className="flex flex-col items-end">
-                  <span className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">
-                    Rate this set
-                  </span>
-                  <div className="flex gap-1">
-                    {[1, 2, 3, 4, 5].map((star) => (
-                      <button
-                        key={star}
-                        onClick={() => void handleRate(star)}
-                        className="focus:outline-none transition-transform hover:scale-110"
-                      >
-                        <span
-                          className={`material-icons text-2xl ${
-                            star <= userRating
-                              ? "text-amber-400"
-                              : "text-gray-200 hover:text-amber-200"
-                          }`}
-                        >
-                          star
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {flashcard.tags && flashcard.tags.length > 0 && (
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {flashcard.tags.map((tag, i) => (
-                    <span
-                      key={i}
-                      className="px-2 py-1 bg-gray-100 text-gray-600 text-xs font-bold rounded-lg border border-gray-200"
-                    >
-                      #{tag}
-                    </span>
-                  ))}
-                </div>
-              )}
-            </div>
-
             {/* Comments List */}
             <div className="flex-1 overflow-y-auto p-6">
-              <h3 className="font-bold text-gray-900 text-lg mb-4 flex items-center gap-2">
+              <h3 className="font-bold text-gray-900 text-lg mb-4 flex items-center gap-2 sticky top-0 bg-gray-50/95 backdrop-blur-sm py-2 z-10">
                 Comments
                 <span className="px-2 py-0.5 bg-gray-200 text-gray-600 text-xs rounded-full">
                   {comments.length}
