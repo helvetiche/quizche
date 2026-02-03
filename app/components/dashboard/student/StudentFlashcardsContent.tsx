@@ -20,6 +20,7 @@ type FlashcardSet = {
   isShared?: boolean;
   sharedBy?: string;
   sharedByUserId?: string;
+  tags?: string[];
 };
 
 type StudentFlashcardsContentProps = {
@@ -160,6 +161,18 @@ export default function StudentFlashcardsContent({
                     <p className="text-sm font-light text-gray-600 line-clamp-2">
                       {flashcard.description}
                     </p>
+                  )}
+                  {flashcard.tags && flashcard.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mb-2">
+                      {flashcard.tags.map((tag, i) => (
+                        <span
+                          key={i}
+                          className="px-2 py-0.5 bg-gray-100 text-gray-700 text-xs font-light rounded-full border border-gray-200"
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
                   )}
                 </div>
 

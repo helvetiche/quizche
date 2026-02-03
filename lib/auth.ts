@@ -7,6 +7,7 @@ export type AuthUser = {
   role: string | null;
   tier: string;
   email?: string;
+  picture?: string;
 };
 
 export const verifyAuth = async (
@@ -32,6 +33,7 @@ export const verifyAuth = async (
           ? (decodedToken.tier as string)
           : "free",
       email: decodedToken.email,
+      picture: decodedToken.picture,
     };
   } catch (error) {
     console.error("Token verification error:", error);

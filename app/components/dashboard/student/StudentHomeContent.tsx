@@ -8,6 +8,7 @@ import { getAuth } from "firebase/auth";
 import app from "@/lib/firebase";
 import TiltedCard from "@/components/TiltedCard";
 import Masonry, { type MasonryItem } from "@/components/Masonry";
+import ViewFlashcardModal from "./ViewFlashcardModal";
 
 type FlashcardSet = {
   id: string;
@@ -23,6 +24,7 @@ type FlashcardSet = {
   sharedByPhotoUrl?: string;
   sharedByUserId?: string;
   sharedBySchool?: string;
+  tags?: string[];
 };
 
 type StudentHomeContentProps = {
@@ -93,6 +95,8 @@ export default function StudentHomeContent({ user }: StudentHomeContentProps) {
   const [activeFilter, setActiveFilter] = useState<
     "all" | "recent" | "popular"
   >("all");
+  const [viewModalFlashcard, setViewModalFlashcard] =
+    useState<FlashcardSet | null>(null);
 
   const filters = [
     { id: "all", label: "All", icon: "apps" },
@@ -137,7 +141,8 @@ export default function StudentHomeContent({ user }: StudentHomeContentProps) {
       const matchesSearch =
         fc.title.toLowerCase().includes(query) ||
         (fc.description && fc.description.toLowerCase().includes(query)) ||
-        (fc.sharedBy && fc.sharedBy.toLowerCase().includes(query));
+        (fc.sharedBy && fc.sharedBy.toLowerCase().includes(query)) ||
+        (fc.tags && fc.tags.some((tag) => tag.toLowerCase().includes(query)));
 
       if (!matchesSearch) return false;
 
@@ -291,6 +296,9 @@ export default function StudentHomeContent({ user }: StudentHomeContentProps) {
                 {/* Cover Area */}
                 <div className="h-32 w-full border-b-3 border-gray-900 relative bg-amber-50 flex items-center justify-center">
                   <div className="relative w-24 h-32 transform translate-y-2">
+                    {/* Far Left Card */}
+                    <div className="absolute top-0 left-0 w-full h-full bg-amber-50 border-2 border-gray-900 rounded-xl transform -rotate-[24deg] -translate-x-6 translate-y-3 shadow-sm z-0"></div>
+
                     {/* Left Card */}
                     <div className="absolute top-0 left-0 w-full h-full bg-amber-50 border-2 border-gray-900 rounded-xl transform -rotate-[12deg] -translate-x-3 translate-y-1 shadow-sm z-10 overflow-hidden">
                       <div className="p-3 space-y-2 opacity-30">
@@ -298,6 +306,9 @@ export default function StudentHomeContent({ user }: StudentHomeContentProps) {
                         <div className="h-1.5 bg-amber-200 rounded w-2/3"></div>
                       </div>
                     </div>
+
+                    {/* Far Right Card */}
+                    <div className="absolute top-0 left-0 w-full h-full bg-amber-50 border-2 border-gray-900 rounded-xl transform rotate-[24deg] translate-x-6 translate-y-3 shadow-sm z-0"></div>
 
                     {/* Right Card */}
                     <div className="absolute top-0 left-0 w-full h-full bg-amber-50 border-2 border-gray-900 rounded-xl transform rotate-[12deg] translate-x-3 translate-y-1 shadow-sm z-10 overflow-hidden">
@@ -476,11 +487,28 @@ export default function StudentHomeContent({ user }: StudentHomeContentProps) {
                                 {flashcard.description}
                               </p>
                             )}
+                            {flashcard.tags && flashcard.tags.length > 0 && (
+                              <div className="flex flex-wrap gap-1 mb-3">
+                                {flashcard.tags.map((tag, i) => (
+                                  <span
+                                    key={i}
+                                    className="px-2 py-0.5 bg-amber-200 border border-gray-900 rounded-full text-[10px] font-bold text-gray-900"
+                                  >
+                                    {tag}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
                             {flashcard.sharedBy && (
-                              <div className="flex items-center gap-2 shrink-0">
-                                {flashcard.sharedByPhotoUrl ? (
+                              <div className="flex items-center gap-2 shrink-0 mt-auto">
+                                {flashcard.sharedByPhotoUrl ||
+                                (user &&
+                                  flashcard.sharedByUserId === user.uid &&
+                                  user.picture) ? (
                                   <img
-                                    src={flashcard.sharedByPhotoUrl}
+                                    src={
+                                      flashcard.sharedByPhotoUrl || user.picture
+                                    }
                                     alt={flashcard.sharedBy}
                                     className="w-10 h-10 rounded-full border-2 border-gray-900 object-cover shrink-0"
                                   />
@@ -508,6 +536,23 @@ export default function StudentHomeContent({ user }: StudentHomeContentProps) {
                           {/* Hover Actions */}
                           <div className="absolute inset-0 bg-gradient-to-t from-amber-100/95 via-amber-50/70 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end justify-end p-4 pointer-events-none rounded-2xl z-20">
                             <div className="flex gap-2 pointer-events-auto transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300">
+                              <PortalTooltip
+                                title="View"
+                                description="View cards"
+                              >
+                                <button
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    setViewModalFlashcard(flashcard);
+                                  }}
+                                  className="w-10 h-10 bg-amber-100 text-gray-900 border-2 border-black rounded-full shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:bg-amber-100 hover:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-0.5 transition-all flex items-center justify-center"
+                                >
+                                  <span className="material-icons-outlined text-xl">
+                                    visibility
+                                  </span>
+                                </button>
+                              </PortalTooltip>
                               <PortalTooltip
                                 title="Study"
                                 description="Start learning this set"
@@ -548,6 +593,12 @@ export default function StudentHomeContent({ user }: StudentHomeContentProps) {
           />
         )}
       </div>
+
+      <ViewFlashcardModal
+        isOpen={!!viewModalFlashcard}
+        onClose={() => setViewModalFlashcard(null)}
+        flashcard={viewModalFlashcard}
+      />
     </div>
   );
 }

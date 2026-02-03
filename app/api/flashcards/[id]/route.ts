@@ -287,6 +287,9 @@ export async function PUT(
         isPublic: validatedData.isPublic ?? false,
         totalCards: sanitizedCards.length,
         clonedFrom: id, // Reference to original
+        tags: validatedData.tags
+          ? validatedData.tags.map((tag) => sanitizeString(tag))
+          : [],
         createdAt: new Date(),
         updatedAt: new Date(),
       };
@@ -369,6 +372,9 @@ export async function PUT(
       cards: sanitizedCards,
       isPublic: validatedData.isPublic ?? false,
       totalCards: sanitizedCards.length,
+      tags: validatedData.tags
+        ? validatedData.tags.map((tag) => sanitizeString(tag))
+        : [],
       updatedAt: new Date(),
     };
 

@@ -45,6 +45,8 @@ export default function FlashcardMaker({
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [cards, setCards] = useState<Flashcard[]>([{ front: "", back: "" }]);
+  const [tags, setTags] = useState<string[]>([]);
+  const [tagInput, setTagInput] = useState("");
   const [isPublic, setIsPublic] = useState(false);
   const [loading, setLoading] = useState(
     flashcardId !== undefined && initialData === undefined
@@ -95,6 +97,7 @@ export default function FlashcardMaker({
             description?: string;
             coverImageUrl?: string;
             isPublic?: boolean;
+            tags?: string[];
             cards?: {
               front?: string;
               back?: string;
@@ -115,6 +118,7 @@ export default function FlashcardMaker({
             description?: string;
             coverImageUrl?: string;
             isPublic?: boolean;
+            tags?: string[];
             cards?: {
               front?: string;
               back?: string;
@@ -127,6 +131,7 @@ export default function FlashcardMaker({
         setTitle(flashcardSet.title ?? "");
         setDescription(flashcardSet.description ?? "");
         setCoverImageUrl(flashcardSet.coverImageUrl ?? undefined);
+        setTags(flashcardSet.tags ?? []);
         setIsPublic(flashcardSet.isPublic ?? false);
 
         const flashcardCards = flashcardSet.cards;
@@ -281,6 +286,22 @@ export default function FlashcardMaker({
     setCards(updatedCards);
   };
 
+  const handleAddTag = (): void => {
+    const trimmedTag = tagInput.trim();
+    if (trimmedTag.length === 0) return;
+    if (tags.length >= 4) return;
+    if (tags.includes(trimmedTag)) {
+      setTagInput("");
+      return;
+    }
+    setTags([...tags, trimmedTag]);
+    setTagInput("");
+  };
+
+  const handleRemoveTag = (tagToRemove: string): void => {
+    setTags(tags.filter((tag) => tag !== tagToRemove));
+  };
+
   const handleSubmit = async (): Promise<void> => {
     setError(null);
 
@@ -410,6 +431,7 @@ export default function FlashcardMaker({
         cards: cardsWithImages,
         isPublic,
         coverImageUrl: finalCoverImageUrl,
+        tags,
       };
 
       const url =
@@ -486,6 +508,8 @@ export default function FlashcardMaker({
       setTitle("");
       setDescription("");
       setCards([{ front: "", back: "" }]);
+      setTags([]);
+      setTagInput("");
       setIsPublic(false);
       setError(null);
       setImagePreviewUrls({});
@@ -638,6 +662,63 @@ export default function FlashcardMaker({
                   </p>
                 </div>
               )}
+            </div>
+
+            {/* Tags */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Tags (Max 4)
+              </label>
+              <div className="flex flex-col gap-2">
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={tagInput}
+                    onChange={(e) => setTagInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        handleAddTag();
+                      }
+                    }}
+                    placeholder="Add a tag (e.g., Biology, Exam 1)"
+                    className="flex-1 px-4 py-2 border border-gray-300 text-black font-light focus:outline-none focus:ring-2 focus:ring-black"
+                    disabled={loading || tags.length >= 4}
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddTag}
+                    disabled={loading || tags.length >= 4 || !tagInput.trim()}
+                    className="px-4 py-2 bg-gray-900 text-white font-light hover:bg-gray-800 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                  >
+                    Add
+                  </button>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {tags.map((tag, index) => (
+                    <span
+                      key={index}
+                      className="inline-flex items-center gap-1 px-3 py-1 bg-gray-100 text-gray-800 text-sm font-light rounded-full border border-gray-300"
+                    >
+                      {tag}
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveTag(tag)}
+                        className="text-gray-500 hover:text-red-600 focus:outline-none"
+                      >
+                        <span className="material-icons-outlined text-sm">
+                          close
+                        </span>
+                      </button>
+                    </span>
+                  ))}
+                </div>
+                {tags.length >= 4 && (
+                  <p className="text-xs text-amber-600 font-light">
+                    Maximum of 4 tags reached.
+                  </p>
+                )}
+              </div>
             </div>
 
             {/* Cards */}

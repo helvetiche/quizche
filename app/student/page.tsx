@@ -12,6 +12,7 @@ import Loading from "../components/ui/Loading";
 type User = {
   uid: string;
   email: string;
+  picture?: string;
 };
 
 function StudentPageContent() {

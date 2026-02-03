@@ -2,9 +2,9 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import type { ReactElement } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import {
   useTabContext,
   type TeacherTab,
@@ -65,8 +65,24 @@ export default function TabNavigation({
 }: TabNavigationProps): ReactElement {
   const { activeTab, setActiveTab } = useTabContext();
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [showAICredits, setShowAICredits] = useState(false);
   const [showQuizLimit, setShowQuizLimit] = useState(false);
+
+  const handleTabClick = useCallback(
+    (tab: DashboardTab) => {
+      setActiveTab(tab);
+      const params = new URLSearchParams(searchParams?.toString());
+      if (tab === "home") {
+        params.delete("tab");
+      } else {
+        params.set("tab", tab);
+      }
+      router.push(`${pathname}?${params.toString()}`, { scroll: false });
+    },
+    [router, pathname, searchParams, setActiveTab]
+  );
 
   const aiCreditsUsed = 3;
   const aiCreditsTotal = 10;
@@ -156,7 +172,7 @@ export default function TabNavigation({
           {tabs.map((item) => (
             <button
               key={item.tab}
-              onClick={() => setActiveTab(item.tab)}
+              onClick={() => handleTabClick(item.tab)}
               className={`relative flex items-center gap-2 px-4 py-2 rounded-full transition-all ${
                 isActive(item.tab)
                   ? "bg-gray-900 text-amber-100"

@@ -66,6 +66,7 @@ export const FlashcardSetSchema = z.object({
   cards: z.array(FlashcardCardSchema).min(1).max(500),
   isPublic: z.boolean().optional(),
   coverImageUrl: z.string().url().optional().or(z.literal("")).nullable(),
+  tags: z.array(z.string().max(20).trim()).max(4).optional(),
 });
 
 // User profile validation schemas

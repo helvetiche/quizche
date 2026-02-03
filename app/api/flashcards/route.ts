@@ -185,6 +185,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           totalCards: data.totalCards ?? 0,
           isPublic: true,
           coverImageUrl: data.coverImageUrl ?? undefined,
+          tags: data.tags ?? [],
           createdAt:
             data.createdAt?.toDate?.()?.toISOString() ?? data.createdAt,
           updatedAt:
@@ -280,6 +281,30 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       .limit(validatedLimit)
       .get();
 
+    // Fetch current user profile to populate sharedBy fields for own cards
+    let currentUserProfile = {
+      displayName: "You",
+      photoUrl: null,
+      school: "",
+    };
+
+    try {
+      const userDoc = await adminDb.collection("users").doc(user.uid).get();
+      if (userDoc.exists) {
+        const data = userDoc.data();
+        currentUserProfile = {
+          displayName:
+            data?.displayName ||
+            `${data?.firstName ?? ""} ${data?.lastName ?? ""}`.trim() ||
+            "You",
+          photoUrl: data?.profilePhotoUrl || data?.photoURL || null,
+          school: data?.school ?? "",
+        };
+      }
+    } catch (error) {
+      console.error("Error fetching current user profile:", error);
+    }
+
     const ownFlashcards = ownFlashcardsSnapshot.docs.map((doc) => {
       const data = doc.data();
       return {
@@ -289,10 +314,14 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         totalCards: data.totalCards ?? 0,
         isPublic: data.isPublic ?? false,
         coverImageUrl: data.coverImageUrl ?? undefined,
+        tags: data.tags ?? [],
         createdAt: data.createdAt?.toDate?.()?.toISOString() ?? data.createdAt,
         updatedAt: data.updatedAt?.toDate?.()?.toISOString() ?? data.updatedAt,
         isShared: false,
-        sharedBy: undefined,
+        sharedBy: currentUserProfile.displayName,
+        sharedByPhotoUrl: currentUserProfile.photoUrl,
+        sharedBySchool: currentUserProfile.school,
+        sharedByUserId: user.uid,
       };
     });
 
@@ -368,6 +397,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
               `${data?.firstName ?? ""} ${data?.lastName ?? ""}`.trim() ||
               "",
             email: data?.email ?? "",
+            photoUrl: data?.profilePhotoUrl || data?.photoURL || null,
+            school: data?.school ?? "",
           };
         }
       });
@@ -377,7 +408,12 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         if (doc.exists !== undefined && doc.exists !== null) {
           const data = doc.data();
           const ownerId = ownerMap[id];
-          const owner = ownerDetails[ownerId] || { displayName: "", email: "" };
+          const owner = ownerDetails[ownerId] || {
+            displayName: "",
+            email: "",
+            photoUrl: null,
+            school: "",
+          };
 
           sharedFlashcards.push({
             id: doc.id,
@@ -386,12 +422,15 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
             totalCards: data.totalCards ?? 0,
             isPublic: data.isPublic ?? false,
             coverImageUrl: data.coverImageUrl || undefined,
+            tags: data.tags ?? [],
             createdAt:
               data.createdAt?.toDate?.()?.toISOString() || data.createdAt,
             updatedAt:
               data.updatedAt?.toDate?.()?.toISOString() || data.updatedAt,
             isShared: true,
             sharedBy: owner.displayName || owner.email || "Unknown",
+            sharedByPhotoUrl: owner.photoUrl,
+            sharedBySchool: owner.school,
             sharedByUserId: ownerId,
           });
         }
@@ -538,6 +577,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       coverImageUrl: validatedData.coverImageUrl
         ? sanitizeString(validatedData.coverImageUrl)
         : "",
+      tags: validatedData.tags
+        ? validatedData.tags.map((tag) => sanitizeString(tag))
+        : [],
       createdAt: new Date(),
       updatedAt: new Date(),
     };
