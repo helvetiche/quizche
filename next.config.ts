@@ -1,43 +1,38 @@
-/* eslint-disable require-await, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-require-imports, @typescript-eslint/require-await, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-return */
 import type { NextConfig } from "next";
+import bundleAnalyzer from "@next/bundle-analyzer";
 
-const withBundleAnalyzer = require("@next/bundle-analyzer")({
+type WebpackConfig = {
+  resolve?: {
+    alias?: Record<string, unknown>;
+  };
+  externals?: unknown[];
+};
+
+const withBundleAnalyzer = bundleAnalyzer({
   enabled: process.env.ANALYZE === "true",
 }) as (config: NextConfig) => NextConfig;
 
 const nextConfig: NextConfig = {
+  // Turbopack config
   turbopack: {},
 
+  // Image domains (strict typing)
   images: {
     remotePatterns: [
-      {
-        protocol: "https",
-        hostname: "i.ibb.co",
-      },
-      {
-        protocol: "https",
-        hostname: "**.ibb.co",
-      },
-      {
-        protocol: "https",
-        hostname: "lh3.googleusercontent.com",
-      },
+      { protocol: "https", hostname: "i.ibb.co" },
+      { protocol: "https", hostname: "**.ibb.co" },
+      { protocol: "https", hostname: "lh3.googleusercontent.com" },
     ],
   },
 
-  async headers() {
-    return [
+  // Security headers
+  headers() {
+    return Promise.resolve([
       {
         source: "/(.*)",
         headers: [
-          {
-            key: "X-Content-Type-Options",
-            value: "nosniff",
-          },
-          {
-            key: "X-XSS-Protection",
-            value: "1; mode=block",
-          },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "X-XSS-Protection", value: "1; mode=block" },
           {
             key: "Strict-Transport-Security",
             value: "max-age=31536000; includeSubDomains; preload",
@@ -56,10 +51,7 @@ const nextConfig: NextConfig = {
               "object-src 'none'; " +
               "base-uri 'self';",
           },
-          {
-            key: "Referrer-Policy",
-            value: "strict-origin-when-cross-origin",
-          },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
           {
             key: "Permissions-Policy",
             value:
@@ -67,20 +59,26 @@ const nextConfig: NextConfig = {
           },
         ],
       },
-    ];
+    ]);
   },
 
-  webpack: (config, { isServer }) => {
+  // Webpack tweaks
+  webpack: (config: unknown, { isServer }) => {
+    const webpackConfig = config as WebpackConfig;
     if (isServer) {
-      config.resolve.alias = {
-        ...config.resolve.alias,
-        canvas: false,
-      };
+      // Remove canvas from server build
+      if (webpackConfig.resolve?.alias) {
+        webpackConfig.resolve.alias = {
+          ...webpackConfig.resolve.alias,
+          canvas: false,
+        };
+      }
 
-      config.externals = [...(config.externals as string[]), "canvas"];
+      if (Array.isArray(webpackConfig.externals)) {
+        webpackConfig.externals = [...webpackConfig.externals, "canvas"];
+      }
     }
-
-    return config;
+    return webpackConfig;
   },
 };
 
