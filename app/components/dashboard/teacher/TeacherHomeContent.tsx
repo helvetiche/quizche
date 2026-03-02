@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-misused-promises */
- 
+
 "use client";
 
 import type { ReactElement } from "react";
@@ -14,14 +14,9 @@ type TeacherHomeContentProps = {
   userEmail?: string;
 };
 
-export default function TeacherHomeContent({
-  userEmail,
-}: TeacherHomeContentProps): ReactElement {
+export default function TeacherHomeContent(_props: TeacherHomeContentProps): ReactElement {
   const { setActiveTab } = useTabContext();
   const itemsPerPage = 6;
-
-  // Suppress unused variable warning
-  void userEmail;
 
   const {
     searchQuery,

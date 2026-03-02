@@ -1,6 +1,5 @@
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
-/* eslint-disable @typescript-eslint/strict-boolean-expressions */
- 
+
 import { useState, useCallback } from "react";
 import { type GeneratedQuizData } from "../../quiz-form/types";
 import type { Difficulty, Step } from "../types";
@@ -68,13 +67,18 @@ export function usePDFUpload({
         body: formData,
       });
 
-      const data = await response.json();
+      const data = (await response.json()) as {
+        error?: string;
+        quiz?: GeneratedQuizData;
+      };
 
       if (!response.ok) {
-        throw new Error(data.error || "Failed to generate quiz");
+        throw new Error(data.error ?? "Failed to generate quiz");
       }
 
-      setGeneratedQuiz(data.quiz);
+      if (data.quiz) {
+        setGeneratedQuiz(data.quiz);
+      }
       setStep(4);
     } catch (err) {
       console.error("Error generating quiz:", err);

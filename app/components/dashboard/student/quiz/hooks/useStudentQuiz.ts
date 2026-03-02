@@ -255,7 +255,7 @@ export function useStudentQuiz() {
         const data = (await response.json()) as SubmitResponse;
 
         // Show disqualification message and redirect
-        if (antiCheat.refreshDetected !== null) {
+        if (antiCheat.refreshDetected) {
           console.error(
             "You have been disqualified for refreshing the page. Your quiz has been automatically submitted."
           );

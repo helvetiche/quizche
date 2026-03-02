@@ -28,7 +28,7 @@ const QuizForm = ({
   onOpenSettings,
   onOpenAIGenerate,
   onDraftSaved,
-}: QuizFormProps) => {
+}: QuizFormProps): React.ReactElement => {
   const {
     loading,
     savingDraft,
@@ -93,7 +93,7 @@ const QuizForm = ({
         loading={loading}
         quizId={quizId}
         questions={questions}
-        currentQuestionId={currentQuestion?.id}
+        currentQuestionId={currentQuestion.id}
       />
 
       {/* MAIN CANVAS - Question Editor */}

@@ -1,6 +1,5 @@
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
- 
- 
+
 import { useState, useEffect } from "react";
 import { uploadImageToImgbb } from "@/lib/imgbb";
 import { apiGet, apiPost, apiPut } from "../../../../lib/api";
@@ -44,16 +43,17 @@ export function useFlashcardMaker({
   // Populate form with initial data or load from API
   useEffect(() => {
     if (initialData !== undefined) {
-      setTitle(initialData.title ?? "");
-      setDescription(initialData.description ?? "");
+      setTitle(initialData.title);
+      setDescription(initialData.description);
       if (initialData.cards.length > 0) {
         setCards(
           initialData.cards.map((card) => ({
-            front: card.front ?? "",
-            back: card.back ?? "",
+            front: card.front,
+            back: card.back,
           }))
         );
       }
+      setLoading(false);
       return;
     }
 
@@ -224,21 +224,19 @@ export function useFlashcardMaker({
     side: "front" | "back"
   ): void => {
     const cardId = `card-${cardIndex}`;
-    const previewUrl = imagePreviewUrls[cardId]?.[side];
+    const previewUrl = imagePreviewUrls[cardId][side];
 
-    if (previewUrl !== undefined && previewUrl !== "") {
+    if (previewUrl !== undefined) {
       URL.revokeObjectURL(previewUrl);
       setImagePreviewUrls((prev) => {
         const newUrls = { ...prev };
-        if (newUrls[cardId] !== undefined) {
-          delete newUrls[cardId][side];
-          if (
-            (newUrls[cardId].front === undefined ||
-              newUrls[cardId].front === "") &&
-            (newUrls[cardId].back === undefined || newUrls[cardId].back === "")
-          ) {
-            delete newUrls[cardId];
-          }
+        delete newUrls[cardId][side];
+        if (
+          (newUrls[cardId].front === undefined ||
+            newUrls[cardId].front === "") &&
+          (newUrls[cardId].back === undefined || newUrls[cardId].back === "")
+        ) {
+          delete newUrls[cardId];
         }
         return newUrls;
       });
@@ -291,8 +289,7 @@ export function useFlashcardMaker({
     }
 
     const validCards = cards.filter(
-      (card) =>
-        card.front.trim().length > 0 && card.back.trim().length > 0
+      (card) => card.front.trim().length > 0 && card.back.trim().length > 0
     );
 
     if (validCards.length === 0) {
@@ -333,11 +330,7 @@ export function useFlashcardMaker({
                 idToken
               );
               // Clean up preview URL
-              if (
-                card.frontImagePreview !== undefined &&
-                card.frontImagePreview !== null &&
-                card.frontImagePreview !== ""
-              ) {
+              if (card.frontImagePreview !== undefined) {
                 URL.revokeObjectURL(card.frontImagePreview);
               }
             } catch (error) {
@@ -358,11 +351,7 @@ export function useFlashcardMaker({
                 idToken
               );
               // Clean up preview URL
-              if (
-                card.backImagePreview !== undefined &&
-                card.backImagePreview !== null &&
-                card.backImagePreview !== ""
-              ) {
+              if (card.backImagePreview !== undefined) {
                 URL.revokeObjectURL(card.backImagePreview);
               }
             } catch (error) {
@@ -436,14 +425,8 @@ export function useFlashcardMaker({
 
       // Clean up all remaining preview URLs
       Object.values(imagePreviewUrls).forEach((urls) => {
-        if (
-          urls.front !== undefined &&
-          urls.front !== null &&
-          urls.front !== ""
-        )
-          URL.revokeObjectURL(urls.front);
-        if (urls.back !== undefined && urls.back !== null && urls.back !== "")
-          URL.revokeObjectURL(urls.back);
+        if (urls.front !== undefined) URL.revokeObjectURL(urls.front);
+        if (urls.back !== undefined) URL.revokeObjectURL(urls.back);
       });
 
       // Reset form
@@ -459,7 +442,7 @@ export function useFlashcardMaker({
       setCoverImagePreview(null);
       setCoverImageUrl(undefined);
 
-      if (onSuccess !== undefined && onSuccess !== null) {
+      if (onSuccess !== undefined) {
         onSuccess();
       }
     } catch (err) {

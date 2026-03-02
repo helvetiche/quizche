@@ -1,11 +1,11 @@
 /* eslint-disable @typescript-eslint/no-misused-promises */
-/* eslint-disable @typescript-eslint/strict-boolean-expressions, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unnecessary-condition, @typescript-eslint/prefer-nullish-coalescing, @typescript-eslint/explicit-function-return-type, @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars, @typescript-eslint/no-unsafe-return */
+/* eslint-disable @typescript-eslint/strict-boolean-expressions, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unnecessary-condition, @typescript-eslint/prefer-nullish-coalescing, @typescript-eslint/explicit-function-return-type, @typescript-eslint/no-unused-vars */
 "use client";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import PDFUploadModal from "./PDFUploadModal";
-import { type GeneratedQuizData } from "./QuizForm";
+import { type GeneratedQuizData } from "./quiz-form/types";
 
 type GenerateQuizButtonProps = {
   idToken: string;
@@ -51,7 +51,12 @@ const GenerateQuizButton = ({
           description: quiz.description.trim(),
           isActive: true,
           questions: quiz.questions.map((q) => {
-            const questionData: any = {
+            const questionData: {
+              question: string;
+              type: string;
+              answer: string;
+              choices?: string[];
+            } = {
               question: q.question.trim(),
               type: q.type,
               answer: q.answer.trim(),

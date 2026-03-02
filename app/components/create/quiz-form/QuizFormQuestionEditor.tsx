@@ -141,7 +141,7 @@ export default function QuizFormQuestionEditor({
                       alt="Question image"
                       fill
                       className="object-contain"
-                      unoptimized={!!currentQuestion.imagePreview}
+                      unoptimized={Boolean(currentQuestion.imagePreview)}
                     />
                   </div>
                   <button

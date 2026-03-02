@@ -118,7 +118,7 @@ export default function QuizSettingsModal({
   };
 
   const saveSectionAssignments = async (): Promise<void> => {
-    if (!idToken || !quizId) return;
+    if (idToken === null || quizId === "") return;
     setSavingSections(true);
     try {
       const { apiPut } = await import("../../../../../../lib/api");
@@ -145,7 +145,7 @@ export default function QuizSettingsModal({
   };
 
   const saveQuizSettings = async (): Promise<void> => {
-    if (!idToken || !quizId) return;
+    if (idToken === null || quizId === "") return;
     setSavingSettings(true);
     try {
       const { apiPut } = await import("../../../../../../lib/api");

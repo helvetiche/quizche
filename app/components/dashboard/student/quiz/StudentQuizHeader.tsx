@@ -18,7 +18,7 @@ export default function StudentQuizHeader({
 }: StudentQuizHeaderProps) {
   return (
     <>
-      {cheatingAlert && (
+      {Boolean(cheatingAlert) && (
         <div
           className={`p-4 border-2 ${
             isDisqualified
@@ -33,7 +33,7 @@ export default function StudentQuizHeader({
       <div className="flex items-center justify-between">
         <div className="flex flex-col gap-2">
           <h2 className="text-3xl font-light text-black">{quiz.title}</h2>
-          {quiz.description && (
+          {Boolean(quiz.description) && (
             <p className="text-lg font-light text-gray-600">
               {quiz.description}
             </p>

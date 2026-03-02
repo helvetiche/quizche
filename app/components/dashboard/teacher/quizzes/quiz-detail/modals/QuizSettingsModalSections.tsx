@@ -121,7 +121,7 @@ export default function QuizSettingsModalSections({
                               </div>
                               <div className="w-7 h-7 bg-amber-200 rounded-full border border-gray-900 flex items-center justify-center flex-shrink-0">
                                 <span className="text-xs font-bold text-gray-900">
-                                  {(student.displayName ?? student.email ?? "?")
+                                  {(student.displayName ?? student.email)
                                     .charAt(0)
                                     .toUpperCase()}
                                 </span>

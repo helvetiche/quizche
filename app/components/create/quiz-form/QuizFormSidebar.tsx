@@ -94,9 +94,13 @@ export default function QuizFormSidebar({
           </p>
         )}
         <div className="flex flex-col gap-1">
-          {onOpenAIGenerate && (
+          {Boolean(onOpenAIGenerate) && (
             <button
-              onClick={() => void onOpenAIGenerate()}
+              onClick={() => {
+                if (onOpenAIGenerate) {
+                  void onOpenAIGenerate();
+                }
+              }}
               className={`group flex items-center gap-2 p-2 rounded-lg hover:bg-gray-800 transition-all ${sidebarCollapsed ? "justify-center" : ""}`}
               title="AI Generate"
             >
@@ -112,9 +116,13 @@ export default function QuizFormSidebar({
               )}
             </button>
           )}
-          {onOpenSettings && (
+          {Boolean(onOpenSettings) && (
             <button
-              onClick={() => void onOpenSettings()}
+              onClick={() => {
+                if (onOpenSettings) {
+                  void onOpenSettings();
+                }
+              }}
               className={`group flex items-center gap-2 p-2 rounded-lg hover:bg-gray-800 transition-all ${sidebarCollapsed ? "justify-center" : ""}`}
               title="Settings"
             >
@@ -194,12 +202,12 @@ export default function QuizFormSidebar({
             <div className="w-5 h-5 border-2 border-gray-900 border-t-transparent rounded-full animate-spin"></div>
           ) : (
             <span className="material-icons-outlined">
-              {quizId ? "save" : "publish"}
+              {quizId !== undefined ? "save" : "publish"}
             </span>
           )}
           {!sidebarCollapsed && (
             <span className="text-sm">
-              {loading ? "Saving..." : quizId ? "Save" : "Publish"}
+              {loading ? "Saving..." : quizId !== undefined ? "Save" : "Publish"}
             </span>
           )}
         </button>

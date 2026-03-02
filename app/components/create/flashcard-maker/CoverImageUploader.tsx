@@ -25,15 +25,15 @@ export default function CoverImageUploader({
       <label className="block text-sm font-medium text-gray-700 mb-2">
         Cover Image (Optional)
       </label>
-      {coverImagePreview || coverImageUrl ? (
+      {Boolean(coverImagePreview) || Boolean(coverImageUrl) ? (
         <div className="flex flex-col gap-2">
           <div className="relative w-full max-w-xs h-48 border-2 border-gray-300">
             <Image
-              src={(coverImagePreview || coverImageUrl) ?? ""}
+              src={coverImagePreview ?? coverImageUrl ?? ""}
               alt="Cover"
               fill
               className="object-cover"
-              unoptimized={!!coverImagePreview}
+              unoptimized={Boolean(coverImagePreview)}
             />
           </div>
           <div className="flex items-center gap-2">
@@ -42,10 +42,7 @@ export default function CoverImageUploader({
               onClick={() => {
                 setCoverImageFile(null);
                 setCoverImageUrl(undefined);
-                if (
-                  coverImagePreview !== undefined &&
-                  coverImagePreview !== null
-                ) {
+                if (coverImagePreview !== null) {
                   URL.revokeObjectURL(coverImagePreview);
                   setCoverImagePreview(null);
                 }
@@ -55,7 +52,7 @@ export default function CoverImageUploader({
             >
               Remove Cover Image
             </button>
-            {coverImageFile && !coverImageUrl && (
+            {Boolean(coverImageFile) && coverImageUrl === undefined && (
               <span className="text-xs font-light text-gray-600">
                 (Will be uploaded when saved)
               </span>
@@ -69,7 +66,7 @@ export default function CoverImageUploader({
             accept="image/*"
             onChange={(e) => {
               const file = e.target.files?.[0];
-              if (file !== undefined && file !== null) {
+              if (file) {
                 if (!file.type.startsWith("image/")) {
                   console.error("Please select an image file");
                   return;

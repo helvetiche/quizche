@@ -72,7 +72,7 @@ export const useQuizForm = ({
   useEffect(() => {
     if (initialData !== undefined) {
       setTitle(initialData.title);
-      setDescription(initialData.description ?? "");
+      setDescription(initialData.description);
       setQuestions(mapGeneratedQuestions(initialData));
       setCurrentQuestionIndex(0);
       return;
@@ -83,7 +83,7 @@ export const useQuizForm = ({
         setLoadingQuiz(true);
         const { apiGet } = await import("../../../lib/api");
 
-        if (initialDraftId !== undefined && initialDraftId !== null) {
+        if (initialDraftId !== undefined) {
           const response = await apiGet(
             `/api/quizzes/drafts/${initialDraftId}`,
             { idToken }
@@ -107,7 +107,7 @@ export const useQuizForm = ({
               : [createDefaultQuestion()]
           );
           setCurrentQuestionIndex(0);
-        } else if (quizId !== undefined && quizId !== null) {
+        } else if (quizId !== undefined) {
           const response = await apiGet(`/api/quizzes/${quizId}`, { idToken });
           const data = (await response.json()) as
             | QuizResponse
@@ -164,7 +164,6 @@ export const useQuizForm = ({
   };
 
   const handleDuplicateQuestion = (): void => {
-    if (!currentQuestion) return;
     const duplicated: Question = {
       ...currentQuestion,
       id: Date.now().toString(),
@@ -200,7 +199,7 @@ export const useQuizForm = ({
 
   const handleRemoveImage = (questionId: string): void => {
     const previewUrl = imagePreviewUrls[questionId];
-    if (previewUrl !== undefined && previewUrl !== null) {
+    if (previewUrl) {
       URL.revokeObjectURL(previewUrl);
       setImagePreviewUrls((prev) => {
         const newUrls = { ...prev };
@@ -340,7 +339,7 @@ export const useQuizForm = ({
       questions.map((q) => {
         if (q.id === questionId) {
           const newExplanations = [
-            ...(q.choiceExplanations || q.choices.map(() => "")),
+            ...(q.choiceExplanations ?? q.choices.map(() => "")),
           ];
           newExplanations[choiceIndex] = value;
           return { ...q, choiceExplanations: newExplanations };
@@ -368,10 +367,10 @@ export const useQuizForm = ({
     getDuplicateChoices(questionId).length > 0;
 
   const validateForm = (): boolean => {
-    const displayTitle = propTitle || title;
+    const displayTitle = propTitle ?? title;
     const result = validateQuizForm(questions, displayTitle);
     if (!result.isValid) {
-      if (result.errorMessage) console.error(result.errorMessage);
+      if (result.errorMessage !== undefined) console.error(result.errorMessage);
       if (result.errorIndex !== undefined)
         setCurrentQuestionIndex(result.errorIndex);
       return false;
@@ -403,7 +402,7 @@ export const useQuizForm = ({
       });
       const data = (await response.json()) as { error?: string; id?: string };
       if (!response.ok) throw new Error(data.error ?? "Failed to save draft");
-      if (!draftId && data.id) {
+      if (draftId === undefined && data.id !== undefined) {
         setDraftId(data.id);
         onDraftSaved?.(data.id);
       }
@@ -484,8 +483,8 @@ export const useQuizForm = ({
           return questionData;
         })
       );
-      const displayTitle = propTitle || title;
-      const displayDescription = propDescription || description;
+      const displayTitle = propTitle ?? title;
+      const displayDescription = propDescription ?? description;
       const quizData = {
         title: displayTitle.trim(),
         description: displayDescription.trim(),
@@ -493,40 +492,48 @@ export const useQuizForm = ({
         questions: questionsWithImages,
       };
       const { apiPost, apiPut } = await import("../../../lib/api");
-      const url = quizId ? `/api/quizzes/${quizId}` : "/api/quizzes";
-      const response = quizId
-        ? await apiPut(url, {
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(quizData),
-            idToken,
-          })
-        : await apiPost(url, {
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(quizData),
-            idToken,
-          });
-      const data = await response.json();
+      const url =
+        quizId !== undefined ? `/api/quizzes/${quizId}` : "/api/quizzes";
+      const response =
+        quizId !== undefined
+          ? await apiPut(url, {
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(quizData),
+              idToken,
+            })
+          : await apiPost(url, {
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(quizData),
+              idToken,
+            });
+      const data = (await response.json()) as { error?: string };
       if (!response.ok)
         throw new Error(
-          data.error || `Failed to ${quizId ? "update" : "create"} quiz`
+          data.error ??
+            `Failed to ${quizId !== undefined ? "update" : "create"} quiz`
         );
-      console.error(`Quiz ${quizId ? "updated" : "created"} successfully`);
-      router.push(quizId ? `/teacher/quizzes/${quizId}` : "/teacher/quizzes");
+      console.error(
+        `Quiz ${quizId !== undefined ? "updated" : "created"} successfully`
+      );
+      router.push(
+        quizId !== undefined ? `/teacher/quizzes/${quizId}` : "/teacher/quizzes"
+      );
     } catch (error) {
-      console.error(`Error ${quizId ? "updating" : "creating"} quiz:`, error);
+      console.error(
+        `Error ${quizId !== undefined ? "updating" : "creating"} quiz:`,
+        error
+      );
       console.error(
         error instanceof Error
           ? error.message
-          : `Failed to ${quizId ? "update" : "create"} quiz. Please try again.`
+          : `Failed to ${quizId !== undefined ? "update" : "create"} quiz. Please try again.`
       );
     } finally {
       setLoading(false);
     }
   };
 
-  const duplicateIndices = currentQuestion
-    ? getDuplicateChoices(currentQuestion.id)
-    : [];
+  const duplicateIndices = getDuplicateChoices(currentQuestion.id);
 
   return {
     loading,

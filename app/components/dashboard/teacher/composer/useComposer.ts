@@ -274,7 +274,6 @@ export function useComposer() {
   };
 
   const handleDuplicateQuestion = (): void => {
-    if (currentQuestion === null) return;
     const duplicated: Question = {
       ...currentQuestion,
       id: Date.now().toString(),

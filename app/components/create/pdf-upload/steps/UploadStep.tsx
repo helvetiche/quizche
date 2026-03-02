@@ -30,8 +30,10 @@ export default function UploadStep({
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
-    const droppedFile = e.dataTransfer.files[0];
-    if (droppedFile) onFileSelect(droppedFile);
+    if (e.dataTransfer.files.length > 0) {
+      const droppedFile = e.dataTransfer.files[0];
+      onFileSelect(droppedFile);
+    }
   };
 
   const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -94,7 +96,7 @@ export default function UploadStep({
         </div>
       </div>
 
-      {file && (
+      {Boolean(file) && file !== null && (
         <div className="bg-white border-2 border-gray-900 rounded-xl p-4 flex items-center justify-between shadow-[2px_2px_0px_0px_rgba(17,24,39,1)]">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center border-2 border-red-300">
@@ -132,7 +134,7 @@ export default function UploadStep({
         </p>
       </div>
 
-      {error && (
+      {error !== null && (
         <div className="bg-red-100 border-2 border-red-500 rounded-xl p-4 flex items-center gap-3">
           <span className="material-icons text-red-600">error</span>
           <p className="text-red-700 font-medium text-sm">{error}</p>

@@ -57,7 +57,7 @@ export const mapGeneratedQuestions = (data: GeneratedQuizData): Question[] =>
     choices:
       q.type === "multiple_choice"
         ? (q.choices ?? []).length > 0
-          ? q.choices!
+          ? (q.choices ?? [])
           : ["", "", "", ""]
         : [],
     answer: q.answer,
@@ -66,8 +66,11 @@ export const mapGeneratedQuestions = (data: GeneratedQuizData): Question[] =>
     choiceExplanations:
       q.type === "multiple_choice"
         ? (q.choiceExplanations ?? []).length > 0
-          ? q.choiceExplanations!
-          : (q.choices ?? ["", "", "", ""]).map(() => "")
+          ? (q.choiceExplanations ?? [])
+          : ((q.choices ?? []).length > 0
+              ? (q.choices ?? [])
+              : ["", "", "", ""]
+            ).map(() => "")
         : [],
   }));
 
@@ -85,8 +88,8 @@ export const mapDraftQuestions = (
     explanation: q.explanation ?? "",
     choiceExplanations:
       q.type === "multiple_choice"
-        ? q.choiceExplanations ??
-          (q.choices ?? ["", "", "", ""]).map(() => "")
+        ? (q.choiceExplanations ??
+          (q.choices ?? ["", "", "", ""]).map(() => ""))
         : [],
   }));
 
@@ -104,13 +107,15 @@ export const mapQuizQuestions = (
     explanation: q.explanation ?? "",
     choiceExplanations:
       q.type === "multiple_choice"
-        ? q.choiceExplanations ??
-          (q.choices ?? ["", "", "", ""]).map(() => "")
+        ? (q.choiceExplanations ??
+          (q.choices ?? ["", "", "", ""]).map(() => ""))
         : [],
   }));
 
 export const getDuplicateChoices = (question: Question): number[] => {
-  if (!question.choices || question.type !== "multiple_choice") return [];
+  if (question.choices.length === 0 || question.type !== "multiple_choice") {
+    return [];
+  }
   const duplicates: number[] = [];
   const choiceMap = new Map<string, number[]>();
   question.choices.forEach((choice, index) => {
@@ -211,7 +216,21 @@ export const prepareDraftData = (
   title: string,
   description: string,
   questions: Question[]
-) => {
+): {
+  draftId: string | undefined;
+  title: string;
+  description: string;
+  questions: {
+    id: string;
+    question: string;
+    type: QuestionType;
+    choices: string[];
+    answer: string;
+    imageUrl?: string;
+    explanation?: string;
+    choiceExplanations?: string[];
+  }[];
+} => {
   return {
     draftId: draftId,
     title: title.trim(),
@@ -231,7 +250,9 @@ export const prepareDraftData = (
         : undefined,
       choiceExplanations:
         q.type === "multiple_choice"
-          ? (q.choiceExplanations ?? []).map((e) => (e ?? "").trim())
+          ? (q.choiceExplanations ?? [])
+              .filter((_, i) => (q.choices[i] ?? "").trim().length > 0)
+              .map((e) => e.trim())
           : undefined,
     })),
   };

@@ -61,15 +61,15 @@ export default function FlashcardEditorItem({
             <label className="block text-xs font-medium text-gray-600 mb-1">
               Front Image (Optional)
             </label>
-            {card.frontImagePreview || card.frontImageUrl ? (
+            {Boolean(card.frontImagePreview) || Boolean(card.frontImageUrl) ? (
               <div className="flex flex-col gap-2">
                 <div className="relative w-full max-w-xs h-48 border-2 border-gray-300">
                   <Image
-                    src={card.frontImagePreview || card.frontImageUrl || ""}
+                    src={card.frontImagePreview ?? card.frontImageUrl ?? ""}
                     alt="Front image"
                     fill
                     className="object-contain"
-                    unoptimized={!!card.frontImagePreview}
+                    unoptimized={Boolean(card.frontImagePreview)}
                   />
                 </div>
                 <div className="flex items-center gap-2">
@@ -81,11 +81,12 @@ export default function FlashcardEditorItem({
                   >
                     Remove Image
                   </button>
-                  {card.frontImageFile && !card.frontImageUrl && (
-                    <span className="text-xs font-light text-gray-600">
-                      (Will be uploaded when saved)
-                    </span>
-                  )}
+                  {Boolean(card.frontImageFile) &&
+                    card.frontImageUrl === undefined && (
+                      <span className="text-xs font-light text-gray-600">
+                        (Will be uploaded when saved)
+                      </span>
+                    )}
                 </div>
               </div>
             ) : (
@@ -95,7 +96,7 @@ export default function FlashcardEditorItem({
                   accept="image/*"
                   onChange={(e) => {
                     const file = e.target.files?.[0];
-                    if (file !== undefined && file !== null) {
+                    if (file) {
                       onImageSelect(index, "front", file);
                     }
                     e.target.value = "";
@@ -130,15 +131,15 @@ export default function FlashcardEditorItem({
             <label className="block text-xs font-medium text-gray-600 mb-1">
               Back Image (Optional)
             </label>
-            {card.backImagePreview || card.backImageUrl ? (
+            {Boolean(card.backImagePreview) || Boolean(card.backImageUrl) ? (
               <div className="flex flex-col gap-2">
                 <div className="relative w-full max-w-xs h-48 border-2 border-gray-300">
                   <Image
-                    src={(card.backImagePreview || card.backImageUrl) ?? ""}
+                    src={card.backImagePreview ?? card.backImageUrl ?? ""}
                     alt="Back image"
                     fill
                     className="object-contain"
-                    unoptimized={!!card.backImagePreview}
+                    unoptimized={Boolean(card.backImagePreview)}
                   />
                 </div>
                 <div className="flex items-center gap-2">
@@ -150,7 +151,7 @@ export default function FlashcardEditorItem({
                   >
                     Remove Image
                   </button>
-                  {card.backImageFile && !card.backImageUrl && (
+                  {Boolean(card.backImageFile) && card.backImageUrl === undefined && (
                     <span className="text-xs font-light text-gray-600">
                       (Will be uploaded when saved)
                     </span>
@@ -164,7 +165,7 @@ export default function FlashcardEditorItem({
                   accept="image/*"
                   onChange={(e) => {
                     const file = e.target.files?.[0];
-                    if (file !== undefined && file !== null) {
+                    if (file) {
                       onImageSelect(index, "back", file);
                     }
                     e.target.value = "";
