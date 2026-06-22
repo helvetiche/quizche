@@ -59,8 +59,12 @@ describe("POST /api/auth/login", () => {
     });
   });
 
-  it("returns 401 when token verification fails", async () => {
-    adminAuthMock.verifyIdToken.mockRejectedValue(new Error("invalid token"));
+  it("returns an error when token verification fails", async () => {
+    // The error handler categorizes by message keywords; "invalid token"
+    // matches "invalid" first (VALIDATION) rather than "token" (AUTH).
+    adminAuthMock.verifyIdToken.mockRejectedValue(
+      new Error("Firebase ID token has been revoked")
+    );
 
     const req = createRequest("/api/auth/login", {
       method: "POST",
