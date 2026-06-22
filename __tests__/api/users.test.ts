@@ -212,7 +212,8 @@ describe("GET /api/users/history", () => {
     const res = await getHistory(req);
     const parsed = await parseResponse(res);
     expect(parsed.status).toBe(200);
-    expect(parsed.body.history).toBeDefined();
+    expect(parsed.body.attempts).toBeDefined();
+    expect(parsed.body.stats).toBeDefined();
   });
 });
 

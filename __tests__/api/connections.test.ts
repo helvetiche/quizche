@@ -154,10 +154,12 @@ describe("POST /api/connections", () => {
       role: "student",
       email: "req@test.com",
     });
-    // Simulate an existing pending request from the other user
-    db._seed("connections", `conn-requester_conn-acceptor`, {
-      userId1: "conn-requester",
-      userId2: "conn-acceptor",
+    // Simulate an existing pending request from the other user.
+    // The route sorts the two user IDs alphabetically to compute the
+    // connection doc id, so the seed must use the same sorted order.
+    db._seed("connections", `conn-acceptor_conn-requester`, {
+      userId1: "conn-acceptor",
+      userId2: "conn-requester",
       status: "pending",
       requestedBy: "conn-requester",
       createdAt: new Date(),

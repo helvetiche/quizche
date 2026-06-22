@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { GET as listStudentQuizzes } from "@/app/api/student/quizzes/route";
 import { POST as submitQuiz } from "@/app/api/student/quizzes/submit/route";
-import { POST as updateSession } from "@/app/api/student/quizzes/[id]/session/route";
+import { POST as createSession, PUT as updateSession } from "@/app/api/student/quizzes/[id]/session/route";
 import { createRequest, parseResponse } from "../helpers/test-request";
 import {
   setMockAuth,
@@ -196,24 +196,22 @@ describe("POST /api/student/quizzes/[id]/session", () => {
     setMockAuth(mockTeacher());
     const req = createRequest("/api/student/quizzes/q1/session", {
       method: "POST",
-      body: { sessionId: "s1" },
     });
-    const res = await updateSession(req, {
+    const res = await createSession(req, {
       params: Promise.resolve({ id: "q1" }),
     });
     const parsed = await parseResponse(res);
     expect(parsed.status).toBe(403);
   });
 
-  it("returns 400 for invalid session data", async () => {
-    setMockAuth(mockStudent());
-    const req = createRequest("/api/student/quizzes/q1/session", {
-      method: "POST",
+  it("returns 400 for invalid session update data", async () => {
+    setMockAuth(mockStudent("stu-session"));
+
+    const req = createRequest("/api/student/quizzes/quiz-session/session", {
+      method: "PUT",
       body: { sessionId: "" },
     });
-    const res = await updateSession(req, {
-      params: Promise.resolve({ id: "q1" }),
-    });
+    const res = await updateSession(req);
     const parsed = await parseResponse(res);
     expect(parsed.status).toBe(400);
   });

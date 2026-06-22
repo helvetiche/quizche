@@ -310,6 +310,11 @@ describe("GET /api/teacher/quizzes/[id]/attempts", () => {
   it("returns attempts for the teacher's quiz", async () => {
     setMockAuth(mockTeacher("att-teacher"));
     const db = getFirestoreMock();
+    // The route verifies the quiz exists and belongs to the teacher first.
+    db._seed("quizzes", "quiz-att", {
+      teacherId: "att-teacher",
+      title: "Attempts Quiz",
+    });
     db._seed("quizAttempts", "att-1", {
       quizId: "quiz-att",
       userId: "stu-1",
