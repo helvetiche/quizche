@@ -46,7 +46,7 @@ export const createRequest = (
 
   const allHeaders: Record<string, string> = { ...headers };
   if (auth) {
-    allHeaders["Authorization"] = `Bearer ${MOCK_AUTH_TOKEN}`;
+    allHeaders.Authorization = `Bearer ${MOCK_AUTH_TOKEN}`;
   }
   const shouldIncludeCSRF = csrf ?? isMutation;
   if (shouldIncludeCSRF) {
@@ -115,7 +115,7 @@ export const createFormDataRequest = (
 
   const headers: Record<string, string> = {};
   if (auth) {
-    headers["Authorization"] = `Bearer ${MOCK_AUTH_TOKEN}`;
+    headers.Authorization = `Bearer ${MOCK_AUTH_TOKEN}`;
   }
   if (csrf) {
     headers["X-CSRF-Token"] = MOCK_CSRF_TOKEN;

@@ -11,8 +11,18 @@ import {
   setMockAuth,
   mockTeacher,
   adminAuthMock,
-  getFirestoreMock,
 } from "../setup";
+
+type AuthResponseBody = {
+  success?: boolean;
+  error?: string;
+  user?: {
+    uid: string;
+    email?: string;
+    role: string | null;
+    tier: string;
+  };
+};
 
 describe("POST /api/auth/login", () => {
   beforeEach(() => {
@@ -47,7 +57,7 @@ describe("POST /api/auth/login", () => {
       csrf: false,
     });
     const res = await login(req);
-    const parsed = await parseResponse(res);
+    const parsed = await parseResponse<AuthResponseBody>(res);
 
     expect(parsed.status).toBe(200);
     expect(parsed.body.success).toBe(true);
@@ -90,9 +100,9 @@ describe("POST /api/auth/login", () => {
       csrf: false,
     });
     const res = await login(req);
-    const parsed = await parseResponse(res);
-    expect(parsed.body.user.tier).toBe("free");
-    expect(parsed.body.user.role).toBeNull();
+    const parsed = await parseResponse<AuthResponseBody>(res);
+    expect(parsed.body.user?.tier).toBe("free");
+    expect(parsed.body.user?.role).toBeNull();
   });
 });
 
@@ -166,7 +176,7 @@ describe("POST /api/auth/register", () => {
       csrf: false,
     });
     const res = await register(req);
-    const parsed = await parseResponse(res);
+    const parsed = await parseResponse<AuthResponseBody>(res);
 
     expect(parsed.status).toBe(201);
     expect(parsed.body.success).toBe(true);
@@ -202,7 +212,7 @@ describe("GET /api/auth/verify", () => {
     setMockAuth(mockTeacher("teacher-verify"));
     const req = createRequest("/api/auth/verify", { csrf: false });
     const res = await verify(req);
-    const parsed = await parseResponse(res);
+    const parsed = await parseResponse<AuthResponseBody>(res);
 
     expect(parsed.status).toBe(200);
     expect(parsed.body.user).toMatchObject({

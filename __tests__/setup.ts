@@ -107,7 +107,7 @@ export const mockStudent = (uid = "student-123"): MockUser => ({
 });
 
 vi.mock("@/lib/auth", () => ({
-  verifyAuth: vi.fn(async () => currentMockUser),
+  verifyAuth: vi.fn(() => Promise.resolve(currentMockUser)),
 }));
 
 // ---------------------------------------------------------------------------
@@ -119,24 +119,27 @@ export const setMockCSRF = (valid: boolean): void => {
 };
 
 vi.mock("@/lib/csrf", () => ({
-  generateCSRFToken: vi.fn(async () => "mock-csrf-token"),
-  verifyCSRFToken: vi.fn(async () => csrfValid),
-  verifyCSRF: vi.fn(async () =>
-    csrfValid
-      ? null
-      : {
-          error:
-            "Invalid or missing CSRF token. Please refresh the page and try again.",
-          status: 403,
-          headers: {
-            "Content-Type": "application/json; charset=utf-8",
-            "X-Content-Type-Options": "nosniff",
-            "Cache-Control": "no-store, no-cache, must-revalidate",
-          },
-        }
+  generateCSRFToken: vi.fn(() => Promise.resolve("mock-csrf-token")),
+  verifyCSRFToken: vi.fn(() => Promise.resolve(csrfValid)),
+  verifyCSRF: vi.fn(() =>
+    Promise.resolve(
+      csrfValid
+        ? null
+        : {
+            error:
+              "Invalid or missing CSRF token. Please refresh the page and try again.",
+            status: 403,
+            headers: {
+              "Content-Type": "application/json; charset=utf-8",
+              "X-Content-Type-Options": "nosniff",
+              "Cache-Control": "no-store, no-cache, must-revalidate",
+            },
+          }
+    )
   ),
   getCSRFTokenFromRequest: vi.fn(() => "mock-csrf-token"),
-  revokeCSRFToken: vi.fn(async () => {}),
+  revokeCSRFToken: vi.fn(() => Promise.resolve()),
+  // eslint-disable-next-line @typescript-eslint/no-empty-function
   revokeAllCSRFTokens: vi.fn(() => {}),
 }));
 
@@ -149,16 +152,18 @@ export const setMockRateLimit = (success: boolean): void => {
 };
 
 vi.mock("@/lib/rate-limit", () => ({
-  rateLimit: vi.fn(async () => ({
-    success: rateLimitSuccess,
-    remaining: 59,
-    reset: Math.floor(Date.now() / 1000) + 60,
-    headers: {
-      "X-RateLimit-Limit": "60",
-      "X-RateLimit-Remaining": "59",
-      "X-RateLimit-Reset": String(Math.floor(Date.now() / 1000) + 60),
-    },
-  })),
+  rateLimit: vi.fn(() =>
+    Promise.resolve({
+      success: rateLimitSuccess,
+      remaining: 59,
+      reset: Math.floor(Date.now() / 1000) + 60,
+      headers: {
+        "X-RateLimit-Limit": "60",
+        "X-RateLimit-Remaining": "59",
+        "X-RateLimit-Reset": String(Math.floor(Date.now() / 1000) + 60),
+      },
+    })
+  ),
   getClientIP: vi.fn(() => "127.0.0.1"),
   RATE_LIMITS: {
     auth: { limit: 5, window: 900 },
@@ -178,16 +183,19 @@ const cacheStore = new Map<string, unknown>();
 
 vi.mock("@/lib/cache", () => {
   const cache = {
-    get: vi.fn(async <T>(key: string): Promise<T | null> => {
+    get: vi.fn(<T>(key: string): Promise<T | null> => {
       const val = cacheStore.get(key);
-      return val === undefined ? null : (val as T);
+      return Promise.resolve(val === undefined ? null : (val as T));
     }),
-    set: vi.fn(async (key: string, data: unknown) => {
+    set: vi.fn((key: string, data: unknown) => {
       cacheStore.set(key, data);
+      return Promise.resolve();
     }),
-    delete: vi.fn(async (key: string) => {
+    delete: vi.fn((key: string) => {
       cacheStore.delete(key);
+      return Promise.resolve();
     }),
+    // eslint-disable-next-line @typescript-eslint/no-empty-function
     deletePattern: vi.fn(() => {}),
     clear: vi.fn(() => {
       cacheStore.clear();
@@ -201,15 +209,16 @@ vi.mock("@/lib/cache", () => {
       queryParams?: Record<string, string>
     ): string => {
       const parts = ["api", path];
-      if (userId) parts.push(`user:${userId}`);
-      if (queryParams) parts.push(JSON.stringify(queryParams));
+      if (userId !== undefined && userId !== "") parts.push(`user:${userId}`);
+      if (queryParams !== undefined && Object.keys(queryParams).length > 0) parts.push(JSON.stringify(queryParams));
       return parts.join(":");
     },
     getCacheKey: (
       collection: string,
       filters: Record<string, unknown>
     ): string => `db:${collection}:${JSON.stringify(filters)}`,
-    withCache: vi.fn(async <T>(_key: string, fn: () => Promise<T>) => fn()),
+    withCache: vi.fn(<T>(_key: string, fn: () => Promise<T>) => fn()),
+    // eslint-disable-next-line @typescript-eslint/no-empty-function
     invalidateCache: vi.fn(() => {}),
   };
 });
@@ -218,40 +227,46 @@ vi.mock("@/lib/cache", () => {
 // Monitoring — no-op usage/cost tracking.
 // ---------------------------------------------------------------------------
 vi.mock("@/lib/monitoring", () => ({
-  trackUsage: vi.fn(async () => {}),
-  trackCost: vi.fn(async () => {}),
-  trackAIUsage: vi.fn(async () => {}),
-  getUserUsageStats: vi.fn(async () => ({
-    totalRequests: 0,
-    requestsByRoute: {},
-    aiUsage: {
-      pdfExtractions: 0,
-      quizGenerations: 0,
-      flashcardGenerations: 0,
-    },
-  })),
+  trackUsage: vi.fn(() => Promise.resolve()),
+  trackCost: vi.fn(() => Promise.resolve()),
+  trackAIUsage: vi.fn(() => Promise.resolve()),
+  getUserUsageStats: vi.fn(() =>
+    Promise.resolve({
+      totalRequests: 0,
+      requestsByRoute: {},
+      aiUsage: {
+        pdfExtractions: 0,
+        quizGenerations: 0,
+        flashcardGenerations: 0,
+      },
+    })
+  ),
 }));
 
 // ---------------------------------------------------------------------------
 // Gemini AI — stubbed generation (not tested at endpoint level).
 // ---------------------------------------------------------------------------
 vi.mock("@/lib/gemini", () => ({
-  extractTextFromPDF: vi.fn(async () => "Mock extracted PDF text content."),
-  generateQuizFromContent: vi.fn(async () => ({
-    title: "Mock Quiz",
-    questions: [
-      {
-        question: "Mock question?",
-        type: "multiple_choice",
-        choices: ["A", "B", "C", "D"],
-        answer: "A",
-      },
-    ],
-  })),
-  generateFlashcardsFromContent: vi.fn(async () => ({
-    title: "Mock Flashcards",
-    cards: [{ front: "Mock front", back: "Mock back" }],
-  })),
+  extractTextFromPDF: vi.fn(() => Promise.resolve("Mock extracted PDF text content.")),
+  generateQuizFromContent: vi.fn(() =>
+    Promise.resolve({
+      title: "Mock Quiz",
+      questions: [
+        {
+          question: "Mock question?",
+          type: "multiple_choice",
+          choices: ["A", "B", "C", "D"],
+          answer: "A",
+        },
+      ],
+    })
+  ),
+  generateFlashcardsFromContent: vi.fn(() =>
+    Promise.resolve({
+      title: "Mock Flashcards",
+      cards: [{ front: "Mock front", back: "Mock back" }],
+    })
+  ),
 }));
 
 // ---------------------------------------------------------------------------

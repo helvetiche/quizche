@@ -46,7 +46,7 @@ type MockQuerySnapshot = {
   forEach: (cb: (doc: MockDocSnapshot) => void) => void;
 };
 
-interface MockDocRef {
+type MockDocRef = {
   id: string;
   get: () => Promise<MockDocSnapshot>;
   set: (
@@ -57,15 +57,22 @@ interface MockDocRef {
   delete: () => Promise<void>;
 }
 
-interface MockQuery {
+type MockQuery = {
   where: (field: string, op: string, value: unknown) => MockQuery;
   orderBy: (field: string, direction?: string) => MockQuery;
   limit: (n: number) => MockQuery;
   startAfter: (doc: unknown) => MockQuery;
   get: () => Promise<MockQuerySnapshot>;
-}
+};
 
-interface MockCollectionRef {
+type MockBatch = {
+  set: (ref: MockDocRef, data: FirestoreValue) => void;
+  update: (ref: MockDocRef, data: FirestoreValue) => void;
+  delete: (ref: MockDocRef) => void;
+  commit: () => Promise<void>;
+};
+
+type MockCollectionRef = {
   doc: (id?: string) => MockDocRef;
   add: (data: FirestoreValue) => Promise<{ id: string }>;
   where: (field: string, op: string, value: unknown) => MockQuery;
@@ -100,7 +107,7 @@ const cloneValue = (value: unknown): FirestoreValue => {
     return makeTimestamp(value);
   }
   if (Array.isArray(value)) {
-    return value.map(cloneValue) as FirestoreValue[];
+    return value.map(cloneValue);
   }
   if (value !== null && typeof value === "object") {
     const out: Record<string, FirestoreValue> = {};
@@ -204,17 +211,19 @@ const toComparable = (value: unknown): number | string => {
   if (typeof value === "number") {
     return value;
   }
-  return String(value ?? "");
+  if (typeof value === "string") {
+    return value;
+  }
+  if (value === null || value === undefined) {
+    return "";
+  }
+  // For objects without toDate, use JSON.stringify for comparison
+  return JSON.stringify(value);
 };
 
-export interface FirestoreMock {
+export type FirestoreMock = {
   collection: (name: string) => MockCollectionRef;
-  batch: () => {
-    set: (ref: MockDocRef, data: FirestoreValue) => void;
-    update: (ref: MockDocRef, data: FirestoreValue) => void;
-    delete: (ref: MockDocRef) => void;
-    commit: () => Promise<void>;
-  };
+  batch: () => MockBatch;
   runTransaction: <T>(
     fn: (transaction: {
       get: (ref: MockDocRef) => Promise<MockDocSnapshot>;
@@ -250,29 +259,30 @@ export const createFirestoreMock = (): FirestoreMock => {
   const makeDocRef = (collectionName: string, docId: string): MockDocRef => {
     return {
       id: docId,
-      async get() {
+      get() {
         const col = getCollection(collectionName);
         const data = col.get(docId);
-        return {
+        return Promise.resolve({
           id: docId,
           exists: data !== undefined,
           data: () => data,
           ref: makeDocRef(collectionName, docId),
-        };
+        });
       },
-      async set(data, options) {
+      set(data, options) {
         const col = getCollection(collectionName);
         const cloned = cloneValue(data) as Record<string, FirestoreValue>;
         const existing = col.get(docId) as
           | Record<string, FirestoreValue>
           | undefined;
-        if (options?.merge && existing) {
+        if (options?.merge === true && existing) {
           col.set(docId, mergeValues(existing, cloned));
         } else {
           col.set(docId, cloned);
         }
+        return Promise.resolve();
       },
-      async update(data) {
+      update(data) {
         const col = getCollection(collectionName);
         const cloned = cloneValue(data) as Record<string, FirestoreValue>;
         const existing = (col.get(docId) ?? {}) as Record<
@@ -280,10 +290,12 @@ export const createFirestoreMock = (): FirestoreMock => {
           FirestoreValue
         >;
         col.set(docId, mergeValues(existing, cloned));
+        return Promise.resolve();
       },
-      async delete() {
+      delete() {
         const col = getCollection(collectionName);
         col.delete(docId);
+        return Promise.resolve();
       },
     };
   };
@@ -326,7 +338,7 @@ export const createFirestoreMock = (): FirestoreMock => {
           doc as MockDocSnapshot
         );
       },
-      async get() {
+      get() {
         const col = getCollection(collectionName);
         let entries = Array.from(col.entries());
 
@@ -346,10 +358,10 @@ export const createFirestoreMock = (): FirestoreMock => {
         for (const order of orders) {
           docs.sort((a, b) => {
             const aVal = toComparable(
-              (a.data() as Record<string, FirestoreValue>)?.[order.field]
+              (a.data() as Record<string, FirestoreValue>)[order.field]
             );
             const bVal = toComparable(
-              (b.data() as Record<string, FirestoreValue>)?.[order.field]
+              (b.data() as Record<string, FirestoreValue>)[order.field]
             );
             if (aVal < bVal) return order.direction === "desc" ? 1 : -1;
             if (aVal > bVal) return order.direction === "desc" ? -1 : 1;
@@ -370,12 +382,12 @@ export const createFirestoreMock = (): FirestoreMock => {
           docs = docs.slice(0, limitVal);
         }
 
-        return {
+        return Promise.resolve({
           empty: docs.length === 0,
           size: docs.length,
           docs,
-          forEach: (cb) => docs.forEach(cb),
-        };
+          forEach: (cb: (doc: MockDocSnapshot) => void) => docs.forEach(cb),
+        });
       },
     };
     return query;
@@ -386,14 +398,14 @@ export const createFirestoreMock = (): FirestoreMock => {
       doc(id) {
         return makeDocRef(name, id ?? generateId());
       },
-      async add(data) {
+      add(data) {
         const id = generateId();
         const col = getCollection(name);
         col.set(
           id,
           cloneValue(data) as Record<string, FirestoreValue>
         );
-        return { id };
+        return Promise.resolve({ id });
       },
       where(field, op, value) {
         return buildQuery(name, [{ field, op, value }], [], null, null);
@@ -404,7 +416,7 @@ export const createFirestoreMock = (): FirestoreMock => {
       limit(n) {
         return buildQuery(name, [], [], n, null);
       },
-      async get() {
+      get() {
         const col = getCollection(name);
         const docs: MockDocSnapshot[] = Array.from(col.entries()).map(
           ([id, data]) => ({
@@ -414,18 +426,18 @@ export const createFirestoreMock = (): FirestoreMock => {
             ref: makeDocRef(name, id),
           })
         );
-        return {
+        return Promise.resolve({
           empty: docs.length === 0,
           size: docs.length,
           docs,
-          forEach: (cb) => docs.forEach(cb),
-        };
+          forEach: (cb: (doc: MockDocSnapshot) => void) => docs.forEach(cb),
+        });
       },
     };
   };
 
-  const batch = () => {
-    const ops: Array<() => Promise<void>> = [];
+  const batch = (): MockBatch => {
+    const ops: (() => Promise<void>)[] = [];
     return {
       set(ref, data) {
         ops.push(() => ref.set(data));
@@ -437,9 +449,7 @@ export const createFirestoreMock = (): FirestoreMock => {
         ops.push(() => ref.delete());
       },
       async commit() {
-        for (const op of ops) {
-          await op();
-        }
+        await Promise.all(ops.map((op) => op()));
       },
     };
   };
@@ -452,7 +462,7 @@ export const createFirestoreMock = (): FirestoreMock => {
       delete: (ref: MockDocRef) => void;
     }) => Promise<T>
   ): Promise<T> => {
-    const pendingOps: Array<() => Promise<void>> = [];
+    const pendingOps: (() => Promise<void>)[] = [];
     const transaction = {
       get: (ref: MockDocRef) => ref.get(),
       set: (ref: MockDocRef, data: FirestoreValue) => {
@@ -466,9 +476,7 @@ export const createFirestoreMock = (): FirestoreMock => {
       },
     };
     const result = await fn(transaction);
-    for (const op of pendingOps) {
-      await op();
-    }
+    await Promise.all(pendingOps.map((op) => op()));
     return result;
   };
 
@@ -483,7 +491,7 @@ export const createFirestoreMock = (): FirestoreMock => {
     return docId;
   };
 
-  const _reset = () => {
+  const _reset = (): void => {
     store.clear();
   };
 

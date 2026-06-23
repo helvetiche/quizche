@@ -168,7 +168,7 @@ describe("GET /api/quizzes", () => {
 
     const req = createRequest("/api/quizzes", { csrf: false });
     const res = await listQuizzes(req);
-    const parsed = await parseResponse(res);
+    const parsed = await parseResponse<{ quizzes: { id: string }[] }>(res);
 
     expect(parsed.status).toBe(200);
     expect(parsed.body.quizzes).toHaveLength(1);
@@ -475,12 +475,18 @@ describe("PUT /api/quizzes/[id]/settings", () => {
     expect(parsed.status).toBe(200);
     expect(parsed.body.success).toBe(true);
 
-    const updated = db._store.get("quizzes")?.get("quiz-set") as Record<
+    const quizzesStore = db._store.get("quizzes");
+    expect(quizzesStore).toBeDefined();
+    const updated = quizzesStore?.get("quiz-set") as Record<
       string,
       unknown
-    >;
-    expect(updated?.isActive).toBe(false);
-    expect(updated?.duration).toBe(30);
-    expect(updated?.allowRetake).toBe(true);
+    > | undefined;
+    expect(updated).toBeDefined();
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    expect(updated!.isActive).toBe(false);
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    expect(updated!.duration).toBe(30);
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    expect(updated!.allowRetake).toBe(true);
   });
 });

@@ -108,11 +108,14 @@ describe("POST /api/users/profile", () => {
     expect(parsed.status).toBe(200);
     expect(parsed.body.success).toBe(true);
 
-    const stored = getFirestoreMock()._store.get("users")?.get(
-      "profile-create"
-    ) as Record<string, unknown>;
-    expect(stored?.firstName).toBe("John");
-    expect(stored?.profileCompleted).toBe(true);
+    const usersStore = getFirestoreMock()._store.get("users");
+    expect(usersStore).toBeDefined();
+    const stored = usersStore?.get("profile-create") as Record<string, unknown> | undefined;
+    expect(stored).toBeDefined();
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    expect(stored!.firstName).toBe("John");
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    expect(stored!.profileCompleted).toBe(true);
   });
 });
 
@@ -164,10 +167,12 @@ describe("PUT /api/users/profile", () => {
     expect(parsed.status).toBe(200);
     expect(parsed.body.success).toBe(true);
 
-    const stored = db._store.get("users")?.get(
-      "profile-update"
-    ) as Record<string, unknown>;
-    expect(stored?.school).toBe("Updated School");
+    const usersStore = db._store.get("users");
+    expect(usersStore).toBeDefined();
+    const stored = usersStore?.get("profile-update") as Record<string, unknown> | undefined;
+    expect(stored).toBeDefined();
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    expect(stored!.school).toBe("Updated School");
   });
 });
 

@@ -155,7 +155,7 @@ describe("GET /api/quizzes/drafts", () => {
 
     const req = createRequest("/api/quizzes/drafts", { csrf: false });
     const res = await listDrafts(req);
-    const parsed = await parseResponse(res);
+    const parsed = await parseResponse<{ drafts: { title: string }[] }>(res);
     expect(parsed.status).toBe(200);
     expect(parsed.body.drafts).toHaveLength(1);
     expect(parsed.body.drafts[0].title).toBe("Draft A");
