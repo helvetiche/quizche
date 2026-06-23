@@ -18,6 +18,16 @@ import {
   getFirestoreMock,
 } from "../setup";
 
+type QuizResponseBody = {
+  success?: boolean;
+  id?: string;
+  message?: string;
+  quiz?: { title: string };
+  quizzes?: { id: string }[];
+  pagination?: { hasMore?: boolean; total?: number };
+  error?: string;
+};
+
 const validQuizBody = {
   title: "My Quiz",
   questions: [
@@ -116,10 +126,11 @@ describe("POST /api/quizzes", () => {
       body: validQuizBody,
     });
     const res = await createQuiz(req);
-    const parsed = await parseResponse(res);
+    const parsed = await parseResponse<QuizResponseBody>(res);
     const quizzesStore = getFirestoreMock()._store.get("quizzes");
     expect(quizzesStore).toBeDefined();
-    expect(quizzesStore?.has(parsed.body.id)).toBe(true);
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    expect(quizzesStore?.has(parsed.body.id!)).toBe(true);
   });
 });
 
@@ -168,11 +179,11 @@ describe("GET /api/quizzes", () => {
 
     const req = createRequest("/api/quizzes", { csrf: false });
     const res = await listQuizzes(req);
-    const parsed = await parseResponse<{ quizzes: { id: string }[] }>(res);
+    const parsed = await parseResponse<QuizResponseBody>(res);
 
     expect(parsed.status).toBe(200);
     expect(parsed.body.quizzes).toHaveLength(1);
-    expect(parsed.body.quizzes[0].id).toBe("quiz-1");
+    expect(parsed.body.quizzes?.[0]?.id).toBe("quiz-1");
     expect(parsed.body.pagination).toBeDefined();
   });
 
@@ -194,10 +205,10 @@ describe("GET /api/quizzes", () => {
       query: { limit: "2" },
     });
     const res = await listQuizzes(req);
-    const parsed = await parseResponse(res);
+    const parsed = await parseResponse<QuizResponseBody>(res);
     expect(parsed.status).toBe(200);
     expect(parsed.body.quizzes).toHaveLength(2);
-    expect(parsed.body.pagination.hasMore).toBe(true);
+    expect(parsed.body.pagination?.hasMore).toBe(true);
   });
 });
 
@@ -272,9 +283,9 @@ describe("GET /api/quizzes/[id]", () => {
     const res = await getQuiz(req, {
       params: Promise.resolve({ id: "quiz-own" }),
     });
-    const parsed = await parseResponse(res);
+    const parsed = await parseResponse<QuizResponseBody>(res);
     expect(parsed.status).toBe(200);
-    expect(parsed.body.quiz.title).toBe("My Quiz");
+    expect(parsed.body.quiz?.title).toBe("My Quiz");
   });
 
   it("returns 403 when a student accesses an inactive quiz", async () => {
@@ -383,7 +394,7 @@ describe("PUT /api/quizzes/[id]", () => {
     expect(parsed.status).toBe(200);
     expect(parsed.body.success).toBe(true);
 
-    const updated = db._store.get("quizzes")?.get("quiz-upd");
+    const updated = db._store.get("quizzes")?.get("quiz-upd") as Record<string, unknown> | undefined;
     expect(updated?.title).toBe("New Title");
   });
 

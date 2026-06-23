@@ -19,6 +19,14 @@ import {
   getFirestoreMock,
 } from "../setup";
 
+type FlashcardResponseBody = {
+  id?: string;
+  message?: string;
+  flashcardSet?: { title: string };
+  cloned?: boolean;
+  error?: string;
+};
+
 const validFlashcardSet = {
   title: "My Flashcards",
   cards: [{ front: "What is TS?", back: "TypeScript" }],
@@ -86,9 +94,10 @@ describe("POST /api/flashcards", () => {
       body: validFlashcardSet,
     });
     const res = await createFlashcard(req);
-    const parsed = await parseResponse(res);
+    const parsed = await parseResponse<FlashcardResponseBody>(res);
     const store = getFirestoreMock()._store.get("flashcards");
-    expect(store?.has(parsed.body.id)).toBe(true);
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    expect(store?.has(parsed.body.id!)).toBe(true);
   });
 });
 
@@ -190,9 +199,9 @@ describe("GET /api/flashcards/[id]", () => {
     const res = await getFlashcard(req, {
       params: Promise.resolve({ id: "fc-get" }),
     });
-    const parsed = await parseResponse(res);
+    const parsed = await parseResponse<FlashcardResponseBody>(res);
     expect(parsed.status).toBe(200);
-    expect(parsed.body.flashcardSet.title).toBe("My Card");
+    expect(parsed.body.flashcardSet?.title).toBe("My Card");
   });
 });
 

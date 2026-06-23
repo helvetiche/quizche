@@ -13,7 +13,7 @@ import { createFirestoreMock, type FirestoreMock } from "./helpers/firestore-moc
 // Env — bypass envalid validation by providing placeholder values.
 // Must be set before any module that imports lib/env is loaded.
 // ---------------------------------------------------------------------------
-process.env.NODE_ENV = "test";
+(process.env as Record<string, string>).NODE_ENV = "test";
 process.env.NEXT_PRIVATE_GEMINI_API_KEY = "test-gemini-key";
 process.env.UPSTASH_REDIS_REST_URL = "https://test-redis.upstash.io";
 process.env.UPSTASH_REDIS_REST_TOKEN = "test-redis-token";

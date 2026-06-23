@@ -201,7 +201,7 @@ describe("GET /api/quizzes/drafts/[id]", () => {
     const res = await getDraft(req, {
       params: Promise.resolve({ id: "draft-get" }),
     });
-    const parsed = await parseResponse(res);
+    const parsed = await parseResponse<{ draft: { title: string } }>(res);
     expect(parsed.status).toBe(200);
     expect(parsed.body.draft.title).toBe("Gettable Draft");
   });

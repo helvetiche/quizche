@@ -13,6 +13,13 @@ import {
   getFirestoreMock,
 } from "../setup";
 
+type ConnectionResponseBody = {
+  status?: string;
+  message?: string;
+  connections?: unknown[];
+  error?: string;
+};
+
 // ── GET & POST /api/connections ─────────────────────────────────────────────
 
 describe("GET /api/connections", () => {
@@ -57,7 +64,7 @@ describe("GET /api/connections", () => {
 
     const req = createRequest("/api/connections", { csrf: false });
     const res = await listConnections(req);
-    const parsed = await parseResponse(res);
+    const parsed = await parseResponse<ConnectionResponseBody>(res);
     expect(parsed.status).toBe(200);
     expect(parsed.body.connections).toBeDefined();
   });
@@ -98,7 +105,7 @@ describe("POST /api/connections", () => {
       body: { toUserId: "self-user" },
     });
     const res = await sendConnection(req);
-    const parsed = await parseResponse(res);
+    const parsed = await parseResponse<ConnectionResponseBody>(res);
     expect(parsed.status).toBe(400);
     expect(parsed.body.error).toMatch(/yourself/i);
   });
@@ -126,7 +133,7 @@ describe("POST /api/connections", () => {
     const res = await sendConnection(req);
     const parsed = await parseResponse(res);
     expect(parsed.status).toBe(400);
-    expect(parsed.body.error).toMatch(/only connect with students/i);
+    expect((parsed.body as ConnectionResponseBody).error).toMatch(/only connect with students/i);
   });
 
   it("sends a connection request successfully", async () => {
@@ -142,7 +149,7 @@ describe("POST /api/connections", () => {
       body: { toUserId: "conn-target" },
     });
     const res = await sendConnection(req);
-    const parsed = await parseResponse(res);
+    const parsed = await parseResponse<ConnectionResponseBody>(res);
     expect(parsed.status).toBe(201);
     expect(parsed.body.status).toBe("pending");
   });
@@ -171,7 +178,7 @@ describe("POST /api/connections", () => {
       body: { toUserId: "conn-requester" },
     });
     const res = await sendConnection(req);
-    const parsed = await parseResponse(res);
+    const parsed = await parseResponse<ConnectionResponseBody>(res);
     expect(parsed.status).toBe(200);
     expect(parsed.body.status).toBe("accepted");
   });
@@ -238,7 +245,8 @@ describe("PUT /api/connections/[id]", () => {
   });
 
   it("accepts a connection request", async () => {
-    const acceptor = mockStudent("acceptor-1");
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    const acceptor = mockStudent("acceptor-1")!;
     const requester = "requester-1";
     setMockAuth(acceptor);
     const db = getFirestoreMock();
@@ -284,7 +292,7 @@ describe("PUT /api/connections/[id]", () => {
     const res = await actOnConnection(req, {
       params: Promise.resolve({ id: connId }),
     });
-    const parsed = await parseResponse(res);
+    const parsed = await parseResponse<ConnectionResponseBody>(res);
     expect(parsed.status).toBe(200);
     expect(parsed.body.message).toMatch(/rejected/i);
   });

@@ -15,6 +15,21 @@ import {
   getFirestoreMock,
 } from "../setup";
 
+type UserResponseBody = {
+  success?: boolean;
+  error?: string;
+  profile?: {
+    firstName: string;
+    lastName?: string;
+    age?: number;
+    school?: string;
+    profileCompleted: boolean;
+  };
+  attempts?: unknown[];
+  stats?: unknown;
+  users?: unknown[];
+};
+
 const validProfile = {
   firstName: "John",
   lastName: "Doe",
@@ -43,11 +58,11 @@ describe("GET /api/users/profile", () => {
     setMockAuth(mockStudent("no-profile"));
     const req = createRequest("/api/users/profile", { csrf: false });
     const res = await getProfile(req);
-    const parsed = await parseResponse(res);
+    const parsed = await parseResponse<UserResponseBody>(res);
     expect(parsed.status).toBe(200);
     expect(parsed.body.profile).toBeDefined();
-    expect(parsed.body.profile.firstName).toBe("");
-    expect(parsed.body.profile.profileCompleted).toBe(false);
+    expect(parsed.body.profile?.firstName).toBe("");
+    expect(parsed.body.profile?.profileCompleted).toBe(false);
   });
 
   it("returns the user profile when it exists", async () => {
@@ -63,10 +78,10 @@ describe("GET /api/users/profile", () => {
 
     const req = createRequest("/api/users/profile", { csrf: false });
     const res = await getProfile(req);
-    const parsed = await parseResponse(res);
+    const parsed = await parseResponse<UserResponseBody>(res);
     expect(parsed.status).toBe(200);
-    expect(parsed.body.profile.firstName).toBe("Jane");
-    expect(parsed.body.profile.profileCompleted).toBe(true);
+    expect(parsed.body.profile?.firstName).toBe("Jane");
+    expect(parsed.body.profile?.profileCompleted).toBe(true);
   });
 });
 

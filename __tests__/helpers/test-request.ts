@@ -65,7 +65,7 @@ export const createRequest = (
     }
   }
 
-  return new NextRequest(url, init);
+  return new NextRequest(url, init as ConstructorParameters<typeof NextRequest>[1]);
 };
 
 export type ParsedResponse<T = Record<string, unknown>> = {
@@ -108,7 +108,8 @@ export const createFormDataRequest = (
     if (typeof value === "string") {
       formData.append(key, value);
     } else {
-      const blob = new Blob([value.file], { type: value.type });
+      const uint8 = new Uint8Array(value.file);
+      const blob = new Blob([uint8], { type: value.type });
       formData.append(key, blob, value.filename);
     }
   }

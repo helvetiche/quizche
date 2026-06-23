@@ -185,9 +185,7 @@ describe("POST /api/student/quizzes/[id]/session", () => {
       body: { sessionId: "s1" },
       auth: false,
     });
-    const res = await updateSession(req, {
-      params: Promise.resolve({ id: "q1" }),
-    });
+    const res = await updateSession(req);
     const parsed = await parseResponse(res);
     expect(parsed.status).toBe(401);
   });

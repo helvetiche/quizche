@@ -17,6 +17,18 @@ import {
   getFirestoreMock,
 } from "../setup";
 
+type TeacherResponseBody = {
+  success?: boolean;
+  id?: string;
+  message?: string;
+  section?: { name: string };
+  sections?: unknown[];
+  students?: unknown[];
+  attempts?: unknown[];
+  pagination?: { hasMore?: boolean };
+  error?: string;
+};
+
 const validSection = {
   name: "Section A",
   studentIds: ["stu-1"],
@@ -175,9 +187,9 @@ describe("GET /api/teacher/sections/[id]", () => {
     const res = await getSection(req, {
       params: Promise.resolve({ id: "sec-detail" }),
     });
-    const parsed = await parseResponse(res);
+    const parsed = await parseResponse<TeacherResponseBody>(res);
     expect(parsed.status).toBe(200);
-    expect(parsed.body.section.name).toBe("My Section");
+    expect(parsed.body.section?.name).toBe("My Section");
   });
 
   it("returns 403 for another teacher's section", async () => {

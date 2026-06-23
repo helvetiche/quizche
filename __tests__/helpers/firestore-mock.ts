@@ -186,12 +186,10 @@ const matchFilter = (docData: FirestoreValue, filter: Filter): boolean => {
         fieldValue <= filter.value
       );
     case "in":
-      return (
-        Array.isArray(filter.value) &&
-        filter.value.includes(fieldValue)
-      );
+      if (!Array.isArray(filter.value)) return false;
+      return (filter.value as FirestoreValue[]).includes(fieldValue);
     case "array-contains":
-      return Array.isArray(fieldValue) && fieldValue.includes(filter.value);
+      return Array.isArray(fieldValue) && (fieldValue as FirestoreValue[]).includes(filter.value as FirestoreValue);
     default:
       return false;
   }
