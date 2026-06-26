@@ -183,7 +183,9 @@ describe("GET /api/teacher/sections/[id]", () => {
       updatedAt: new Date(),
     });
 
-    const req = createRequest("/api/teacher/sections/sec-detail", { csrf: false });
+    const req = createRequest("/api/teacher/sections/sec-detail", {
+      csrf: false,
+    });
     const res = await getSection(req, {
       params: Promise.resolve({ id: "sec-detail" }),
     });
@@ -200,7 +202,9 @@ describe("GET /api/teacher/sections/[id]", () => {
       name: "Private",
     });
 
-    const req = createRequest("/api/teacher/sections/sec-other", { csrf: false });
+    const req = createRequest("/api/teacher/sections/sec-other", {
+      csrf: false,
+    });
     const res = await getSection(req, {
       params: Promise.resolve({ id: "sec-other" }),
     });
@@ -311,7 +315,9 @@ describe("GET /api/teacher/quizzes/[id]/attempts", () => {
 
   it("returns 403 for students", async () => {
     setMockAuth(mockStudent());
-    const req = createRequest("/api/teacher/quizzes/q1/attempts", { csrf: false });
+    const req = createRequest("/api/teacher/quizzes/q1/attempts", {
+      csrf: false,
+    });
     const res = await getAttempts(req, {
       params: Promise.resolve({ id: "q1" }),
     });
@@ -389,7 +395,9 @@ describe("GET /api/teacher/quizzes/[id]/live", () => {
 
   it("returns 404 when quiz does not exist", async () => {
     setMockAuth(mockTeacher());
-    const req = createRequest("/api/teacher/quizzes/ghost/live", { csrf: false });
+    const req = createRequest("/api/teacher/quizzes/ghost/live", {
+      csrf: false,
+    });
     const res = await getLiveSession(req, {
       params: Promise.resolve({ id: "ghost" }),
     });
@@ -405,7 +413,9 @@ describe("GET /api/teacher/quizzes/[id]/live", () => {
       title: "Live Quiz",
     });
 
-    const req = createRequest("/api/teacher/quizzes/quiz-live/live", { csrf: false });
+    const req = createRequest("/api/teacher/quizzes/quiz-live/live", {
+      csrf: false,
+    });
     const res = await getLiveSession(req, {
       params: Promise.resolve({ id: "quiz-live" }),
     });

@@ -14,7 +14,9 @@ type TeacherHomeContentProps = {
   userEmail?: string;
 };
 
-export default function TeacherHomeContent(_props: TeacherHomeContentProps): ReactElement {
+export default function TeacherHomeContent(
+  _props: TeacherHomeContentProps
+): ReactElement {
   const { setActiveTab } = useTabContext();
   const itemsPerPage = 6;
 

@@ -4,7 +4,11 @@ import {
   PUT as updateSections,
 } from "@/app/api/quizzes/[id]/sections/route";
 import { POST as generateQuiz } from "@/app/api/quizzes/generate/route";
-import { createFormDataRequest, createRequest, parseResponse } from "../helpers/test-request";
+import {
+  createFormDataRequest,
+  createRequest,
+  parseResponse,
+} from "../helpers/test-request";
 import {
   setMockAuth,
   setMockCSRF,

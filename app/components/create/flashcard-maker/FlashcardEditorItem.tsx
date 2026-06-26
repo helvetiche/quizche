@@ -151,11 +151,12 @@ export default function FlashcardEditorItem({
                   >
                     Remove Image
                   </button>
-                  {Boolean(card.backImageFile) && card.backImageUrl === undefined && (
-                    <span className="text-xs font-light text-gray-600">
-                      (Will be uploaded when saved)
-                    </span>
-                  )}
+                  {Boolean(card.backImageFile) &&
+                    card.backImageUrl === undefined && (
+                      <span className="text-xs font-light text-gray-600">
+                        (Will be uploaded when saved)
+                      </span>
+                    )}
                 </div>
               </div>
             ) : (

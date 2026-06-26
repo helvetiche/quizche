@@ -1,12 +1,12 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { POST as uploadImage } from "@/app/api/upload/image/route";
 import { POST as reportPerformance } from "@/app/api/_performance/route";
-import { createFormDataRequest, createRequest, parseResponse } from "../helpers/test-request";
 import {
-  setMockAuth,
-  setMockCSRF,
-  mockStudent,
-} from "../setup";
+  createFormDataRequest,
+  createRequest,
+  parseResponse,
+} from "../helpers/test-request";
+import { setMockAuth, setMockCSRF, mockStudent } from "../setup";
 
 // ── POST /api/upload/image ──────────────────────────────────────────────────
 
@@ -17,11 +17,7 @@ describe("POST /api/upload/image", () => {
   });
 
   it("returns 401 when unauthenticated", async () => {
-    const req = createFormDataRequest(
-      "/api/upload/image",
-      {},
-      { auth: false }
-    );
+    const req = createFormDataRequest("/api/upload/image", {}, { auth: false });
     const res = await uploadImage(req);
     const parsed = await parseResponse(res);
     expect(parsed.status).toBe(401);

@@ -125,7 +125,9 @@ describe("POST /api/users/profile", () => {
 
     const usersStore = getFirestoreMock()._store.get("users");
     expect(usersStore).toBeDefined();
-    const stored = usersStore?.get("profile-create") as Record<string, unknown> | undefined;
+    const stored = usersStore?.get("profile-create") as
+      | Record<string, unknown>
+      | undefined;
     expect(stored).toBeDefined();
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     expect(stored!.firstName).toBe("John");
@@ -184,7 +186,9 @@ describe("PUT /api/users/profile", () => {
 
     const usersStore = db._store.get("users");
     expect(usersStore).toBeDefined();
-    const stored = usersStore?.get("profile-update") as Record<string, unknown> | undefined;
+    const stored = usersStore?.get("profile-update") as
+      | Record<string, unknown>
+      | undefined;
     expect(stored).toBeDefined();
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     expect(stored!.school).toBe("Updated School");

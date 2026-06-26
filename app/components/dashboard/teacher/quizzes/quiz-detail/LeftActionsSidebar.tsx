@@ -68,7 +68,9 @@ export default function LeftActionsSidebar({
             </div>
             {!sidebarCollapsed && (
               <div className="flex flex-col items-start min-w-0 text-left">
-                <span className="text-gray-900 font-bold text-xs">Edit Quiz</span>
+                <span className="text-gray-900 font-bold text-xs">
+                  Edit Quiz
+                </span>
                 <span className="text-gray-500 text-[9px] leading-tight">
                   Modify questions and answers
                 </span>
@@ -89,7 +91,9 @@ export default function LeftActionsSidebar({
             </div>
             {!sidebarCollapsed && (
               <div className="flex flex-col items-start min-w-0 text-left">
-                <span className="text-gray-900 font-bold text-xs">View Results</span>
+                <span className="text-gray-900 font-bold text-xs">
+                  View Results
+                </span>
                 <span className="text-gray-500 text-[9px] leading-tight">
                   See student submissions
                 </span>
@@ -131,7 +135,9 @@ export default function LeftActionsSidebar({
             </div>
             {!sidebarCollapsed && (
               <div className="flex flex-col items-start min-w-0 text-left">
-                <span className="text-gray-900 font-bold text-xs">Settings</span>
+                <span className="text-gray-900 font-bold text-xs">
+                  Settings
+                </span>
                 <span className="text-gray-500 text-[9px] leading-tight">
                   Configure quiz options
                 </span>
@@ -179,7 +185,9 @@ export default function LeftActionsSidebar({
           </p>
         )}
         <div className="flex flex-col gap-2 px-2">
-          <div className={`flex items-center gap-2 ${sidebarCollapsed ? "justify-center" : ""}`}>
+          <div
+            className={`flex items-center gap-2 ${sidebarCollapsed ? "justify-center" : ""}`}
+          >
             <div className="w-8 h-8 bg-amber-200 rounded-lg flex items-center justify-center border-2 border-gray-900">
               <span className="material-icons-outlined text-gray-900 text-sm">
                 schedule
@@ -187,12 +195,16 @@ export default function LeftActionsSidebar({
             </div>
             {!sidebarCollapsed && (
               <div>
-                <p className="text-xs font-bold text-gray-900">{durationLabel}</p>
+                <p className="text-xs font-bold text-gray-900">
+                  {durationLabel}
+                </p>
                 <p className="text-[9px] text-gray-500">Duration</p>
               </div>
             )}
           </div>
-          <div className={`flex items-center gap-2 ${sidebarCollapsed ? "justify-center" : ""}`}>
+          <div
+            className={`flex items-center gap-2 ${sidebarCollapsed ? "justify-center" : ""}`}
+          >
             <div className="w-8 h-8 bg-amber-200 rounded-lg flex items-center justify-center border-2 border-gray-900">
               <span className="material-icons-outlined text-gray-900 text-sm">
                 people
@@ -200,7 +212,9 @@ export default function LeftActionsSidebar({
             </div>
             {!sidebarCollapsed && (
               <div>
-                <p className="text-xs font-bold text-gray-900">{submissionsCount}</p>
+                <p className="text-xs font-bold text-gray-900">
+                  {submissionsCount}
+                </p>
                 <p className="text-[9px] text-gray-500">Submissions</p>
               </div>
             )}

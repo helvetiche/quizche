@@ -207,7 +207,11 @@ export default function QuizFormSidebar({
           )}
           {!sidebarCollapsed && (
             <span className="text-sm">
-              {loading ? "Saving..." : quizId !== undefined ? "Save" : "Publish"}
+              {loading
+                ? "Saving..."
+                : quizId !== undefined
+                  ? "Save"
+                  : "Publish"}
             </span>
           )}
         </button>

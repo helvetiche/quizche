@@ -184,17 +184,13 @@ export default function ComposerPagination({
                     } else if (searchFilter === "answers") {
                       return (
                         q.answer.toLowerCase().includes(query) ||
-                        q.choices.some((c) =>
-                          c.toLowerCase().includes(query)
-                        )
+                        q.choices.some((c) => c.toLowerCase().includes(query))
                       );
                     } else {
                       return (
                         q.question.toLowerCase().includes(query) ||
                         q.answer.toLowerCase().includes(query) ||
-                        q.choices.some((c) =>
-                          c.toLowerCase().includes(query)
-                        )
+                        q.choices.some((c) => c.toLowerCase().includes(query))
                       );
                     }
                   })()

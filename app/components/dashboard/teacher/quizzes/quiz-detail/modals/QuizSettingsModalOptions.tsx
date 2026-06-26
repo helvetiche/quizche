@@ -1,5 +1,8 @@
 import type { ReactElement } from "react";
-import type { QuizSettingsSetter, QuizSettingsState } from "./quizSettingsTypes";
+import type {
+  QuizSettingsSetter,
+  QuizSettingsState,
+} from "./quizSettingsTypes";
 
 type QuizSettingsModalOptionsProps = {
   quizSettings: QuizSettingsState;

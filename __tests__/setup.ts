@@ -7,7 +7,10 @@
  */
 
 import { vi, beforeEach } from "vitest";
-import { createFirestoreMock, type FirestoreMock } from "./helpers/firestore-mock";
+import {
+  createFirestoreMock,
+  type FirestoreMock,
+} from "./helpers/firestore-mock";
 
 // ---------------------------------------------------------------------------
 // Env — bypass envalid validation by providing placeholder values.
@@ -27,8 +30,7 @@ process.env.FIREBASE_SERVICE_ACCOUNT_KEY = JSON.stringify({
   client_id: "test-client-id",
   auth_uri: "https://accounts.google.com/o/oauth2/auth",
   token_uri: "https://oauth2.googleapis.com/token",
-  auth_provider_x509_cert_url:
-    "https://www.googleapis.com/oauth2/v1/certs",
+  auth_provider_x509_cert_url: "https://www.googleapis.com/oauth2/v1/certs",
   client_x509_cert_url:
     "https://www.googleapis.com/robot/v1/metadata/x509/test%40test-project.iam.gserviceaccount.com",
 });
@@ -210,7 +212,8 @@ vi.mock("@/lib/cache", () => {
     ): string => {
       const parts = ["api", path];
       if (userId !== undefined && userId !== "") parts.push(`user:${userId}`);
-      if (queryParams !== undefined && Object.keys(queryParams).length > 0) parts.push(JSON.stringify(queryParams));
+      if (queryParams !== undefined && Object.keys(queryParams).length > 0)
+        parts.push(JSON.stringify(queryParams));
       return parts.join(":");
     },
     getCacheKey: (
@@ -247,7 +250,9 @@ vi.mock("@/lib/monitoring", () => ({
 // Gemini AI — stubbed generation (not tested at endpoint level).
 // ---------------------------------------------------------------------------
 vi.mock("@/lib/gemini", () => ({
-  extractTextFromPDF: vi.fn(() => Promise.resolve("Mock extracted PDF text content.")),
+  extractTextFromPDF: vi.fn(() =>
+    Promise.resolve("Mock extracted PDF text content.")
+  ),
   generateQuizFromContent: vi.fn(() =>
     Promise.resolve({
       title: "Mock Quiz",

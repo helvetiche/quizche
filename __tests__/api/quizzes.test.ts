@@ -394,7 +394,9 @@ describe("PUT /api/quizzes/[id]", () => {
     expect(parsed.status).toBe(200);
     expect(parsed.body.success).toBe(true);
 
-    const updated = db._store.get("quizzes")?.get("quiz-upd") as Record<string, unknown> | undefined;
+    const updated = db._store.get("quizzes")?.get("quiz-upd") as
+      | Record<string, unknown>
+      | undefined;
     expect(updated?.title).toBe("New Title");
   });
 
@@ -488,10 +490,9 @@ describe("PUT /api/quizzes/[id]/settings", () => {
 
     const quizzesStore = db._store.get("quizzes");
     expect(quizzesStore).toBeDefined();
-    const updated = quizzesStore?.get("quiz-set") as Record<
-      string,
-      unknown
-    > | undefined;
+    const updated = quizzesStore?.get("quiz-set") as
+      | Record<string, unknown>
+      | undefined;
     expect(updated).toBeDefined();
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     expect(updated!.isActive).toBe(false);

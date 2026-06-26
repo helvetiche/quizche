@@ -7,11 +7,7 @@ import {
   parseResponse,
   MOCK_AUTH_TOKEN,
 } from "../helpers/test-request";
-import {
-  setMockAuth,
-  mockTeacher,
-  adminAuthMock,
-} from "../setup";
+import { setMockAuth, mockTeacher, adminAuthMock } from "../setup";
 
 type AuthResponseBody = {
   success?: boolean;
@@ -186,10 +182,10 @@ describe("POST /api/auth/register", () => {
       role: "student",
       tier: "free",
     });
-    expect(adminAuthMock.setCustomUserClaims).toHaveBeenCalledWith(
-      "new-user",
-      { role: "student", tier: "free" }
-    );
+    expect(adminAuthMock.setCustomUserClaims).toHaveBeenCalledWith("new-user", {
+      role: "student",
+      tier: "free",
+    });
   });
 });
 

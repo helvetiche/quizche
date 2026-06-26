@@ -133,7 +133,9 @@ describe("POST /api/connections", () => {
     const res = await sendConnection(req);
     const parsed = await parseResponse(res);
     expect(parsed.status).toBe(400);
-    expect((parsed.body as ConnectionResponseBody).error).toMatch(/only connect with students/i);
+    expect((parsed.body as ConnectionResponseBody).error).toMatch(
+      /only connect with students/i
+    );
   });
 
   it("sends a connection request successfully", async () => {

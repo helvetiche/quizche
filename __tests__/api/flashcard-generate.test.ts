@@ -1,12 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { POST as generateFlashcards } from "@/app/api/flashcards/generate/route";
 import { createFormDataRequest, parseResponse } from "../helpers/test-request";
-import {
-  setMockAuth,
-  setMockCSRF,
-  mockTeacher,
-  mockStudent,
-} from "../setup";
+import { setMockAuth, setMockCSRF, mockTeacher, mockStudent } from "../setup";
 
 describe("POST /api/flashcards/generate", () => {
   beforeEach(() => {

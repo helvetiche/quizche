@@ -128,7 +128,10 @@ describe("GET /api/quizzes/drafts", () => {
   });
 
   it("returns 401 when unauthenticated", async () => {
-    const req = createRequest("/api/quizzes/drafts", { auth: false, csrf: false });
+    const req = createRequest("/api/quizzes/drafts", {
+      auth: false,
+      csrf: false,
+    });
     const res = await listDrafts(req);
     const parsed = await parseResponse(res);
     expect(parsed.status).toBe(401);
@@ -168,7 +171,10 @@ describe("GET /api/quizzes/drafts/[id]", () => {
   });
 
   it("returns 401 when unauthenticated", async () => {
-    const req = createRequest("/api/quizzes/drafts/d1", { auth: false, csrf: false });
+    const req = createRequest("/api/quizzes/drafts/d1", {
+      auth: false,
+      csrf: false,
+    });
     const res = await getDraft(req, {
       params: Promise.resolve({ id: "d1" }),
     });
@@ -215,7 +221,9 @@ describe("GET /api/quizzes/drafts/[id]", () => {
       questions: [],
     });
 
-    const req = createRequest("/api/quizzes/drafts/draft-other", { csrf: false });
+    const req = createRequest("/api/quizzes/drafts/draft-other", {
+      csrf: false,
+    });
     const res = await getDraft(req, {
       params: Promise.resolve({ id: "draft-other" }),
     });

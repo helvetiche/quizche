@@ -65,7 +65,10 @@ export const createRequest = (
     }
   }
 
-  return new NextRequest(url, init as ConstructorParameters<typeof NextRequest>[1]);
+  return new NextRequest(
+    url,
+    init as ConstructorParameters<typeof NextRequest>[1]
+  );
 };
 
 export type ParsedResponse<T = Record<string, unknown>> = {
@@ -98,7 +101,10 @@ export const parseResponse = async <T = Record<string, unknown>>(
  */
 export const createFormDataRequest = (
   path: string,
-  fields: Record<string, string | { file: Buffer; filename: string; type: string }>,
+  fields: Record<
+    string,
+    string | { file: Buffer; filename: string; type: string }
+  >,
   options: { method?: string; auth?: boolean; csrf?: boolean } = {}
 ): NextRequest => {
   const { method = "POST", auth = true, csrf = true } = options;

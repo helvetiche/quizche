@@ -24,7 +24,9 @@ export type FirestoreValue =
 type DocStore = Map<string, FirestoreValue>;
 
 /** A Firestore-like timestamp that supports `.toDate()`. */
-export const makeTimestamp = (date: Date = new Date()): Date & {
+export const makeTimestamp = (
+  date: Date = new Date()
+): Date & {
   toDate: () => Date;
 } => {
   const d = new Date(date) as Date & { toDate: () => Date };
@@ -49,13 +51,10 @@ type MockQuerySnapshot = {
 type MockDocRef = {
   id: string;
   get: () => Promise<MockDocSnapshot>;
-  set: (
-    data: FirestoreValue,
-    options?: { merge?: boolean }
-  ) => Promise<void>;
+  set: (data: FirestoreValue, options?: { merge?: boolean }) => Promise<void>;
   update: (data: FirestoreValue) => Promise<void>;
   delete: () => Promise<void>;
-}
+};
 
 type MockQuery = {
   where: (field: string, op: string, value: unknown) => MockQuery;
@@ -79,7 +78,7 @@ type MockCollectionRef = {
   orderBy: (field: string, direction?: string) => MockQuery;
   limit: (n: number) => MockQuery;
   get: () => Promise<MockQuerySnapshot>;
-}
+};
 
 type Filter = {
   field: string;
@@ -112,9 +111,7 @@ const cloneValue = (value: unknown): FirestoreValue => {
   if (value !== null && typeof value === "object") {
     const out: Record<string, FirestoreValue> = {};
     for (const key of Object.keys(value as Record<string, unknown>)) {
-      out[key] = cloneValue(
-        (value as Record<string, unknown>)[key]
-      );
+      out[key] = cloneValue((value as Record<string, unknown>)[key]);
     }
     return out;
   }
@@ -151,7 +148,11 @@ const mergeValues = (
 };
 
 const matchFilter = (docData: FirestoreValue, filter: Filter): boolean => {
-  if (docData === null || typeof docData !== "object" || Array.isArray(docData)) {
+  if (
+    docData === null ||
+    typeof docData !== "object" ||
+    Array.isArray(docData)
+  ) {
     return false;
   }
   const record = docData as Record<string, FirestoreValue>;
@@ -189,7 +190,12 @@ const matchFilter = (docData: FirestoreValue, filter: Filter): boolean => {
       if (!Array.isArray(filter.value)) return false;
       return (filter.value as FirestoreValue[]).includes(fieldValue);
     case "array-contains":
-      return Array.isArray(fieldValue) && (fieldValue as FirestoreValue[]).includes(filter.value as FirestoreValue);
+      return (
+        Array.isArray(fieldValue) &&
+        (fieldValue as FirestoreValue[]).includes(
+          filter.value as FirestoreValue
+        )
+      );
     default:
       return false;
   }
@@ -240,7 +246,7 @@ export type FirestoreMock = {
   ) => string;
   /** Clear all data. */
   _reset: () => void;
-}
+};
 
 export const createFirestoreMock = (): FirestoreMock => {
   const store = new Map<string, DocStore>();
@@ -399,17 +405,20 @@ export const createFirestoreMock = (): FirestoreMock => {
       add(data) {
         const id = generateId();
         const col = getCollection(name);
-        col.set(
-          id,
-          cloneValue(data) as Record<string, FirestoreValue>
-        );
+        col.set(id, cloneValue(data) as Record<string, FirestoreValue>);
         return Promise.resolve({ id });
       },
       where(field, op, value) {
         return buildQuery(name, [{ field, op, value }], [], null, null);
       },
       orderBy(field, direction) {
-        return buildQuery(name, [], [{ field, direction: direction ?? "asc" }], null, null);
+        return buildQuery(
+          name,
+          [],
+          [{ field, direction: direction ?? "asc" }],
+          null,
+          null
+        );
       },
       limit(n) {
         return buildQuery(name, [], [], n, null);

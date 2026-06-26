@@ -19,10 +19,7 @@ export default function QuizDeleteModal({
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-      <div
-        className="absolute inset-0 bg-black/50"
-        onClick={onCancel}
-      />
+      <div className="absolute inset-0 bg-black/50" onClick={onCancel} />
       <div className="relative bg-amber-100 border-4 border-gray-900 rounded-2xl shadow-[8px_8px_0px_0px_rgba(31,41,55,1)] p-6 max-w-md w-full">
         <div className="flex items-center gap-3 mb-4">
           <div className="w-12 h-12 bg-red-500 rounded-full flex items-center justify-center border-3 border-gray-900">

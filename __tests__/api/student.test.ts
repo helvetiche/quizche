@@ -1,7 +1,10 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { GET as listStudentQuizzes } from "@/app/api/student/quizzes/route";
 import { POST as submitQuiz } from "@/app/api/student/quizzes/submit/route";
-import { POST as createSession, PUT as updateSession } from "@/app/api/student/quizzes/[id]/session/route";
+import {
+  POST as createSession,
+  PUT as updateSession,
+} from "@/app/api/student/quizzes/[id]/session/route";
 import { createRequest, parseResponse } from "../helpers/test-request";
 import {
   setMockAuth,
@@ -147,7 +150,11 @@ describe("POST /api/student/quizzes/submit", () => {
       teacherId: "teacher-x",
       title: "New Quiz",
       questions: [
-        { question: "Capital of France?", type: "identification", answer: "Paris" },
+        {
+          question: "Capital of France?",
+          type: "identification",
+          answer: "Paris",
+        },
       ],
     });
     db._seed("users", "stu-first-submit", {
