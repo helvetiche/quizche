@@ -136,7 +136,8 @@ export default function StudentQuizzesContent({
               No Quizzes Assigned Yet
             </h3>
             <p className="text-gray-700 font-medium max-w-md">
-              You are all caught up! When your teachers assign quizzes to your sections, they will show up here.
+              You are all caught up! When your teachers assign quizzes to your
+              sections, they will show up here.
             </p>
           </div>
         ) : (
@@ -217,7 +218,9 @@ export default function StudentQuizzesContent({
                                 <span>Due:</span>
                                 <span
                                   className={
-                                    isOverdue ? "text-red-600 font-extrabold" : "text-gray-900"
+                                    isOverdue
+                                      ? "text-red-600 font-extrabold"
+                                      : "text-gray-900"
                                   }
                                 >
                                   {dueDate.toLocaleDateString()}

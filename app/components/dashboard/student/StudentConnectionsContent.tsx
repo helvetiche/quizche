@@ -112,7 +112,9 @@ export default function StudentConnectionsContent({
                 : "bg-amber-100 text-gray-900 hover:bg-amber-200 border-2 border-gray-900"
             }`}
           >
-            <span className="material-icons-outlined text-base">person_add</span>
+            <span className="material-icons-outlined text-base">
+              person_add
+            </span>
             <span>Add Connection</span>
           </button>
         </div>

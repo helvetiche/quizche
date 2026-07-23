@@ -307,7 +307,8 @@ export default function StudentHistoryContent({
               No Quiz Attempts Yet
             </h3>
             <p className="text-gray-700 font-medium max-w-md">
-              You haven&apos;t taken any quizzes yet. Complete your assigned quizzes to see your history and stats here!
+              You haven&apos;t taken any quizzes yet. Complete your assigned
+              quizzes to see your history and stats here!
             </p>
           </div>
         )}
@@ -321,7 +322,9 @@ export default function StudentHistoryContent({
               onClick={() => setCurrentPage((prev) => prev + 1)}
               className="px-8 py-3 bg-amber-100 text-gray-900 font-black border-3 border-gray-900 rounded-full shadow-[4px_4px_0px_0px_rgba(31,41,55,1)] hover:shadow-[5px_5px_0px_0px_rgba(31,41,55,1)] hover:-translate-y-0.5 transition-all flex items-center gap-2"
             >
-              <span className="material-icons-outlined text-xl">expand_more</span>
+              <span className="material-icons-outlined text-xl">
+                expand_more
+              </span>
               Load More Attempts
             </button>
           </div>

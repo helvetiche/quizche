@@ -131,7 +131,8 @@ export default function StudentFlashcardsContent({
               No Flashcards Created Yet
             </h3>
             <p className="text-gray-700 font-medium max-w-md mb-6">
-              Create your very first set of flashcards to start studying and memorizing concepts efficiently.
+              Create your very first set of flashcards to start studying and
+              memorizing concepts efficiently.
             </p>
             <Link
               href="/student/flashcards/create"

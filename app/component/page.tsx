@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/strict-boolean-expressions, @typescript-eslint/no-explicit-any, @typescript-eslint/explicit-function-return-type */
+/* eslint-disable @typescript-eslint/explicit-function-return-type */
 "use client";
 
 import { useState } from "react";
@@ -24,7 +24,8 @@ export default function ComponentShowcasePage() {
             Design System UI Kit
           </h1>
           <p className="text-lg font-medium text-gray-700">
-            Showcase grid of all Neo-Brutalist Amber components, controls, badges, and card patterns.
+            Showcase grid of all Neo-Brutalist Amber components, controls,
+            badges, and card patterns.
           </p>
         </div>
         <Link
@@ -40,8 +41,12 @@ export default function ComponentShowcasePage() {
         {/* SECTION 1: DESIGN TOKENS & TYPOGRAPHY */}
         <section className="space-y-6">
           <div className="flex items-center gap-3 border-b-3 border-gray-900 pb-3">
-            <span className="material-icons-outlined text-3xl font-bold">palette</span>
-            <h2 className="text-3xl font-black text-gray-900">1. Color Tokens & Typography</h2>
+            <span className="material-icons-outlined text-3xl font-bold">
+              palette
+            </span>
+            <h2 className="text-3xl font-black text-gray-900">
+              1. Color Tokens & Typography
+            </h2>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -86,14 +91,20 @@ export default function ComponentShowcasePage() {
         {/* SECTION 2: BUTTONS & INTERACTIVE CONTROLS */}
         <section className="space-y-6">
           <div className="flex items-center gap-3 border-b-3 border-gray-900 pb-3">
-            <span className="material-icons-outlined text-3xl font-bold">touch_app</span>
-            <h2 className="text-3xl font-black text-gray-900">2. Buttons & Actions</h2>
+            <span className="material-icons-outlined text-3xl font-bold">
+              touch_app
+            </span>
+            <h2 className="text-3xl font-black text-gray-900">
+              2. Buttons & Actions
+            </h2>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {/* Primary Amber Button */}
             <div className="bg-amber-50 border-3 border-gray-900 rounded-3xl p-6 shadow-[4px_4px_0px_0px_rgba(31,41,55,1)] space-y-3">
-              <h3 className="font-bold text-sm text-gray-700">Primary Amber Pill</h3>
+              <h3 className="font-bold text-sm text-gray-700">
+                Primary Amber Pill
+              </h3>
               <button className="px-6 py-3 bg-amber-100 text-gray-900 font-black border-3 border-gray-900 rounded-full shadow-[4px_4px_0px_0px_rgba(31,41,55,1)] hover:shadow-[5px_5px_0px_0px_rgba(31,41,55,1)] hover:-translate-y-0.5 transition-all flex items-center gap-2">
                 <span className="material-icons-outlined">add</span>
                 Create Action
@@ -102,7 +113,9 @@ export default function ComponentShowcasePage() {
 
             {/* Dark Action Button */}
             <div className="bg-amber-50 border-3 border-gray-900 rounded-3xl p-6 shadow-[4px_4px_0px_0px_rgba(31,41,55,1)] space-y-3">
-              <h3 className="font-bold text-sm text-gray-700">Dark Action Pill</h3>
+              <h3 className="font-bold text-sm text-gray-700">
+                Dark Action Pill
+              </h3>
               <button className="px-6 py-3 bg-gray-900 text-amber-100 font-extrabold border-2 border-gray-900 rounded-full shadow-[3px_3px_0px_0px_rgba(251,191,36,1)] hover:bg-gray-800 hover:-translate-y-0.5 transition-all flex items-center gap-2">
                 <span className="material-icons-outlined">play_arrow</span>
                 Start Quiz
@@ -111,7 +124,9 @@ export default function ComponentShowcasePage() {
 
             {/* Icon Button */}
             <div className="bg-amber-50 border-3 border-gray-900 rounded-3xl p-6 shadow-[4px_4px_0px_0px_rgba(31,41,55,1)] space-y-3">
-              <h3 className="font-bold text-sm text-gray-700">Circular Icon Action</h3>
+              <h3 className="font-bold text-sm text-gray-700">
+                Circular Icon Action
+              </h3>
               <div className="flex gap-3">
                 <button className="w-12 h-12 bg-amber-100 text-gray-900 border-3 border-gray-900 rounded-full shadow-[4px_4px_0px_0px_rgba(31,41,55,1)] hover:-translate-y-0.5 transition-all flex items-center justify-center">
                   <span className="material-icons-outlined">visibility</span>
@@ -127,7 +142,9 @@ export default function ComponentShowcasePage() {
 
             {/* Filter Toggle Pills */}
             <div className="bg-amber-50 border-3 border-gray-900 rounded-3xl p-6 shadow-[4px_4px_0px_0px_rgba(31,41,55,1)] space-y-3 col-span-1 md:col-span-2">
-              <h3 className="font-bold text-sm text-gray-700">Filter Pill Toggle Group</h3>
+              <h3 className="font-bold text-sm text-gray-700">
+                Filter Pill Toggle Group
+              </h3>
               <div className="inline-flex items-center gap-2 bg-white border-3 border-gray-900 rounded-full p-1.5 shadow-[4px_4px_0px_0px_rgba(31,41,55,1)]">
                 {["all", "recent", "popular"].map((f) => (
                   <button
@@ -150,14 +167,20 @@ export default function ComponentShowcasePage() {
         {/* SECTION 3: BADGES & PILLS */}
         <section className="space-y-6">
           <div className="flex items-center gap-3 border-b-3 border-gray-900 pb-3">
-            <span className="material-icons-outlined text-3xl font-bold">verified</span>
-            <h2 className="text-3xl font-black text-gray-900">3. Badges, Tags & Indicators</h2>
+            <span className="material-icons-outlined text-3xl font-bold">
+              verified
+            </span>
+            <h2 className="text-3xl font-black text-gray-900">
+              3. Badges, Tags & Indicators
+            </h2>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {/* Traffic Lights */}
             <div className="bg-amber-50 border-3 border-gray-900 rounded-3xl p-6 shadow-[4px_4px_0px_0px_rgba(31,41,55,1)] space-y-3">
-              <h3 className="font-bold text-sm text-gray-700">macOS Traffic Lights</h3>
+              <h3 className="font-bold text-sm text-gray-700">
+                macOS Traffic Lights
+              </h3>
               <div className="flex gap-2 p-3 bg-amber-100 border-2 border-gray-900 rounded-xl">
                 <div className="w-4 h-4 bg-red-500 rounded-full border-2 border-gray-900" />
                 <div className="w-4 h-4 bg-yellow-400 rounded-full border-2 border-gray-900" />
@@ -202,14 +225,20 @@ export default function ComponentShowcasePage() {
         {/* SECTION 4: CARDS & CONTAINERS */}
         <section className="space-y-6">
           <div className="flex items-center gap-3 border-b-3 border-gray-900 pb-3">
-            <span className="material-icons-outlined text-3xl font-bold">dashboard</span>
-            <h2 className="text-3xl font-black text-gray-900">4. Cards & Containers</h2>
+            <span className="material-icons-outlined text-3xl font-bold">
+              dashboard
+            </span>
+            <h2 className="text-3xl font-black text-gray-900">
+              4. Cards & Containers
+            </h2>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {/* Tilted Flashcard Card */}
             <div className="space-y-2">
-              <h3 className="font-bold text-sm text-gray-700">Interactive TiltedCard</h3>
+              <h3 className="font-bold text-sm text-gray-700">
+                Interactive TiltedCard
+              </h3>
               <div className="h-[340px] group cursor-pointer">
                 <TiltedCard
                   altText="Demo Flashcard Set"
@@ -242,7 +271,9 @@ export default function ComponentShowcasePage() {
                         Key definitions and mechanisms of cellular biology.
                       </p>
                       <button className="mt-auto py-2 px-4 bg-gray-900 text-amber-100 font-bold text-xs rounded-full border-2 border-gray-900 flex items-center justify-center gap-1">
-                        <span className="material-icons-outlined text-sm">play_arrow</span>
+                        <span className="material-icons-outlined text-sm">
+                          play_arrow
+                        </span>
                         Study Now
                       </button>
                     </div>
@@ -253,7 +284,9 @@ export default function ComponentShowcasePage() {
 
             {/* Stats Summary Card */}
             <div className="space-y-2">
-              <h3 className="font-bold text-sm text-gray-700">Stats Summary Card</h3>
+              <h3 className="font-bold text-sm text-gray-700">
+                Stats Summary Card
+              </h3>
               <div className="bg-amber-100 border-3 border-gray-900 rounded-3xl p-6 shadow-[6px_6px_0px_0px_rgba(31,41,55,1)] flex items-center justify-between">
                 <div>
                   <p className="text-xs font-black uppercase text-gray-700 tracking-wider mb-1">
@@ -271,12 +304,18 @@ export default function ComponentShowcasePage() {
 
             {/* Attempt History Card */}
             <div className="space-y-2">
-              <h3 className="font-bold text-sm text-gray-700">Quiz History Item Card</h3>
+              <h3 className="font-bold text-sm text-gray-700">
+                Quiz History Item Card
+              </h3>
               <div className="bg-amber-50 border-3 border-gray-900 rounded-3xl p-5 shadow-[4px_4px_0px_0px_rgba(31,41,55,1)] space-y-3">
                 <div className="flex justify-between items-start">
                   <div>
-                    <h4 className="font-black text-lg text-gray-900">Midterm Physics</h4>
-                    <p className="text-xs font-bold text-gray-600">Completed yesterday</p>
+                    <h4 className="font-black text-lg text-gray-900">
+                      Midterm Physics
+                    </h4>
+                    <p className="text-xs font-bold text-gray-600">
+                      Completed yesterday
+                    </p>
                   </div>
                   <span className="px-3 py-1 bg-green-400 text-gray-900 font-black text-xs border-2 border-gray-900 rounded-full">
                     90.0%
@@ -293,14 +332,20 @@ export default function ComponentShowcasePage() {
         {/* SECTION 5: INPUTS & SEARCH */}
         <section className="space-y-6">
           <div className="flex items-center gap-3 border-b-3 border-gray-900 pb-3">
-            <span className="material-icons-outlined text-3xl font-bold">search</span>
-            <h2 className="text-3xl font-black text-gray-900">5. Form Controls & Inputs</h2>
+            <span className="material-icons-outlined text-3xl font-bold">
+              search
+            </span>
+            <h2 className="text-3xl font-black text-gray-900">
+              5. Form Controls & Inputs
+            </h2>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Search Bar */}
             <div className="bg-amber-50 border-3 border-gray-900 rounded-3xl p-6 shadow-[4px_4px_0px_0px_rgba(31,41,55,1)] space-y-3">
-              <h3 className="font-bold text-sm text-gray-700">Neo-Brutalist Search Bar</h3>
+              <h3 className="font-bold text-sm text-gray-700">
+                Neo-Brutalist Search Bar
+              </h3>
               <div className="flex items-center bg-white border-3 border-gray-900 rounded-full shadow-[4px_4px_0px_0px_rgba(31,41,55,1)] p-1">
                 <span className="material-icons-outlined text-gray-900 text-xl pl-3">
                   search
@@ -319,7 +364,9 @@ export default function ComponentShowcasePage() {
 
             {/* Interactive Rating Bar */}
             <div className="bg-amber-50 border-3 border-gray-900 rounded-3xl p-6 shadow-[4px_4px_0px_0px_rgba(31,41,55,1)] space-y-3">
-              <h3 className="font-bold text-sm text-gray-700">Interactive Rating Stars</h3>
+              <h3 className="font-bold text-sm text-gray-700">
+                Interactive Rating Stars
+              </h3>
               <div className="flex items-center gap-1">
                 {[1, 2, 3, 4, 5].map((star) => (
                   <button
@@ -348,8 +395,12 @@ export default function ComponentShowcasePage() {
         {/* SECTION 6: FEEDBACK & EMPTY STATES */}
         <section className="space-y-6">
           <div className="flex items-center gap-3 border-b-3 border-gray-900 pb-3">
-            <span className="material-icons-outlined text-3xl font-bold">inbox</span>
-            <h2 className="text-3xl font-black text-gray-900">6. Empty States & Skeletons</h2>
+            <span className="material-icons-outlined text-3xl font-bold">
+              inbox
+            </span>
+            <h2 className="text-3xl font-black text-gray-900">
+              6. Empty States & Skeletons
+            </h2>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -360,7 +411,9 @@ export default function ComponentShowcasePage() {
                   search_off
                 </span>
               </div>
-              <h3 className="text-xl font-black text-gray-900 mb-1">No Items Found</h3>
+              <h3 className="text-xl font-black text-gray-900 mb-1">
+                No Items Found
+              </h3>
               <p className="text-sm font-medium text-gray-700 max-w-xs mb-4">
                 We couldn&apos;t find any components matching your filter.
               </p>
@@ -385,7 +438,8 @@ export default function ComponentShowcasePage() {
 
       {/* Footer */}
       <footer className="max-w-7xl mx-auto mt-16 pt-8 border-t-3 border-gray-900 text-center font-bold text-sm text-gray-600">
-        Quizche Neo-Brutalist Amber Component System — Built with React & Tailwind CSS
+        Quizche Neo-Brutalist Amber Component System — Built with React &
+        Tailwind CSS
       </footer>
     </div>
   );
