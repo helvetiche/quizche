@@ -2,7 +2,6 @@ import type { ReactElement } from "react";
 import React from "react";
 import Image from "next/image";
 import { motion, AnimatePresence } from "motion/react";
-import { Copy, Play } from "lucide-react";
 import type { FlashcardSet } from "./types";
 
 type FlashcardDetailsProps = {
@@ -192,7 +191,9 @@ export default function FlashcardDetails({
               onClick={() => setShowCloneConfirm(!showCloneConfirm)}
               className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-amber-100 border border-gray-900 rounded-xl text-sm font-bold text-gray-900 hover:bg-amber-200 transition-colors shadow-[2px_2px_0px_0px_rgba(17,24,39,1)] active:shadow-none active:translate-x-[2px] active:translate-y-[2px]"
             >
-              <Copy className="w-4 h-4" />
+              <span className="material-icons-outlined text-base">
+                content_copy
+              </span>
               Clone
             </button>
             <AnimatePresence>
@@ -231,7 +232,9 @@ export default function FlashcardDetails({
               onClick={() => setShowPlayMenu(!showPlayMenu)}
               className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-gray-900 border border-gray-900 rounded-xl text-sm font-bold text-white hover:bg-gray-800 transition-colors shadow-[2px_2px_0px_0px_rgba(17,24,39,1)] active:shadow-none active:translate-x-[2px] active:translate-y-[2px]"
             >
-              <Play className="w-4 h-4" />
+              <span className="material-icons-outlined text-base">
+                play_arrow
+              </span>
               Play
             </button>
             <AnimatePresence>

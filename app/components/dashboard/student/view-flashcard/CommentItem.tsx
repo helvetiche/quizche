@@ -1,14 +1,6 @@
 import React from "react";
 import Image from "next/image";
 import { motion, AnimatePresence } from "motion/react";
-import {
-  Clock,
-  MessageCircle,
-  Trash2,
-  AlertCircle,
-  Check,
-  X,
-} from "lucide-react";
 import type { Comment } from "./types";
 import { timeAgo } from "./utils";
 
@@ -78,7 +70,9 @@ export default function CommentItem({
                 {comment.userName}
               </span>
               <span className="text-xs text-gray-900 flex items-center gap-1">
-                <Clock className="w-3 h-3" />
+                <span className="material-icons-outlined text-xs">
+                  schedule
+                </span>
                 {timeAgo(comment.createdAt)}
               </span>
             </div>
@@ -93,7 +87,9 @@ export default function CommentItem({
                 }
                 className="flex items-center gap-1 text-xs font-medium text-gray-900 hover:text-gray-700"
               >
-                <MessageCircle className="w-3 h-3" />
+                <span className="material-icons-outlined text-xs">
+                  chat_bubble_outline
+                </span>
                 Reply
               </button>
 
@@ -104,7 +100,9 @@ export default function CommentItem({
                     onClick={() => setDeleteConfirmation(comment.id)}
                     className="flex items-center gap-1 text-xs font-medium text-red-500 hover:text-red-700"
                   >
-                    <Trash2 className="w-3 h-3" />
+                    <span className="material-icons-outlined text-xs">
+                      delete_outline
+                    </span>
                     Delete
                   </button>
 
@@ -117,7 +115,9 @@ export default function CommentItem({
                         className="absolute top-full left-0 mt-2 bg-amber-50 border-2 border-gray-900 shadow-xl rounded-xl p-3 z-50 w-48 flex flex-col gap-2"
                       >
                         <div className="text-xs font-semibold text-gray-700 flex items-center gap-1.5">
-                          <AlertCircle className="w-3.5 h-3.5 text-red-500" />
+                          <span className="material-icons-outlined text-sm text-red-500">
+                            error_outline
+                          </span>
                           Are you sure?
                         </div>
                         <div className="flex gap-2 mt-1">
@@ -128,13 +128,19 @@ export default function CommentItem({
                             }}
                             className="flex-1 bg-red-500 text-white text-xs py-1.5 rounded-lg hover:bg-red-600 flex items-center justify-center gap-1 transition-colors"
                           >
-                            <Check className="w-3 h-3" /> Yes
+                            <span className="material-icons-outlined text-xs">
+                              check
+                            </span>{" "}
+                            Yes
                           </button>
                           <button
                             onClick={() => setDeleteConfirmation(null)}
                             className="flex-1 bg-gray-100 text-gray-700 text-xs py-1.5 rounded-lg hover:bg-gray-200 flex items-center justify-center gap-1 transition-colors"
                           >
-                            <X className="w-3 h-3" /> No
+                            <span className="material-icons-outlined text-xs">
+                              close
+                            </span>{" "}
+                            No
                           </button>
                         </div>
                       </motion.div>

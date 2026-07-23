@@ -64,50 +64,71 @@ export default function StudentConnectionsContent({
 
   const existingConnectionIds = connections.map((conn) => conn.otherUserId);
 
-  if (loading !== undefined && loading !== null) {
+  if (loading) {
     return (
-      <div className="flex items-center justify-center py-16">
-        <p className="text-gray-600 font-light">Loading...</p>
+      <div className="flex flex-col items-center justify-center py-20 bg-amber-100 border-3 border-gray-900 rounded-3xl shadow-[8px_8px_0px_0px_rgba(31,41,55,1)] max-w-2xl mx-auto">
+        <div className="w-12 h-12 border-4 border-gray-900 border-t-amber-500 rounded-full animate-spin mb-4"></div>
+        <p className="text-gray-900 font-bold">Loading connections...</p>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col gap-8">
-      <div className="flex items-center justify-between">
-        <h2 className="text-3xl font-light text-black">Connections</h2>
-        <div className="flex gap-2">
+    <div className="flex flex-col gap-8 max-w-5xl mx-auto">
+      {/* Header Section */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-amber-50 border-3 border-gray-900 p-6 rounded-3xl shadow-[6px_6px_0px_0px_rgba(31,41,55,1)]">
+        <div>
+          <div className="flex gap-1.5 mb-2">
+            <div className="w-3.5 h-3.5 bg-red-500 rounded-full border-2 border-gray-900"></div>
+            <div className="w-3.5 h-3.5 bg-yellow-400 rounded-full border-2 border-gray-900"></div>
+            <div className="w-3.5 h-3.5 bg-green-500 rounded-full border-2 border-gray-900"></div>
+          </div>
+          <h1 className="text-4xl font-black text-gray-900 tracking-tight">
+            Connections
+          </h1>
+          <p className="text-sm font-medium text-gray-700 mt-1">
+            Connect and collaborate with classmates and teachers.
+          </p>
+        </div>
+
+        {/* Tab Pills */}
+        <div className="flex items-center gap-2 bg-white border-3 border-gray-900 rounded-full p-1.5 shadow-[4px_4px_0px_0px_rgba(31,41,55,1)] self-start md:self-auto">
           <button
             onClick={() => setActiveTab("list")}
-            className={`px-4 py-2 font-light transition-colors ${
+            className={`flex items-center gap-2 px-5 py-2 rounded-full font-bold text-sm transition-all ${
               activeTab === "list"
-                ? "bg-black text-white"
-                : "bg-gray-200 text-black hover:bg-gray-300"
+                ? "bg-gray-900 text-amber-100"
+                : "bg-amber-100 text-gray-900 hover:bg-amber-200 border-2 border-gray-900"
             }`}
           >
-            My Connections
+            <span className="material-icons-outlined text-base">people</span>
+            <span>My Connections</span>
           </button>
           <button
             onClick={() => setActiveTab("request")}
-            className={`px-4 py-2 font-light transition-colors ${
+            className={`flex items-center gap-2 px-5 py-2 rounded-full font-bold text-sm transition-all ${
               activeTab === "request"
-                ? "bg-black text-white"
-                : "bg-gray-200 text-black hover:bg-gray-300"
+                ? "bg-gray-900 text-amber-100"
+                : "bg-amber-100 text-gray-900 hover:bg-amber-200 border-2 border-gray-900"
             }`}
           >
-            Add Connection
+            <span className="material-icons-outlined text-base">person_add</span>
+            <span>Add Connection</span>
           </button>
         </div>
       </div>
 
+      {/* Main Content Area */}
       {activeTab === "list" ? (
-        <ConnectionList
-          connections={connections}
-          currentUserId={user?.uid ?? ""}
-          onUpdate={() => void fetchConnections()}
-        />
+        <div className="bg-amber-50 border-3 border-gray-900 rounded-3xl p-6 shadow-[6px_6px_0px_0px_rgba(31,41,55,1)]">
+          <ConnectionList
+            connections={connections}
+            currentUserId={user?.uid ?? ""}
+            onUpdate={() => void fetchConnections()}
+          />
+        </div>
       ) : (
-        <div className="bg-white border border-gray-200 rounded-lg p-6">
+        <div className="bg-amber-50 border-3 border-gray-900 rounded-3xl p-6 shadow-[6px_6px_0px_0px_rgba(31,41,55,1)]">
           <ConnectionRequest
             onRequestSent={() => void fetchConnections()}
             existingConnectionIds={existingConnectionIds}

@@ -90,11 +90,11 @@ export default function StudentHistoryContent({
     void fetchHistory(currentPage);
   }, [fetchHistory, currentPage]);
 
-  const getScoreColor = (percentage: number): string => {
-    if (percentage >= 90) return "text-green-600 bg-green-50";
-    if (percentage >= 70) return "text-blue-600 bg-blue-50";
-    if (percentage >= 50) return "text-yellow-600 bg-yellow-50";
-    return "text-red-600 bg-red-50";
+  const getScoreBadgeStyle = (percentage: number): string => {
+    if (percentage >= 90) return "bg-green-400 text-gray-900";
+    if (percentage >= 70) return "bg-blue-300 text-gray-900";
+    if (percentage >= 50) return "bg-yellow-300 text-gray-900";
+    return "bg-red-400 text-gray-900";
   };
 
   const formatTimeSpent = (seconds: number): string => {
@@ -107,103 +107,136 @@ export default function StudentHistoryContent({
   };
 
   return (
-    <div className="flex flex-col gap-8">
-      {/* Header */}
-      <div>
-        <h1 className="text-3xl font-light text-black">Quiz History</h1>
-        <p className="text-lg font-light text-gray-600 mt-2">
-          Review all your quiz attempts and track your progress over time.
+    <div className="flex flex-col gap-8 max-w-5xl mx-auto">
+      {/* Title Section */}
+      <div className="flex flex-col gap-3 text-center mb-2">
+        <h1 className="text-5xl font-black text-gray-900 tracking-tight">
+          Quiz History
+        </h1>
+        <div className="flex gap-1.5 justify-center mb-1">
+          <div className="w-4 h-4 bg-red-500 rounded-full border-2 border-gray-900"></div>
+          <div className="w-4 h-4 bg-yellow-400 rounded-full border-2 border-gray-900"></div>
+          <div className="w-4 h-4 bg-green-500 rounded-full border-2 border-gray-900"></div>
+        </div>
+        <p className="text-lg font-medium text-gray-700">
+          Review all your quiz attempts, scores, and performance over time.
         </p>
       </div>
 
       {/* Stats Cards */}
       {history && !loading && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-white border border-gray-200 rounded-lg p-6">
-            <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wide">
-              Total Quizzes Completed
-            </h3>
-            <p className="text-3xl font-light text-black mt-2">
-              {history.stats.totalQuizzes}
-            </p>
+          <div className="bg-amber-100 border-3 border-gray-900 rounded-3xl p-6 shadow-[6px_6px_0px_0px_rgba(31,41,55,1)] flex items-center justify-between">
+            <div>
+              <p className="text-xs font-black uppercase text-gray-700 tracking-wider mb-1">
+                Completed
+              </p>
+              <p className="text-4xl font-black text-gray-900">
+                {history.stats.totalQuizzes}
+              </p>
+            </div>
+            <div className="w-12 h-12 rounded-2xl bg-amber-200 border-2 border-gray-900 flex items-center justify-center shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+              <span className="material-icons-outlined text-2xl text-gray-900">
+                task_alt
+              </span>
+            </div>
           </div>
-          <div className="bg-white border border-gray-200 rounded-lg p-6">
-            <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wide">
-              Average Score
-            </h3>
-            <p className="text-3xl font-light text-black mt-2">
-              {history.stats.averageScore.toFixed(1)}%
-            </p>
+
+          <div className="bg-amber-100 border-3 border-gray-900 rounded-3xl p-6 shadow-[6px_6px_0px_0px_rgba(31,41,55,1)] flex items-center justify-between">
+            <div>
+              <p className="text-xs font-black uppercase text-gray-700 tracking-wider mb-1">
+                Average Score
+              </p>
+              <p className="text-4xl font-black text-gray-900">
+                {history.stats.averageScore.toFixed(1)}%
+              </p>
+            </div>
+            <div className="w-12 h-12 rounded-2xl bg-amber-200 border-2 border-gray-900 flex items-center justify-center shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+              <span className="material-icons-outlined text-2xl text-gray-900">
+                insights
+              </span>
+            </div>
           </div>
-          <div className="bg-white border border-gray-200 rounded-lg p-6">
-            <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wide">
-              Best Performance
-            </h3>
-            <p className="text-3xl font-light text-black mt-2">
-              {history.attempts.length > 0
-                ? Math.max(
-                    ...history.attempts.map((a) => a.percentage)
-                  ).toFixed(1)
-                : "0.0"}
-              %
-            </p>
+
+          <div className="bg-amber-100 border-3 border-gray-900 rounded-3xl p-6 shadow-[6px_6px_0px_0px_rgba(31,41,55,1)] flex items-center justify-between">
+            <div>
+              <p className="text-xs font-black uppercase text-gray-700 tracking-wider mb-1">
+                Best Score
+              </p>
+              <p className="text-4xl font-black text-gray-900">
+                {history.attempts.length > 0
+                  ? Math.max(
+                      ...history.attempts.map((a) => a.percentage)
+                    ).toFixed(1)
+                  : "0.0"}
+                %
+              </p>
+            </div>
+            <div className="w-12 h-12 rounded-2xl bg-amber-200 border-2 border-gray-900 flex items-center justify-center shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+              <span className="material-icons-outlined text-2xl text-gray-900">
+                emoji_events
+              </span>
+            </div>
           </div>
         </div>
       )}
 
       {/* Quiz Attempts List */}
       <div>
-        <h2 className="text-2xl font-light text-black mb-6">
+        <h2 className="text-2xl font-black text-gray-900 mb-6 flex items-center gap-2">
+          <span className="material-icons-outlined text-2xl text-gray-900">
+            history
+          </span>
           Your Quiz Attempts
         </h2>
 
         {loading ? (
           <div className="space-y-4">
-            {[1, 2, 3, 4, 5].map((i) => (
+            {[1, 2, 3].map((i) => (
               <div
                 key={i}
-                className="bg-white border border-gray-200 rounded-lg p-6 animate-pulse"
+                className="bg-amber-50 border-3 border-gray-900 rounded-3xl p-6 shadow-[4px_4px_0px_0px_rgba(31,41,55,1)] animate-pulse space-y-4"
               >
                 <div className="flex items-center justify-between">
-                  <div className="flex-1">
-                    <div className="h-5 bg-gray-200 rounded w-3/4 mb-2"></div>
-                    <div className="h-4 bg-gray-200 rounded w-1/2"></div>
-                  </div>
-                  <div className="h-8 bg-gray-200 rounded w-16"></div>
+                  <div className="h-6 bg-gray-300 rounded-full w-1/3 border border-gray-900"></div>
+                  <div className="h-8 bg-gray-300 rounded-full w-24 border border-gray-900"></div>
                 </div>
+                <div className="h-3 bg-gray-300 rounded-full w-full border border-gray-900"></div>
               </div>
             ))}
           </div>
         ) : history && history.attempts.length > 0 ? (
-          <div className="space-y-4">
+          <div className="space-y-5">
             {history.attempts.map((attempt) => (
               <div
                 key={attempt.id}
-                className="bg-white border-2 border-black rounded-lg p-6"
+                className="bg-amber-50 border-3 border-gray-900 rounded-3xl p-6 shadow-[5px_5px_0px_0px_rgba(31,41,55,1)] hover:shadow-[7px_7px_0px_0px_rgba(31,41,55,1)] hover:-translate-y-0.5 transition-all"
               >
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                   <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      <h3 className="text-lg font-light text-black">
+                    <div className="flex items-center gap-3 mb-2 flex-wrap">
+                      <h3 className="text-xl font-black text-gray-900">
                         {attempt.quizTitle}
                       </h3>
                       {(attempt.disqualified ||
                         attempt.tabChangeCount ||
                         attempt.timeAway ||
                         attempt.refreshDetected) && (
-                        <span className="px-2 py-1 text-xs font-light bg-red-100 text-red-800 border border-red-600">
-                          Integrity Issues
+                        <span className="px-3 py-0.5 text-xs font-black bg-red-400 text-gray-900 border-2 border-gray-900 rounded-full shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+                          Integrity Flagged
                         </span>
                       )}
                     </div>
-                    <div className="flex items-center gap-4 text-sm font-light text-gray-600">
-                      <span>
-                        Completed on{" "}
+                    <div className="flex items-center gap-4 text-xs font-bold text-gray-700 flex-wrap">
+                      <span className="flex items-center gap-1">
+                        <span className="material-icons-outlined text-sm">
+                          event
+                        </span>
                         {new Date(attempt.completedAt).toLocaleDateString(
                           "en-US",
                           {
                             year: "numeric",
-                            month: "long",
+                            month: "short",
                             day: "numeric",
                             hour: "2-digit",
                             minute: "2-digit",
@@ -211,14 +244,18 @@ export default function StudentHistoryContent({
                         )}
                       </span>
                       <span>•</span>
-                      <span>
-                        Time spent: {formatTimeSpent(attempt.timeSpent)}
+                      <span className="flex items-center gap-1">
+                        <span className="material-icons-outlined text-sm">
+                          timer
+                        </span>
+                        {formatTimeSpent(attempt.timeSpent)}
                       </span>
                     </div>
                   </div>
-                  <div className="flex items-center gap-4">
+
+                  <div className="flex items-center gap-3">
                     <div
-                      className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-light ${getScoreColor(
+                      className={`px-4 py-1.5 border-2 border-gray-900 rounded-full font-black text-sm shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] ${getScoreBadgeStyle(
                         attempt.percentage
                       )}`}
                     >
@@ -226,21 +263,24 @@ export default function StudentHistoryContent({
                       {attempt.percentage.toFixed(1)}%)
                     </div>
                     <button
-                      className="px-4 py-2 bg-black text-white font-light hover:bg-gray-800 transition-colors"
+                      className="px-5 py-2 bg-gray-900 text-amber-100 font-black text-xs rounded-full border-2 border-gray-900 shadow-[2px_2px_0px_0px_rgba(251,191,36,1)] hover:bg-gray-800 hover:-translate-y-0.5 transition-all flex items-center gap-1"
                       onClick={() =>
                         router.push(`/student/history/${attempt.id}`)
                       }
                     >
-                      View Details
+                      <span>View Details</span>
+                      <span className="material-icons-outlined text-sm">
+                        arrow_forward
+                      </span>
                     </button>
                   </div>
                 </div>
 
                 {/* Progress Bar */}
-                <div className="mt-4">
-                  <div className="w-full bg-gray-200 rounded-full h-2">
+                <div className="mt-4 pt-3 border-t-2 border-gray-900/10">
+                  <div className="w-full bg-amber-100 border-2 border-gray-900 rounded-full h-3 overflow-hidden p-0.5">
                     <div
-                      className={`h-2 rounded-full ${
+                      className={`h-full rounded-full ${
                         attempt.percentage >= 90
                           ? "bg-green-500"
                           : attempt.percentage >= 70
@@ -257,26 +297,17 @@ export default function StudentHistoryContent({
             ))}
           </div>
         ) : (
-          <div className="text-center py-12">
-            <svg
-              className="mx-auto h-24 w-24 text-gray-400"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={1}
-                d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
-              />
-            </svg>
-            <h3 className="mt-4 text-lg font-medium text-gray-900">
-              No quiz attempts yet
+          <div className="flex flex-col items-center justify-center py-16 px-4 text-center bg-amber-100 border-3 border-gray-900 rounded-3xl shadow-[8px_8px_0px_0px_rgba(31,41,55,1)] max-w-2xl mx-auto">
+            <div className="w-20 h-20 bg-white rounded-full border-3 border-gray-900 flex items-center justify-center mb-6 shadow-[4px_4px_0px_0px_rgba(31,41,55,1)]">
+              <span className="material-icons-outlined text-4xl text-gray-400">
+                history_toggle_off
+              </span>
+            </div>
+            <h3 className="text-2xl font-black text-gray-900 mb-2">
+              No Quiz Attempts Yet
             </h3>
-            <p className="mt-2 text-gray-500">
-              You haven&apos;t taken any quizzes yet. Start by scanning a QR
-              code to access a quiz
+            <p className="text-gray-700 font-medium max-w-md">
+              You haven&apos;t taken any quizzes yet. Complete your assigned quizzes to see your history and stats here!
             </p>
           </div>
         )}
@@ -285,12 +316,13 @@ export default function StudentHistoryContent({
       {/* Pagination */}
       {history?.pagination.hasMore !== undefined &&
         history.pagination.hasMore !== null && (
-          <div className="flex justify-center">
+          <div className="flex justify-center mt-4">
             <button
               onClick={() => setCurrentPage((prev) => prev + 1)}
-              className="px-4 py-2 bg-gray-200 text-black font-light hover:bg-gray-300 transition-colors"
+              className="px-8 py-3 bg-amber-100 text-gray-900 font-black border-3 border-gray-900 rounded-full shadow-[4px_4px_0px_0px_rgba(31,41,55,1)] hover:shadow-[5px_5px_0px_0px_rgba(31,41,55,1)] hover:-translate-y-0.5 transition-all flex items-center gap-2"
             >
-              Load More
+              <span className="material-icons-outlined text-xl">expand_more</span>
+              Load More Attempts
             </button>
           </div>
         )}

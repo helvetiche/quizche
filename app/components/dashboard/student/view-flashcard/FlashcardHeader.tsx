@@ -1,5 +1,4 @@
 import React from "react";
-import { X } from "lucide-react";
 
 type FlashcardHeaderProps = {
   title: string;
@@ -22,9 +21,11 @@ export default function FlashcardHeader({
       </div>
       <button
         onClick={onClose}
-        className="p-1 hover:bg-amber-300 rounded-lg transition-colors border border-transparent hover:border-gray-900"
+        className="p-1 hover:bg-amber-300 rounded-lg transition-colors border border-transparent hover:border-gray-900 flex items-center justify-center"
       >
-        <X className="w-5 h-5 text-gray-900" />
+        <span className="material-icons-outlined text-gray-900 text-xl">
+          close
+        </span>
       </button>
     </div>
   );
