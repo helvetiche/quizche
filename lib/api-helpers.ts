@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { verifyAuth, type AuthUser } from "@/lib/auth";
-import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
+import { rateLimit } from "@/lib/rate-limit";
 import { verifyCSRF } from "@/lib/csrf";
 import { getErrorSecurityHeaders } from "@/lib/security-headers";
 

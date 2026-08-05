@@ -76,7 +76,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    const quizData = quizDoc.data();
+    const quizData = quizDoc.data() as { title?: string; teacherId?: string; questions?: unknown[] } | undefined;
 
     // Check if student already submitted this quiz (always prevent retakes)
     const existingAttempts = await adminDb
@@ -97,7 +97,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     // Calculate score
-    const questions = quizData?.questions ?? ([] as never[]);
+    const questions = (quizData?.questions ?? []) as { answer?: string }[];
     let score = 0;
     const answerMap: Record<number, string> = {};
 
@@ -107,7 +107,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       ).toLowerCase();
     });
 
-    questions.forEach((question: any, index: number) => {
+    questions.forEach((question, index) => {
       const studentAnswer = answerMap[index];
       const correctAnswer = question.answer?.trim().toLowerCase() ?? "";
 
@@ -125,7 +125,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       .collection("users")
       .doc(authResult.user.uid)
       .get();
-    const userData = userDoc.exists ? userDoc.data() : null;
+    const userData = (userDoc.exists ? userDoc.data() : null) as {
+      email?: string;
+      displayName?: string;
+    } | null;
 
     // Save attempt with denormalized student info
     const attemptData = {
@@ -153,22 +156,19 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       .add(attemptData);
 
     // Cleanup active session if exists
-    if (
-      validatedData.sessionId !== undefined &&
-      validatedData.sessionId !== null
-    ) {
+    if (validatedData.sessionId != null) {
       try {
         const sessionDoc = await adminDb
           .collection("activeQuizSessions")
           .doc(validatedData.sessionId)
           .get();
 
-        if (sessionDoc.exists !== undefined && sessionDoc.exists !== null) {
+        if (sessionDoc.exists) {
           await adminDb
             .collection("activeQuizSessions")
             .doc(validatedData.sessionId)
             .update({
-              status: validatedData.disqualified ? "disqualified" : "completed",
+              status: validatedData.disqualified === true ? "disqualified" : "completed",
               lastActivity: new Date(),
             });
         }

@@ -3,7 +3,6 @@ import { verifyAuth } from "@/lib/auth";
 import { adminDb } from "@/lib/firebase-admin";
 import { requireAuth, requireRole, applyRateLimit } from "@/lib/api-helpers";
 import {
-  getSecurityHeaders,
   getErrorSecurityHeaders,
   getPublicSecurityHeaders,
 } from "@/lib/security-headers";
@@ -55,7 +54,7 @@ export async function GET(
       );
     }
 
-    const quizData = quizDoc.data();
+    const quizData = quizDoc.data() as { teacherId?: string } | undefined;
 
     if (quizData !== undefined && quizData.teacherId !== authResult.user.uid) {
       return NextResponse.json(
@@ -75,21 +74,38 @@ export async function GET(
       .get();
 
     const sessions = activeSessionsSnapshot.docs.map((doc) => {
-      const data = doc.data();
+      const data = doc.data() as {
+        quizId: string;
+        userId: string;
+        studentEmail?: string | null;
+        studentName?: string | null;
+        startedAt?: Date | null;
+        lastActivity?: Date | null;
+        tabChangeCount?: number | null;
+        timeAway?: number | null;
+        violations?: unknown[] | null;
+        disqualified?: boolean | null;
+        status?: string | null;
+      };
       return {
         id: doc.id,
         quizId: data.quizId,
         userId: data.userId,
         studentEmail: data.studentEmail ?? "",
         studentName: data.studentName ?? "",
-        startedAt: data.startedAt?.toDate?.()?.toISOString() || data.startedAt,
+        startedAt:
+          data.startedAt != null
+            ? data.startedAt.toISOString()
+            : data.startedAt,
         lastActivity:
-          data.lastActivity?.toDate?.()?.toISOString() || data.lastActivity,
+          data.lastActivity != null
+            ? data.lastActivity.toISOString()
+            : data.lastActivity,
         tabChangeCount: data.tabChangeCount ?? 0,
         timeAway: data.timeAway ?? 0,
         violations: data.violations ?? ([] as never[]),
         disqualified: data.disqualified ?? false,
-        status: data.status || "active",
+        status: data.status ?? "active",
       };
     });
 
