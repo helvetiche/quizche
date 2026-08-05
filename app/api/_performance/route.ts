@@ -27,10 +27,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    const { metrics, userId, page } = validation.data;
+    const { metrics, userId: _userId, page: _page } = validation.data;
 
     // Extract Core Web Vitals
-    const vitals = {
+    const _vitals: Record<string, unknown> = {
       FCP: metrics.FCP, // First Contentful Paint
       LCP: metrics.LCP, // Largest Contentful Paint
       FID: metrics.FID, // First Input Delay
@@ -38,14 +38,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       TTFB: metrics.TTFB, // Time to First Byte
       INP: metrics.INP, // Interaction to Next Paint
     };
-
-    // Log performance metrics (in production, send to monitoring service)
-    console.warn("Performance metrics:", {
-      userId,
-      page,
-      vitals,
-      timestamp: new Date().toISOString(),
-    });
 
     // In production, you would:
     // 1. Store metrics in database/monitoring service

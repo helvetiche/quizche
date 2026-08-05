@@ -1,6 +1,7 @@
-/* eslint-disable @typescript-eslint/strict-boolean-expressions, @typescript-eslint/no-unnecessary-condition, @typescript-eslint/no-floating-promises, @typescript-eslint/no-unused-vars */
 "use client";
 
+import { apiPut } from "../../lib/api";
+import { ANTI_CHEAT_DEFAULT_TAB_CHANGE_LIMIT, ANTI_CHEAT_DEFAULT_TIME_AWAY_THRESHOLD } from "@/lib/constants";
 import { useState, useEffect, useRef, useCallback } from "react";
 
 type Violation = {
@@ -34,8 +35,8 @@ type UseAntiCheatReturn = {
   refreshDetected: boolean;
 };
 
-const DEFAULT_TAB_CHANGE_LIMIT = 3;
-const DEFAULT_TIME_AWAY_THRESHOLD = 5; // seconds
+const DEFAULT_TAB_CHANGE_LIMIT = ANTI_CHEAT_DEFAULT_TAB_CHANGE_LIMIT;
+const DEFAULT_TIME_AWAY_THRESHOLD = ANTI_CHEAT_DEFAULT_TIME_AWAY_THRESHOLD;
 
 export const useAntiCheat = ({
   quizId,
@@ -49,8 +50,6 @@ export const useAntiCheat = ({
   const TIME_AWAY_THRESHOLD =
     config?.timeAwayThreshold ?? DEFAULT_TIME_AWAY_THRESHOLD;
   const AUTO_DISQUALIFY_ON_REFRESH = config?.autoDisqualifyOnRefresh !== false; // Default true
-  const AUTO_SUBMIT_ON_DISQUALIFICATION =
-    config?.autoSubmitOnDisqualification !== false; // Default true
   const [tabChangeCount, setTabChangeCount] = useState(0);
   const [timeAway, setTimeAway] = useState(0);
   const [isDisqualified, setIsDisqualified] = useState(false);
@@ -60,6 +59,7 @@ export const useAntiCheat = ({
   const awayStartTimeRef = useRef<number | null>(null);
   const lastVisibilityStateRef = useRef<boolean>(true);
   const updateIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const refreshHandledRef = useRef(false);
 
   const addViolation = useCallback(
     (type: Violation["type"], details?: string) => {
@@ -72,24 +72,22 @@ export const useAntiCheat = ({
       setViolations((prev) => {
         const newViolations = [...prev, violation];
 
-        if (sessionId && enabled !== undefined && enabled !== null && idToken) {
-          import("../../lib/api").then(({ apiPut }) => {
-            apiPut(`/api/student/quizzes/${quizId}/session`, {
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                sessionId,
-                violations: newViolations.map((v) => ({
-                  type: v.type,
-                  timestamp: v.timestamp.toISOString(),
-                  details: v.details,
-                })),
-              }),
-              idToken,
-            }).catch((error) => {
-              console.error("Error updating session violation:", error);
-            });
+        if (sessionId != null && enabled && idToken != null) {
+          void apiPut(`/api/student/quizzes/${quizId}/session`, {
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              sessionId,
+              violations: newViolations.map((v) => ({
+                type: v.type,
+                timestamp: v.timestamp.toISOString(),
+                details: v.details,
+              })),
+            }),
+            idToken,
+          }).catch((error) => {
+            console.error("Error updating session violation:", error);
           });
         }
 
@@ -100,27 +98,19 @@ export const useAntiCheat = ({
   );
 
   const updateSession = useCallback(() => {
-    if (
-      sessionId &&
-      enabled !== undefined &&
-      enabled !== null &&
-      !isDisqualified &&
-      idToken
-    ) {
-      import("../../lib/api").then(({ apiPut }) => {
-        apiPut(`/api/student/quizzes/${quizId}/session`, {
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            sessionId,
-            tabChangeCount,
-            timeAway,
-          }),
-          idToken,
-        }).catch((error) => {
-          console.error("Error updating session:", error);
-        });
+    if (sessionId != null && enabled && !isDisqualified && idToken != null) {
+      void apiPut(`/api/student/quizzes/${quizId}/session`, {
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          sessionId,
+          tabChangeCount,
+          timeAway,
+        }),
+        idToken,
+      }).catch((error) => {
+        console.error("Error updating session:", error);
       });
     }
   }, [
@@ -155,20 +145,18 @@ export const useAntiCheat = ({
             "tab_change",
             "Exceeded tab change limit - disqualified"
           );
-          if (sessionId && idToken) {
-            import("../../lib/api").then(({ apiPut }) => {
-              apiPut(`/api/student/quizzes/${quizId}/session`, {
-                headers: {
-                  "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                  sessionId,
-                  disqualified: true,
-                }),
-                idToken,
-              }).catch((error) => {
-                console.error("Error updating disqualification:", error);
-              });
+          if (sessionId != null && idToken != null) {
+            void apiPut(`/api/student/quizzes/${quizId}/session`, {
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                sessionId,
+                disqualified: true,
+              }),
+              idToken,
+            }).catch((error) => {
+              console.error("Error updating disqualification:", error);
             });
           }
         }
@@ -199,10 +187,7 @@ export const useAntiCheat = ({
     };
 
     const handleFocus = (): void => {
-      if (
-        awayStartTimeRef.current !== undefined &&
-        awayStartTimeRef.current !== null
-      ) {
+      if (awayStartTimeRef.current !== null) {
         const timeAwaySeconds = Math.floor(
           (Date.now() - awayStartTimeRef.current) / 1000
         );
@@ -238,25 +223,25 @@ export const useAntiCheat = ({
 
     // Check if this is a refresh
     const hasRefreshFlag = sessionStorage.getItem(refreshKey);
-    if (hasRefreshFlag === "true" && AUTO_DISQUALIFY_ON_REFRESH) {
+    if (hasRefreshFlag === "true" && AUTO_DISQUALIFY_ON_REFRESH && !refreshHandledRef.current) {
+      refreshHandledRef.current = true;
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setRefreshDetected(true);
       setIsDisqualified(true);
       addViolation("refresh", "Page refresh detected - disqualified");
       // Update session to mark as disqualified
-      if (sessionId && idToken) {
-        import("../../lib/api").then(({ apiPut }) => {
-          apiPut(`/api/student/quizzes/${quizId}/session`, {
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              sessionId,
-              disqualified: true,
-            }),
-            idToken,
-          }).catch((error) => {
-            console.error("Error updating disqualification:", error);
-          });
+      if (sessionId != null && idToken != null) {
+        void apiPut(`/api/student/quizzes/${quizId}/session`, {
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            sessionId,
+            disqualified: true,
+          }),
+          idToken,
+        }).catch((error) => {
+          console.error("Error updating disqualification:", error);
         });
       }
       sessionStorage.removeItem(refreshKey);
@@ -265,10 +250,7 @@ export const useAntiCheat = ({
 
     // Set refresh flag on beforeunload (only if auto-disqualify is enabled)
     const handleBeforeUnload = (): void => {
-      if (
-        AUTO_DISQUALIFY_ON_REFRESH !== undefined &&
-        AUTO_DISQUALIFY_ON_REFRESH !== null
-      ) {
+      if (AUTO_DISQUALIFY_ON_REFRESH) {
         const hasSession = sessionStorage.getItem(sessionKey);
         if (hasSession === "true") {
           sessionStorage.setItem(refreshKey, "true");
@@ -293,12 +275,11 @@ export const useAntiCheat = ({
 
   // Periodic session updates (every 10 seconds, paused when tab is hidden)
   useEffect(() => {
-    if (!enabled || !sessionId || isDisqualified) return;
+    if (!enabled || sessionId == null || isDisqualified) return;
 
     const handleVisibilityChange = (): void => {
       if (
         document.hidden &&
-        updateIntervalRef.current !== undefined &&
         updateIntervalRef.current !== null
       ) {
         clearInterval(updateIntervalRef.current);
@@ -320,10 +301,7 @@ export const useAntiCheat = ({
 
     return () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
-      if (
-        updateIntervalRef.current !== undefined &&
-        updateIntervalRef.current !== null
-      ) {
+      if (updateIntervalRef.current !== null) {
         clearInterval(updateIntervalRef.current);
       }
     };

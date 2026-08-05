@@ -3,6 +3,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { verifyAuth } from "@/lib/auth";
 import { adminDb } from "@/lib/firebase-admin";
 import { verifyCSRF } from "@/lib/csrf";
+import { SECTIONS_DEFAULT_LIMIT, SECTIONS_MAX_LIMIT } from "@/lib/constants";
 import {
   getSecurityHeaders,
   getErrorSecurityHeaders,
@@ -35,8 +36,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     // Pagination support
     const url = new URL(request.url);
     const limit = Math.min(
-      Math.max(parseInt(url.searchParams.get("limit") || "50"), 1),
-      100
+      Math.max(parseInt(url.searchParams.get("limit") || SECTIONS_DEFAULT_LIMIT.toString(), 10), 1),
+      SECTIONS_MAX_LIMIT
     );
     const lastDocId = url.searchParams.get("lastDocId");
 

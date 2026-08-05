@@ -2,6 +2,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { verifyAuth } from "@/lib/auth";
 import { verifyCSRF } from "@/lib/csrf";
+import { MAX_FILE_SIZE } from "@/lib/constants";
 import {
   getSecurityHeaders,
   getErrorSecurityHeaders,
@@ -43,7 +44,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     // Validate file upload using utility
     const fileValidation = validateFileUpload(
       file,
-      10 * 1024 * 1024, // 10MB
+      MAX_FILE_SIZE,
       [
         "image/jpeg",
         "image/jpg",

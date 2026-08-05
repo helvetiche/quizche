@@ -5,6 +5,7 @@ import { adminDb } from "@/lib/firebase-admin";
 import { verifyCSRF } from "@/lib/csrf";
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 import cache, { getApiCacheKey } from "@/lib/cache";
+import { CACHE_TTL } from "@/lib/constants";
 import {
   getSecurityHeaders,
   getErrorSecurityHeaders,
@@ -300,7 +301,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     };
 
     // Cache the response
-    await cache.set(cacheKey, profileData, 300); // 5 minutes
+    await cache.set(cacheKey, profileData, CACHE_TTL); // 5 minutes
 
     return NextResponse.json(profileData, {
       status: 200,

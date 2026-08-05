@@ -1,9 +1,7 @@
-/* eslint-disable @typescript-eslint/strict-boolean-expressions, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unnecessary-condition, @typescript-eslint/no-explicit-any */
 import { type NextRequest, NextResponse } from "next/server";
 import { verifyAuth } from "@/lib/auth";
 import { adminDb } from "@/lib/firebase-admin";
-import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
-import { verifyCSRF } from "@/lib/csrf";
+import { requireAuth, requireRole, applyRateLimit, applyCSRF } from "@/lib/api-helpers";
 import {
   getSecurityHeaders,
   getErrorSecurityHeaders,
@@ -14,52 +12,34 @@ import {
   sanitizeString,
 } from "@/lib/validation";
 import { handleApiError } from "@/lib/error-handler";
+import { RATE_LIMITS } from "@/lib/rate-limit";
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
-    const user = await verifyAuth(request);
-
-    if (!user) {
-      return NextResponse.json(
-        { error: "Unauthorized: Invalid or missing authentication token" },
-        { status: 401, headers: getErrorSecurityHeaders() }
-      );
+    const authResult = await requireAuth(request);
+    if (authResult.error) {
+      return authResult.error;
     }
 
-    if (user.role !== "student") {
-      return NextResponse.json(
-        { error: "Forbidden: Student role required to submit quizzes" },
-        { status: 403, headers: getErrorSecurityHeaders() }
-      );
+    const roleError = requireRole(authResult.user, "student");
+    if (roleError) {
+      return roleError;
     }
 
-    // Rate limiting
-    const rateLimitResult = await rateLimit({
-      identifier: user.uid,
-      key: "quiz:submit",
-      limit: RATE_LIMITS.quizSubmit.limit,
-      window: RATE_LIMITS.quizSubmit.window,
-    });
+    const rateLimitResult = await applyRateLimit(
+      authResult.user,
+      "quiz:submit",
+      RATE_LIMITS.quizSubmit.limit,
+      RATE_LIMITS.quizSubmit.window
+    );
 
-    if (!rateLimitResult.success) {
-      return NextResponse.json(
-        { error: "Rate limit exceeded. Please try again later." },
-        {
-          status: 429,
-          headers: getErrorSecurityHeaders({
-            rateLimitHeaders: rateLimitResult.headers,
-          }),
-        }
-      );
+    if (rateLimitResult.error) {
+      return rateLimitResult.error;
     }
 
-    // CSRF protection
-    const csrfError = await verifyCSRF(request, user.uid);
-    if (csrfError !== undefined && csrfError !== null) {
-      return NextResponse.json(
-        { error: csrfError.error },
-        { status: csrfError.status, headers: csrfError.headers }
-      );
+    const csrfResult = await applyCSRF(request, authResult.user.uid);
+    if (csrfResult.error) {
+      return csrfResult.error;
     }
 
     const body = await request.json();
@@ -96,7 +76,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     // Check if student already submitted this quiz (always prevent retakes)
     const existingAttempts = await adminDb
       .collection("quizAttempts")
-      .where("userId", "==", user.uid)
+      .where("userId", "==", authResult.user.uid)
       .where("quizId", "==", validatedData.quizId)
       .limit(1)
       .get();
@@ -136,12 +116,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       totalQuestions > 0 ? Math.round((score / totalQuestions) * 100) : 0;
 
     // Get user info for denormalization (to avoid lookups later)
-    const userDoc = await adminDb.collection("users").doc(user.uid).get();
+    const userDoc = await adminDb.collection("users").doc(authResult.user.uid).get();
     const userData = userDoc.exists ? userDoc.data() : null;
 
     // Save attempt with denormalized student info
     const attemptData = {
-      userId: user.uid,
+      userId: authResult.user.uid,
       quizId: validatedData.quizId,
       quizTitle: quizData?.title ?? "",
       teacherId: quizData?.teacherId ?? "",

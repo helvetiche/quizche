@@ -1,34 +1,28 @@
-/* eslint-disable @typescript-eslint/strict-boolean-expressions, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call, @typescript-eslint/prefer-nullish-coalescing, @typescript-eslint/explicit-function-return-type, @typescript-eslint/no-unused-vars */
 import { type NextRequest, NextResponse } from "next/server";
 import { verifyAuth } from "@/lib/auth";
 import { adminDb } from "@/lib/firebase-admin";
-import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
+import { requireAuth, requireRole, applyRateLimit } from "@/lib/api-helpers";
 import {
   getSecurityHeaders,
   getErrorSecurityHeaders,
   getPublicSecurityHeaders,
 } from "@/lib/security-headers";
 import { handleApiError } from "@/lib/error-handler";
+import { RATE_LIMITS } from "@/lib/rate-limit";
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const user = await verifyAuth(request);
-
-    if (!user) {
-      return NextResponse.json(
-        { error: "Unauthorized: Invalid or missing authentication token" },
-        { status: 401, headers: getErrorSecurityHeaders() }
-      );
+    const authResult = await requireAuth(request);
+    if (authResult.error) {
+      return authResult.error;
     }
 
-    if (user.role !== "teacher") {
-      return NextResponse.json(
-        { error: "Forbidden: Teacher role required" },
-        { status: 403, headers: getErrorSecurityHeaders() }
-      );
+    const roleError = requireRole(authResult.user, "teacher");
+    if (roleError) {
+      return roleError;
     }
 
     const { id } = await params;
@@ -40,24 +34,15 @@ export async function GET(
       );
     }
 
-    // Rate limiting
-    const rateLimitResult = await rateLimit({
-      identifier: user.uid,
-      key: `quizzes:live:${id}`,
-      limit: RATE_LIMITS.history.limit,
-      window: RATE_LIMITS.history.window,
-    });
+    const rateLimitResult = await applyRateLimit(
+      authResult.user,
+      `quizzes:live:${id}`,
+      RATE_LIMITS.history.limit,
+      RATE_LIMITS.history.window
+    );
 
-    if (!rateLimitResult.success) {
-      return NextResponse.json(
-        { error: "Rate limit exceeded. Please try again later." },
-        {
-          status: 429,
-          headers: getErrorSecurityHeaders({
-            rateLimitHeaders: rateLimitResult.headers,
-          }),
-        }
-      );
+    if (rateLimitResult.error) {
+      return rateLimitResult.error;
     }
 
     // Verify quiz belongs to this teacher
@@ -72,7 +57,7 @@ export async function GET(
 
     const quizData = quizDoc.data();
 
-    if (quizData !== undefined && quizData.teacherId !== user.uid) {
+    if (quizData !== undefined && quizData.teacherId !== authResult.user.uid) {
       return NextResponse.json(
         {
           error:
