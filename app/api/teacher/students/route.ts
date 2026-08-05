@@ -59,38 +59,47 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     // Collect student IDs that need user doc lookup (legacy data without denormalized fields)
     const userIdsToFetch = new Set<string>();
-    const students = teacherStudentsSnapshot.docs.map((doc) => {
-      const data = doc.data();
-      const studentEmail = data.studentEmail as string | undefined;
-      const studentName = data.studentName as string | undefined;
+    const students = teacherStudentsSnapshot.docs
+      .map((doc) => {
+        const data = doc.data();
+        const studentEmail = data.studentEmail as string | undefined;
+        const studentName = data.studentName as string | undefined;
 
-      if (
-        studentEmail !== undefined &&
-        studentEmail !== null &&
-        studentEmail !== "" &&
-        studentName !== undefined &&
-        studentName !== null &&
-        studentName !== ""
-      ) {
-        const createdAt = data.createdAt?.toDate
-          ? data.createdAt.toDate().toISOString()
-          : data.createdAt instanceof Date
-            ? data.createdAt.toISOString()
-            : data.createdAt || new Date().toISOString();
+        if (
+          studentEmail !== undefined &&
+          studentEmail !== null &&
+          studentEmail !== "" &&
+          studentName !== undefined &&
+          studentName !== null &&
+          studentName !== ""
+        ) {
+          const createdAt = data.createdAt?.toDate
+            ? data.createdAt.toDate().toISOString()
+            : data.createdAt instanceof Date
+              ? data.createdAt.toISOString()
+              : data.createdAt || new Date().toISOString();
 
-        return {
-          id: doc.id,
-          studentId: data.studentId,
-          email: studentEmail,
-          displayName: studentName,
-          role: "student",
-          createdAt,
-        };
-      }
+          return {
+            id: doc.id,
+            studentId: data.studentId,
+            email: studentEmail,
+            displayName: studentName,
+            role: "student",
+            createdAt,
+          };
+        }
 
-      userIdsToFetch.add(data.studentId);
-      return null;
-    }).filter(Boolean) as { id: string; studentId: string; email: string; displayName: string; role: string; createdAt: string }[];
+        userIdsToFetch.add(data.studentId);
+        return null;
+      })
+      .filter(Boolean) as {
+      id: string;
+      studentId: string;
+      email: string;
+      displayName: string;
+      role: string;
+      createdAt: string;
+    }[];
 
     // Batch fetch users for legacy data (Firestore 'in' limit is 10)
     const userMap = new Map<string, { email: string; displayName: string }>();
@@ -107,18 +116,18 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         userDocs.forEach((userDoc) => {
           if (userDoc.exists) {
             const userData = userDoc.data();
-            userMap.set(
-              userDoc.id,
-              {
-                email: typeof userData?.email === "string" ? userData.email : "Unknown",
-                displayName:
-                  typeof userData?.displayName === "string"
-                    ? userData.displayName
-                    : typeof userData?.firstName === "string"
-                      ? userData.firstName
-                      : "Unknown",
-              }
-            );
+            userMap.set(userDoc.id, {
+              email:
+                typeof userData?.email === "string"
+                  ? userData.email
+                  : "Unknown",
+              displayName:
+                typeof userData?.displayName === "string"
+                  ? userData.displayName
+                  : typeof userData?.firstName === "string"
+                    ? userData.firstName
+                    : "Unknown",
+            });
           }
         });
       }
@@ -243,7 +252,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     await adminDb.collection("teacher_students").add({
       teacherId: user.uid,
       studentId: studentId,
-      studentEmail: typeof studentData?.email === "string" ? studentData.email : "",
+      studentEmail:
+        typeof studentData?.email === "string" ? studentData.email : "",
       studentName:
         typeof studentData?.displayName === "string"
           ? studentData.displayName

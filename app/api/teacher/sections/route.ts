@@ -305,7 +305,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     // Build a map of studentId → {email, displayName} from the fetched docs
-    const studentDocsMap = new Map<string, { email: string; displayName: string }>();
+    const studentDocsMap = new Map<
+      string,
+      { email: string; displayName: string }
+    >();
     for (let i = 0; i < studentBatches.length; i++) {
       const batch = studentBatches[i];
       const studentDocs = allStudentDocs[i];

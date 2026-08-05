@@ -59,75 +59,75 @@ export default function QuizLiveView({
     return () => unsubscribe();
   }, []);
 
-   useEffect(() => {
-     if (!idToken || !quizId) return;
+  useEffect(() => {
+    if (!idToken || !quizId) return;
 
-     let pollInterval: NodeJS.Timeout | null = null;
-     let isVisible = true;
+    let pollInterval: NodeJS.Timeout | null = null;
+    let isVisible = true;
 
-      const handleVisibilityChange = (): void => {
-        isVisible = !document.hidden;
-      };
+    const handleVisibilityChange = (): void => {
+      isVisible = !document.hidden;
+    };
 
-     document.addEventListener("visibilitychange", handleVisibilityChange);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
 
-     const verifyAndSetupPolling = async (): Promise<void> => {
-       try {
-         const quizResponse = await fetch(`/api/quizzes/${quizId}`, {
-           headers: { Authorization: `Bearer ${idToken}` },
-         });
+    const verifyAndSetupPolling = async (): Promise<void> => {
+      try {
+        const quizResponse = await fetch(`/api/quizzes/${quizId}`, {
+          headers: { Authorization: `Bearer ${idToken}` },
+        });
 
-         if (!quizResponse.ok) {
-           const errorData = await quizResponse.json();
-           setError(errorData.error || "Failed to verify quiz access");
-           setLoading(false);
-           return;
-         }
+        if (!quizResponse.ok) {
+          const errorData = await quizResponse.json();
+          setError(errorData.error || "Failed to verify quiz access");
+          setLoading(false);
+          return;
+        }
 
-         const fetchSessions = async (): Promise<void> => {
-           if (!isVisible) return;
-           try {
-             const response = await fetch(
-               `/api/teacher/quizzes/${quizId}/live`,
-               {
-                 headers: { Authorization: `Bearer ${idToken}` },
-               }
-             );
+        const fetchSessions = async (): Promise<void> => {
+          if (!isVisible) return;
+          try {
+            const response = await fetch(
+              `/api/teacher/quizzes/${quizId}/live`,
+              {
+                headers: { Authorization: `Bearer ${idToken}` },
+              }
+            );
 
-             if (response.ok !== undefined && response.ok !== null) {
-               const data = await response.json();
-               setSessions(data.sessions ?? ([] as never[]));
-               setLoading(false);
-             } else {
-               const errorData = await response.json();
-               setError(errorData.error || "Failed to load sessions");
-               setLoading(false);
-             }
-           } catch (err) {
-             console.error("Error fetching sessions:", err);
-             setError("Failed to load live sessions");
-             setLoading(false);
-           }
-         };
+            if (response.ok !== undefined && response.ok !== null) {
+              const data = await response.json();
+              setSessions(data.sessions ?? ([] as never[]));
+              setLoading(false);
+            } else {
+              const errorData = await response.json();
+              setError(errorData.error || "Failed to load sessions");
+              setLoading(false);
+            }
+          } catch (err) {
+            console.error("Error fetching sessions:", err);
+            setError("Failed to load live sessions");
+            setLoading(false);
+          }
+        };
 
-         await fetchSessions();
-         pollInterval = setInterval(fetchSessions, 3000);
-       } catch (err) {
-         console.error("Error setting up polling:", err);
-         setError("Failed to initialize live monitoring");
-         setLoading(false);
-       }
-     };
+        await fetchSessions();
+        pollInterval = setInterval(fetchSessions, 3000);
+      } catch (err) {
+        console.error("Error setting up polling:", err);
+        setError("Failed to initialize live monitoring");
+        setLoading(false);
+      }
+    };
 
-     verifyAndSetupPolling();
+    verifyAndSetupPolling();
 
-     return () => {
-       document.removeEventListener("visibilitychange", handleVisibilityChange);
-       if (pollInterval !== undefined && pollInterval !== null) {
-         clearInterval(pollInterval);
-       }
-     };
-   }, [idToken, quizId]);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      if (pollInterval !== undefined && pollInterval !== null) {
+        clearInterval(pollInterval);
+      }
+    };
+  }, [idToken, quizId]);
 
   const formatTime = (dateString: string): string => {
     try {
