@@ -34,7 +34,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const queryParam = url.searchParams.get("q");
     const query = queryParam !== null ? queryParam : "";
     const limitParam = url.searchParams.get("limit");
-    const limit = parseInt(limitParam !== null ? limitParam : SEARCH_DEFAULT_LIMIT.toString(), 10);
+    const limit = parseInt(
+      limitParam !== null ? limitParam : SEARCH_DEFAULT_LIMIT.toString(),
+      10
+    );
     const validatedLimit = Math.min(Math.max(limit, 1), SEARCH_MAX_LIMIT);
 
     // Rate limiting

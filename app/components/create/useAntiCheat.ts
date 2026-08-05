@@ -1,7 +1,10 @@
 "use client";
 
 import { apiPut } from "../../lib/api";
-import { ANTI_CHEAT_DEFAULT_TAB_CHANGE_LIMIT, ANTI_CHEAT_DEFAULT_TIME_AWAY_THRESHOLD } from "@/lib/constants";
+import {
+  ANTI_CHEAT_DEFAULT_TAB_CHANGE_LIMIT,
+  ANTI_CHEAT_DEFAULT_TIME_AWAY_THRESHOLD,
+} from "@/lib/constants";
 import { useState, useEffect, useRef, useCallback } from "react";
 
 type Violation = {
@@ -223,7 +226,11 @@ export const useAntiCheat = ({
 
     // Check if this is a refresh
     const hasRefreshFlag = sessionStorage.getItem(refreshKey);
-    if (hasRefreshFlag === "true" && AUTO_DISQUALIFY_ON_REFRESH && !refreshHandledRef.current) {
+    if (
+      hasRefreshFlag === "true" &&
+      AUTO_DISQUALIFY_ON_REFRESH &&
+      !refreshHandledRef.current
+    ) {
       refreshHandledRef.current = true;
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setRefreshDetected(true);
@@ -278,10 +285,7 @@ export const useAntiCheat = ({
     if (!enabled || sessionId == null || isDisqualified) return;
 
     const handleVisibilityChange = (): void => {
-      if (
-        document.hidden &&
-        updateIntervalRef.current !== null
-      ) {
+      if (document.hidden && updateIntervalRef.current !== null) {
         clearInterval(updateIntervalRef.current);
         updateIntervalRef.current = null;
       } else if (!document.hidden && updateIntervalRef.current === null) {

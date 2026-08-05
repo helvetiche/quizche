@@ -36,7 +36,13 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     // Pagination support
     const url = new URL(request.url);
     const limit = Math.min(
-      Math.max(parseInt(url.searchParams.get("limit") || SECTIONS_DEFAULT_LIMIT.toString(), 10), 1),
+      Math.max(
+        parseInt(
+          url.searchParams.get("limit") || SECTIONS_DEFAULT_LIMIT.toString(),
+          10
+        ),
+        1
+      ),
       SECTIONS_MAX_LIMIT
     );
     const lastDocId = url.searchParams.get("lastDocId");

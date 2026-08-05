@@ -185,7 +185,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       const result = { flashcards };
 
       // Cache the result
-await cache.set(cacheKey, result, CACHE_TTL); // 5 minutes
+      await cache.set(cacheKey, result, CACHE_TTL); // 5 minutes
 
       return NextResponse.json(result, {
         status: 200,

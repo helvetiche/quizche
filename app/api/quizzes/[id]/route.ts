@@ -4,7 +4,10 @@ import { verifyAuth } from "@/lib/auth";
 import { adminDb } from "@/lib/firebase-admin";
 import { verifyCSRF } from "@/lib/csrf";
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
-import { ANTI_CHEAT_DEFAULT_TAB_CHANGE_LIMIT, ANTI_CHEAT_DEFAULT_TIME_AWAY_THRESHOLD } from "@/lib/constants";
+import {
+  ANTI_CHEAT_DEFAULT_TAB_CHANGE_LIMIT,
+  ANTI_CHEAT_DEFAULT_TIME_AWAY_THRESHOLD,
+} from "@/lib/constants";
 import {
   getSecurityHeaders,
   getErrorSecurityHeaders,

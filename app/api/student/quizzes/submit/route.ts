@@ -1,7 +1,12 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { verifyAuth } from "@/lib/auth";
 import { adminDb } from "@/lib/firebase-admin";
-import { requireAuth, requireRole, applyRateLimit, applyCSRF } from "@/lib/api-helpers";
+import {
+  requireAuth,
+  requireRole,
+  applyRateLimit,
+  applyCSRF,
+} from "@/lib/api-helpers";
 import {
   getSecurityHeaders,
   getErrorSecurityHeaders,
@@ -42,7 +47,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       return csrfResult.error;
     }
 
-    const body = await request.json();
+    const body = (await request.json()) as Record<string, unknown>;
 
     // Validate input using Zod
     const validation = validateInput(QuizSubmissionSchema, body);
@@ -116,7 +121,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       totalQuestions > 0 ? Math.round((score / totalQuestions) * 100) : 0;
 
     // Get user info for denormalization (to avoid lookups later)
-    const userDoc = await adminDb.collection("users").doc(authResult.user.uid).get();
+    const userDoc = await adminDb
+      .collection("users")
+      .doc(authResult.user.uid)
+      .get();
     const userData = userDoc.exists ? userDoc.data() : null;
 
     // Save attempt with denormalized student info

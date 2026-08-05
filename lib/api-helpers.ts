@@ -6,7 +6,9 @@ import { getErrorSecurityHeaders } from "@/lib/security-headers";
 
 export async function requireAuth(
   request: NextRequest
-): Promise<{ user: AuthUser; error: null } | { user: null; error: NextResponse }> {
+): Promise<
+  { user: AuthUser; error: null } | { user: null; error: NextResponse }
+> {
   const user = await verifyAuth(request);
 
   if (!user) {
@@ -22,10 +24,7 @@ export async function requireAuth(
   return { user, error: null };
 }
 
-export function requireRole(
-  user: AuthUser,
-  role: string
-): NextResponse | null {
+export function requireRole(user: AuthUser, role: string): NextResponse | null {
   if (user.role !== role) {
     return NextResponse.json(
       { error: `Forbidden: ${role} role required` },

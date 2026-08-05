@@ -42,18 +42,14 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     // Validate file upload using utility
-    const fileValidation = validateFileUpload(
-      file,
-      MAX_FILE_SIZE,
-      [
-        "image/jpeg",
-        "image/jpg",
-        "image/png",
-        "image/gif",
-        "image/webp",
-        "image/svg+xml",
-      ]
-    );
+    const fileValidation = validateFileUpload(file, MAX_FILE_SIZE, [
+      "image/jpeg",
+      "image/jpg",
+      "image/png",
+      "image/gif",
+      "image/webp",
+      "image/svg+xml",
+    ]);
 
     if (!fileValidation.valid) {
       return NextResponse.json(
