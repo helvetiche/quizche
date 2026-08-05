@@ -47,9 +47,17 @@ class Cache {
     }
   }
 
+  /**
+   * Delete cached values matching a pattern.
+   * Note: Upstash Redis REST API does not support KEYS/SCAN commands,
+   * so pattern-based deletion is not possible without tracking keys separately.
+   * Individual key deletion via `delete(key)` works for exact-key invalidation.
+   */
   deletePattern(_pattern: string): void {
     try {
-      console.warn("Pattern deletion not fully supported with REST API");
+      console.warn(
+        "Pattern deletion not supported with Upstash REST API - use exact key deletion instead"
+      );
     } catch (error) {
       console.error("Cache delete pattern error:", error);
     }

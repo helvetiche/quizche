@@ -150,7 +150,7 @@ const hashContent = (
 ): string => {
   const contentHash = crypto
     .createHash("sha256")
-    .update(content.substring(0, 1000))
+    .update(content)
     .digest("hex");
   return `quiz:${contentHash}:${difficulty}:${numQuestions}:${
     additionalInstructions !== undefined ? additionalInstructions : ""
@@ -438,7 +438,7 @@ const hashFlashcardContent = (
 ): string => {
   const contentHash = crypto
     .createHash("sha256")
-    .update(content.substring(0, 1000))
+    .update(content)
     .digest("hex");
   return `flashcard:${contentHash}:${difficulty}:${numCards}:${
     additionalInstructions !== undefined ? additionalInstructions : ""

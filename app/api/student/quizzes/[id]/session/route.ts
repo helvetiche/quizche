@@ -2,6 +2,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { verifyAuth } from "@/lib/auth";
 import { adminDb } from "@/lib/firebase-admin";
+import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 import { verifyCSRF } from "@/lib/csrf";
 import {
   getSecurityHeaders,
@@ -63,6 +64,7 @@ export async function POST(
       .collection("quizAttempts")
       .where("userId", "==", user.uid)
       .where("quizId", "==", id)
+      .limit(1)
       .get();
 
     if (!existingAttempts.empty) {
@@ -155,6 +157,26 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
       return NextResponse.json(
         { error: "Forbidden: Student role required" },
         { status: 403, headers: getErrorSecurityHeaders() }
+      );
+    }
+
+    // Rate limiting
+    const rateLimitResult = await rateLimit({
+      identifier: user.uid,
+      key: "quiz:session:update",
+      limit: RATE_LIMITS.quizSubmit.limit,
+      window: RATE_LIMITS.quizSubmit.window,
+    });
+
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: "Rate limit exceeded. Please try again later." },
+        {
+          status: 429,
+          headers: getErrorSecurityHeaders({
+            rateLimitHeaders: rateLimitResult.headers,
+          }),
+        }
       );
     }
 
@@ -263,6 +285,26 @@ export async function DELETE(request: NextRequest): Promise<NextResponse> {
       return NextResponse.json(
         { error: "Forbidden: Student role required" },
         { status: 403, headers: getErrorSecurityHeaders() }
+      );
+    }
+
+    // Rate limiting
+    const rateLimitResult = await rateLimit({
+      identifier: user.uid,
+      key: "quiz:session:delete",
+      limit: RATE_LIMITS.quizSubmit.limit,
+      window: RATE_LIMITS.quizSubmit.window,
+    });
+
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: "Rate limit exceeded. Please try again later." },
+        {
+          status: 429,
+          headers: getErrorSecurityHeaders({
+            rateLimitHeaders: rateLimitResult.headers,
+          }),
+        }
       );
     }
 

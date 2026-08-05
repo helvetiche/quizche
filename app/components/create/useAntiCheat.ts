@@ -291,23 +291,39 @@ export const useAntiCheat = ({
     AUTO_DISQUALIFY_ON_REFRESH,
   ]);
 
-  // Periodic session updates (every 3 seconds)
-  useEffect(() => {
-    if (!enabled || !sessionId || isDisqualified) return;
+   // Periodic session updates (every 10 seconds, paused when tab is hidden)
+   useEffect(() => {
+     if (!enabled || !sessionId || isDisqualified) return;
 
-    updateIntervalRef.current = setInterval(() => {
-      updateSession();
-    }, 3000);
+     const handleVisibilityChange = (): void => {
+       if (document.hidden && updateIntervalRef.current !== undefined && updateIntervalRef.current !== null) {
+         clearInterval(updateIntervalRef.current);
+         updateIntervalRef.current = null;
+       } else if (!document.hidden && updateIntervalRef.current === null) {
+         updateIntervalRef.current = setInterval(() => {
+           updateSession();
+         }, 10000);
+       }
+     };
 
-    return () => {
-      if (
-        updateIntervalRef.current !== undefined &&
-        updateIntervalRef.current !== null
-      ) {
-        clearInterval(updateIntervalRef.current);
-      }
-    };
-  }, [enabled, sessionId, isDisqualified, updateSession]);
+     if (!document.hidden) {
+       updateIntervalRef.current = setInterval(() => {
+         updateSession();
+       }, 10000);
+     }
+
+     document.addEventListener("visibilitychange", handleVisibilityChange);
+
+     return () => {
+       document.removeEventListener("visibilitychange", handleVisibilityChange);
+       if (
+         updateIntervalRef.current !== undefined &&
+         updateIntervalRef.current !== null
+       ) {
+         clearInterval(updateIntervalRef.current);
+       }
+     };
+   }, [enabled, sessionId, isDisqualified, updateSession]);
 
   return {
     tabChangeCount,

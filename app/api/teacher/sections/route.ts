@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/strict-boolean-expressions, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unnecessary-condition, @typescript-eslint/prefer-nullish-coalescing, @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars, @typescript-eslint/no-unsafe-return */
+/* eslint-disable @typescript-eslint/strict-boolean-expressions, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unnecessary-condition, @typescript-eslint/prefer-nullish-coalescing, @typescript-eslint/no-explicit-any */
 import { type NextRequest, NextResponse } from "next/server";
 import { verifyAuth } from "@/lib/auth";
 import { adminDb } from "@/lib/firebase-admin";
@@ -6,7 +6,6 @@ import { verifyCSRF } from "@/lib/csrf";
 import {
   getSecurityHeaders,
   getErrorSecurityHeaders,
-  getPublicSecurityHeaders,
 } from "@/lib/security-headers";
 import {
   SectionCreateSchema,
@@ -57,31 +56,57 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     const sectionsSnapshot = await sectionsQuery.get();
 
-    // Collect all section IDs and student IDs for batch queries
+    // Collect all section IDs
     const sectionIds = sectionsSnapshot.docs.map((doc) => doc.id);
 
-    // Get all section_students relationships in batch
-    const sectionStudentsPromises = sectionIds.map((sectionId) =>
-      adminDb
+    // Get all section_students relationships in batched `in` queries
+    // (Firestore 'in' limit is 10, so batch section IDs)
+    const sectionStudentsSnapshots = [];
+    const sectionBatchSize = 10;
+    for (let i = 0; i < sectionIds.length; i += sectionBatchSize) {
+      const batch = sectionIds.slice(i, i + sectionBatchSize);
+      // eslint-disable-next-line no-await-in-loop
+      const snapshot = await adminDb
         .collection("section_students")
-        .where("sectionId", "==", sectionId)
-        .get()
-    );
-    const sectionStudentsSnapshots = await Promise.all(sectionStudentsPromises);
+        .where("sectionId", "in", batch)
+        .get();
+      sectionStudentsSnapshots.push(snapshot);
+    }
 
-    // Collect all unique student IDs
+    // Collect unique student IDs and build denormalized map
     const studentIdsSet = new Set<string>();
+    const denormalizedStudentMap = new Map<
+      string,
+      { email: string; displayName: string }
+    >();
     sectionStudentsSnapshots.forEach((snapshot) => {
-      snapshot.docs.forEach((doc) => {
-        const studentId = doc.data().studentId;
+      snapshot.docs.forEach((doc: any) => {
+        const data = doc.data();
+        const studentId = data.studentId as string;
         if (studentId) studentIdsSet.add(studentId);
+
+        const studentEmail = data.studentEmail as string | undefined;
+        const studentName = data.studentName as string | undefined;
+        if (
+          studentEmail !== undefined &&
+          studentEmail !== null &&
+          studentEmail !== "" &&
+          studentName !== undefined &&
+          studentName !== null &&
+          studentName !== ""
+        ) {
+          denormalizedStudentMap.set(studentId, {
+            email: studentEmail,
+            displayName: studentName,
+          });
+        }
       });
     });
 
     const studentIds = Array.from(studentIdsSet);
 
-    // Batch fetch all users at once (Firestore allows up to 10 in 'in' queries, so batch if needed)
-    const userMap = new Map<string, any>();
+    // Batch fetch users for legacy data (Firestore 'in' limit is 10)
+    const userMap = new Map<string, { email: string; displayName: string }>();
     if (studentIds.length > 0) {
       const batchSize = 10;
       const userBatches = [];
@@ -103,30 +128,55 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         if (doc.exists !== undefined && doc.exists !== null) {
           const userData = doc.data();
           userMap.set(doc.id, {
-            id: doc.id,
-            email: userData?.email ?? "",
-            displayName: userData?.displayName ?? "",
-            role: userData?.role || "student",
+            email:
+              typeof userData?.email === "string" ? userData.email : "Unknown",
+            displayName:
+              typeof userData?.displayName === "string"
+                ? userData.displayName
+                : typeof userData?.firstName === "string"
+                  ? userData.firstName
+                  : "Unknown",
           });
         }
       });
     }
 
-    // Build section-student mapping
+    // Build section-student mapping with denormalized data + fallback
     const sectionStudentsMap = new Map<string, string[]>();
-    sectionStudentsSnapshots.forEach((snapshot, index) => {
-      const sectionId = sectionIds[index];
-      const studentIds = snapshot.docs.map((doc) => doc.data().studentId);
-      sectionStudentsMap.set(sectionId, studentIds);
+    sectionStudentsSnapshots.forEach((snapshot) => {
+      snapshot.docs.forEach((doc: any) => {
+        const data = doc.data();
+        const sectionId = data.sectionId as string;
+        const studentId = data.studentId as string;
+        if (!sectionStudentsMap.has(sectionId)) {
+          sectionStudentsMap.set(sectionId, []);
+        }
+        sectionStudentsMap.get(sectionId)?.push(studentId);
+      });
     });
 
-    // Build sections with students
+    // Build sections with students (use denormalized data, fallback to user lookup)
     const sections = sectionsSnapshot.docs.map((doc) => {
       const sectionData = doc.data();
       const sectionStudentIds =
         sectionStudentsMap.get(doc.id) ?? ([] as never[]);
       const students = sectionStudentIds
-        .map((studentId) => userMap.get(studentId))
+        .map((studentId) => {
+          const denormalized = denormalizedStudentMap.get(studentId);
+          if (
+            denormalized !== undefined &&
+            denormalized.email !== "" &&
+            denormalized.displayName !== ""
+          ) {
+            return denormalized;
+          }
+          return (
+            userMap.get(studentId) ?? {
+              email: "",
+              displayName: "",
+            }
+          );
+        })
         .filter(Boolean);
 
       const createdAt = sectionData.createdAt?.toDate
@@ -254,6 +304,28 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       }
     }
 
+    // Build a map of studentId → {email, displayName} from the fetched docs
+    const studentDocsMap = new Map<string, { email: string; displayName: string }>();
+    for (let i = 0; i < studentBatches.length; i++) {
+      const batch = studentBatches[i];
+      const studentDocs = allStudentDocs[i];
+      for (let j = 0; j < studentDocs.length; j++) {
+        const studentDoc = studentDocs[j];
+        if (studentDoc.exists) {
+          const data = studentDoc.data();
+          studentDocsMap.set(batch[j], {
+            email: typeof data?.email === "string" ? data.email : "",
+            displayName:
+              typeof data?.displayName === "string"
+                ? data.displayName
+                : typeof data?.firstName === "string"
+                  ? data.firstName
+                  : "",
+          });
+        }
+      }
+    }
+
     // Use transaction for atomic section creation
     const sectionData = {
       name: sanitizeString(validatedData.name),
@@ -271,12 +343,22 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const batch = adminDb.batch();
     batch.set(sectionRef, sectionData);
 
-    // Add students to section
+    // Add students to section (with denormalized data to avoid N+1 reads on GET)
     uniqueStudentIds.forEach((studentId: string) => {
       const sectionStudentRef = adminDb.collection("section_students").doc();
+      const studentInfo = studentDocsMap.get(studentId);
       batch.set(sectionStudentRef, {
         sectionId: sectionRef.id,
         studentId,
+        studentEmail:
+          studentInfo !== undefined && typeof studentInfo.email === "string"
+            ? studentInfo.email
+            : "",
+        studentName:
+          studentInfo !== undefined &&
+          typeof studentInfo.displayName === "string"
+            ? studentInfo.displayName
+            : "",
         addedAt: new Date(),
       });
     });

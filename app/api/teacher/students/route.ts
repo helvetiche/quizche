@@ -2,6 +2,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { verifyAuth } from "@/lib/auth";
 import { adminDb } from "@/lib/firebase-admin";
+import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 import { verifyCSRF } from "@/lib/csrf";
 import {
   getSecurityHeaders,
@@ -29,6 +30,26 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       );
     }
 
+    // Rate limiting
+    const rateLimitResult = await rateLimit({
+      identifier: user.uid,
+      key: "teacher:students",
+      limit: RATE_LIMITS.history.limit,
+      window: RATE_LIMITS.history.window,
+    });
+
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: "Rate limit exceeded. Please try again later." },
+        {
+          status: 429,
+          headers: getErrorSecurityHeaders({
+            rateLimitHeaders: rateLimitResult.headers,
+          }),
+        }
+      );
+    }
+
     // Get students assigned to this teacher
     const teacherStudentsSnapshot = await adminDb
       .collection("teacher_students")
@@ -36,35 +57,93 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       .orderBy("createdAt", "desc")
       .get();
 
-    const studentPromises = teacherStudentsSnapshot.docs.map(async (doc) => {
+    // Collect student IDs that need user doc lookup (legacy data without denormalized fields)
+    const userIdsToFetch = new Set<string>();
+    const students = teacherStudentsSnapshot.docs.map((doc) => {
       const data = doc.data();
-      const studentDoc = await adminDb
-        .collection("users")
-        .doc(data.studentId)
-        .get();
+      const studentEmail = data.studentEmail as string | undefined;
+      const studentName = data.studentName as string | undefined;
 
-      if (!studentDoc.exists) return null;
+      if (
+        studentEmail !== undefined &&
+        studentEmail !== null &&
+        studentEmail !== "" &&
+        studentName !== undefined &&
+        studentName !== null &&
+        studentName !== ""
+      ) {
+        const createdAt = data.createdAt?.toDate
+          ? data.createdAt.toDate().toISOString()
+          : data.createdAt instanceof Date
+            ? data.createdAt.toISOString()
+            : data.createdAt || new Date().toISOString();
 
-      const studentData = studentDoc.data();
-      const createdAt = data.createdAt?.toDate
-        ? data.createdAt.toDate().toISOString()
-        : data.createdAt instanceof Date
-          ? data.createdAt.toISOString()
-          : data.createdAt || new Date().toISOString();
+        return {
+          id: doc.id,
+          studentId: data.studentId,
+          email: studentEmail,
+          displayName: studentName,
+          role: "student",
+          createdAt,
+        };
+      }
 
+      userIdsToFetch.add(data.studentId);
+      return null;
+    }).filter(Boolean) as { id: string; studentId: string; email: string; displayName: string; role: string; createdAt: string }[];
+
+    // Batch fetch users for legacy data (Firestore 'in' limit is 10)
+    const userMap = new Map<string, { email: string; displayName: string }>();
+    if (userIdsToFetch.size > 0) {
+      const userIdsArray = Array.from(userIdsToFetch);
+      const batchSize = 10;
+      for (let i = 0; i < userIdsArray.length; i += batchSize) {
+        const batch = userIdsArray.slice(i, i + batchSize);
+        const userPromises = batch.map((studentId) =>
+          adminDb.collection("users").doc(studentId).get()
+        );
+        // eslint-disable-next-line no-await-in-loop
+        const userDocs = await Promise.all(userPromises);
+        userDocs.forEach((userDoc) => {
+          if (userDoc.exists) {
+            const userData = userDoc.data();
+            userMap.set(
+              userDoc.id,
+              {
+                email: typeof userData?.email === "string" ? userData.email : "Unknown",
+                displayName:
+                  typeof userData?.displayName === "string"
+                    ? userData.displayName
+                    : typeof userData?.firstName === "string"
+                      ? userData.firstName
+                      : "Unknown",
+              }
+            );
+          }
+        });
+      }
+    }
+
+    // Fill in legacy data from userMap
+    const enrichedStudents = students.map((student) => {
+      if (
+        student.email !== undefined &&
+        student.email !== "" &&
+        student.displayName !== undefined &&
+        student.displayName !== ""
+      ) {
+        return student;
+      }
+      const userInfo = userMap.get(student.studentId);
       return {
-        id: studentDoc.id,
-        email: studentData?.email ?? "",
-        displayName: studentData?.displayName ?? "",
-        role: studentData?.role || "student",
-        createdAt,
+        ...student,
+        email: userInfo?.email ?? "",
+        displayName: userInfo?.displayName ?? "",
       };
     });
 
-    const students = (await Promise.all(studentPromises)).filter(Boolean);
-
     return NextResponse.json(
-      { students },
+      { students: enrichedStudents },
       {
         status: 200,
         headers: getPublicSecurityHeaders({
@@ -160,10 +239,17 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    // Add student to teacher
+    // Add student to teacher (with denormalized data to avoid N+1 reads on GET)
     await adminDb.collection("teacher_students").add({
       teacherId: user.uid,
       studentId: studentId,
+      studentEmail: typeof studentData?.email === "string" ? studentData.email : "",
+      studentName:
+        typeof studentData?.displayName === "string"
+          ? studentData.displayName
+          : typeof studentData?.firstName === "string"
+            ? studentData.firstName
+            : "",
       createdAt: new Date(),
     });
 
